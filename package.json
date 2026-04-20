@@ -1,0 +1,13 @@
+{
+  "name": "finops-platform",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter api dev & pnpm --filter web dev",
+    "build": "pnpm --filter '*' build",
+    "lint": "pnpm --filter '*' lint"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  }
+}
