@@ -1,0 +1,441 @@
+generator client {
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  extensions = [citext]
+}
+
+// ============================
+// AUTH (better-auth managed)
+// ============================
+
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique @db.Citext
+  emailVerified Boolean   @default(false)
+  image         String?
+  role          String?   // better-auth admin plugin — "admin" | "user" | custom
+  banned        Boolean   @default(false)
+  banReason     String?
+  banExpires    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions     Session[]
+  accounts     Account[]
+  activityLogs ActivityLog[]
+}
+
+model Session {
+  id             String   @id
+  expiresAt      DateTime
+  token          String   @unique
+  ipAddress      String?
+  userAgent      String?
+  userId         String
+  impersonatedBy String?  // admin plugin
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// ============================
+// BORROWERS & LOANS
+// ============================
+
+model Borrower {
+  id          String      @id @default(uuid())
+  name        String
+  email       String      @unique @db.Citext
+  phone       String
+  address     String
+  dateOfBirth DateTime
+  gender      Gender
+  idType      IdType
+  idNumber    String      @unique
+  occupation  String?
+  incomeSource IncomeSource
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  loans Loan[]
+
+  @@index([name])
+  @@index([phone])
+  @@index([idNumber])
+}
+
+model Loan {
+  id                 String             @id @default(uuid())
+  borrowerId         String
+  type               LoanType
+  amount             Decimal            @db.Decimal(12, 2)
+  interestRate       Decimal            @db.Decimal(7, 4) // e.g., 0.0300 = 3% monthly
+  termMonths         Int
+  status             LoanStatus         @default(PENDING)
+  startDate          DateTime
+  endDate            DateTime
+  paymentFrequency   PaymentFrequency   @default(MONTHLY)
+  repaymentStructure RepaymentStructure @default(AMORTIZING)
+  totalPaid          Decimal            @default(0) @db.Decimal(12, 2)
+  remainingBalance   Decimal            @default(0) @db.Decimal(12, 2)
+  purpose            String?
+  notes              String?
+  approvedAt         DateTime?
+  disbursedAt        DateTime?
+  canceledAt         DateTime?
+  cancellationReason String?
+  defaultedAt        DateTime?
+  paidAt             DateTime?
+  deletedAt          DateTime?
+  locked             Boolean            @default(false)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  borrower         Borrower          @relation(fields: [borrowerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  loanPayments     LoanPayment[]
+  loanInstallments LoanInstallment[]
+  provisionEvents  LoanProvisionEvent[]
+
+  @@index([borrowerId])
+  @@index([status])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([status, disbursedAt])
+}
+
+model LoanPayment {
+  id               String        @id @default(uuid())
+  loanId           String
+  amount           Decimal       @db.Decimal(12, 2)
+  principalPortion Decimal       @default(0) @db.Decimal(12, 2)
+  interestPortion  Decimal       @default(0) @db.Decimal(12, 2)
+  investmentReturn Decimal       @default(0) @db.Decimal(12, 2)
+  insurance        Decimal       @default(0) @db.Decimal(12, 2)
+  penalties        Decimal       @default(0) @db.Decimal(12, 2)
+  paidAt           DateTime      @default(now())
+  method           PaymentMethod
+  reference        String?
+  notes            String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  loan Loan @relation(fields: [loanId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([loanId, paidAt(sort: Desc)])
+}
+
+model LoanInstallment {
+  id        String            @id @default(uuid())
+  loanId    String
+  sequence  Int
+  dueDate   DateTime
+  principal Decimal           @db.Decimal(12, 2)
+  interest  Decimal           @db.Decimal(12, 2)
+  status    InstallmentStatus @default(SCHEDULED)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  loan Loan @relation(fields: [loanId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([loanId, sequence])
+  @@index([loanId, dueDate])
+}
+
+model LoanProvisionEvent {
+  id        String             @id @default(uuid())
+  loanId    String
+  type      ProvisionEventType
+  bucket    Int
+  amount    Decimal            @db.Decimal(12, 2)
+  createdAt DateTime           @default(now())
+
+  loan Loan @relation(fields: [loanId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([loanId, createdAt])
+}
+
+// ============================
+// DEPOSITORS & INVESTMENTS
+// ============================
+
+model Depositor {
+  id        String    @id @default(uuid())
+  name      String
+  email     String    @unique @db.Citext
+  phone     String
+  address   String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  deposits Deposit[]
+
+  @@index([name])
+  @@index([phone])
+}
+
+model Deposit {
+  id                       String                  @id @default(uuid())
+  depositorId              String
+  amount                   Decimal                 @db.Decimal(12, 2)
+  expectedReturnRate       Decimal                 @db.Decimal(7, 4)
+  expectedReturnRatePeriod DepositReturnRatePeriod @default(MONTH)
+  termMonths               Int
+  startDate                DateTime
+  endDate                  DateTime?
+  status                   DepositStatus           @default(ACTIVE)
+  hasBeenWithdrawn         Boolean                 @default(false)
+  depositType              DepositType             @default(REGULAR)
+  payoutType               DepositPayoutType
+  createdAt                DateTime                @default(now())
+  updatedAt                DateTime                @updatedAt
+
+  depositor Depositor      @relation(fields: [depositorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  payouts   DepositPayout[]
+
+  @@index([depositorId])
+  @@index([status])
+  @@index([expectedReturnRatePeriod])
+  @@index([termMonths])
+  @@index([expectedReturnRate])
+  @@index([termMonths, expectedReturnRatePeriod])
+  @@index([depositType])
+  @@index([payoutType])
+}
+
+model DepositPayout {
+  id        String        @id @default(uuid())
+  depositId String
+  amount    Decimal       @db.Decimal(12, 2)
+  paidAt    DateTime      @default(now())
+  method    PaymentMethod
+  notes     String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  deposit Deposit @relation(fields: [depositId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([depositId, paidAt(sort: Desc)])
+}
+
+// ============================
+// BUSINESS FUNDS
+// ============================
+
+model BusinessFund {
+  id        String             @id @default(uuid())
+  dateAdded DateTime
+  amount    Decimal            @db.Decimal(12, 2)
+  remarks   String?
+  status    BusinessFundStatus @default(ACTIVE)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  @@index([dateAdded])
+  @@index([status])
+}
+
+// ============================
+// CAPITAL LEDGER
+// ============================
+
+model CapitalEntry {
+  id         String          @id @default(uuid())
+  flowType   CapitalFlowType
+  source     CapitalSource
+  sourceId   String?         // ID of the linked record — no FK by design (immutable ledger)
+  amount     Decimal         @db.Decimal(12, 2)
+  recordedAt DateTime        @default(now())
+
+  @@index([source, sourceId])
+  @@index([flowType])
+  @@index([recordedAt(sort: Desc)])
+}
+
+// ============================
+// ACTIVITY & AUDIT LOGS
+// ============================
+
+model ActivityLog {
+  id        String            @id @default(uuid())
+  userId    String?
+  actorType ActivityActorType @default(USER)
+  category  ActivityCategory
+  action    String
+  targetId  String?
+  metadata  Json?
+  createdAt DateTime          @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([actorType, createdAt(sort: Desc)])
+  @@index([category, createdAt(sort: Desc)])
+  @@index([action])
+}
+
+// ============================
+// ENUMS
+// ============================
+
+// Borrower / Loan domain
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum IdType {
+  NATIONAL_ID
+  PASSPORT
+  DRIVER_LICENSE
+}
+
+enum IncomeSource {
+  EMPLOYMENT
+  BUSINESS
+  PENSION
+  OTHER
+}
+
+enum LoanType {
+  SALARY
+  BUSINESS
+  PERSONAL
+  PURCHASE_ORDER
+  PENSION
+  INVESTMENT
+}
+
+enum LoanStatus {
+  PENDING
+  APPROVED
+  ACTIVE
+  PAID
+  CANCELED
+  DEFAULTED
+}
+
+enum InstallmentStatus {
+  SCHEDULED
+  PAID
+  OVERDUE
+}
+
+enum PaymentFrequency {
+  MONTHLY
+  BIWEEKLY
+  WEEKLY
+  DAILY
+}
+
+enum RepaymentStructure {
+  AMORTIZING
+  INTEREST_ONLY
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  GCASH
+  CHECK
+}
+
+// Deposit domain
+enum DepositType {
+  SPECIAL
+  REGULAR
+}
+
+enum DepositStatus {
+  ACTIVE
+  WITHDRAWN
+  CLOSED
+}
+
+enum DepositPayoutType {
+  MATURITY_ONLY
+  SEMI_ANNUAL
+  QUARTERLY
+  MONTHLY_INTEREST
+}
+
+enum DepositReturnRatePeriod {
+  MONTH
+  QUARTERLY
+  SEMI_ANNUAL
+  ANNUAL
+}
+
+// Business fund
+enum BusinessFundStatus {
+  ACTIVE
+  WITHDRAWN
+}
+
+// Capital ledger
+enum CapitalFlowType {
+  INFLOW
+  OUTFLOW
+}
+
+enum CapitalSource {
+  BUSINESS_CAPITAL
+  DEPOSIT
+  DEPOSIT_PAYOUT
+  DEPOSIT_WITHDRAWAL
+  LOAN_DISBURSEMENT
+  LOAN_PAYMENT
+}
+
+enum ProvisionEventType {
+  PROVISION
+  RECOVERY
+}
+
+// Logging
+enum ActivityActorType {
+  USER
+  SYSTEM
+}
+
+enum ActivityCategory {
+  AUDIT
+  ACTIVITY
+}
