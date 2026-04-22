@@ -1,50 +1,36 @@
 ---
 name: Schema design session notes
-description: Where we left off planning the Prisma schema — decisions made and pending
+description: Prisma schema status and key design decisions
 type: project
 ---
 
-## Status: Planning — no schema written yet
+## Status: Schema written and locked
 
-`apps/api/prisma/schema.prisma` is still the empty Prisma-generated stub. No migrations run.
+`apps/api/prisma/schema.prisma` complete. No migrations run yet.
 
-## Decisions Made
+## Key Decisions
 
-**1. Auth — use better-auth, not custom JWT**
-- LMS had: custom `User`, `Invitation`, `PasswordReset`, manual JWT utils
-- Finops will: let better-auth own `User`, `Session`, `Account`, `Verification` tables
-- Extend `User` with app-specific fields only
-- Why: better-auth handles session, password reset, invitations — no reinventing
+**Auth** — better-auth owns `User`, `Session`, `Account`, `Verification`. App extends `User` only.
 
-**2. Merge AuditLog + UserActivityLog into one table**
-- LMS had two identical-shape tables
-- Finops will: one table with `category` enum (`AUDIT` | `ACTIVITY`)
-- Why: same shape, same purpose, two tables is redundant
+**ActivityLog** — single table, `category` enum (`AUDIT` | `ACTIVITY`). Merged from LMS's two tables.
 
-**3. Fix CapitalPool nullable FK design**
-- LMS had: 5 optional FKs (`loanId?`, `paymentId?`, `depositId?`, etc.) on one row — fragile
-- Finops will: polymorphic association — `sourceType` enum + `sourceId` string
-- Why: cleaner, extensible, no nullable FK sprawl
+**CapitalEntry** — polymorphic: `source` enum + `sourceId` string. No nullable FK sprawl. Immutable ledger — no soft deletes.
 
-**4. Drop phoneNormalized as separate column**
-- LMS had: `phone` (raw) + `phoneNormalized` on Borrower + Depositor
-- Finops will: store only normalized phone, format in app layer
-- Why: redundant storage, normalization is app concern
+**Phone** — normalized only, no raw column. Format in app layer.
 
-**5. Soft deletes — decide per model, not blanket**
-- LMS: inconsistent — only `Loan` had `deletedAt`
-- Finops: evaluate per entity after client interview
+**Soft deletes** — `Loan` has `deletedAt`. Financial records (`LoanPayment`, `CapitalEntry`, `DepositPayout`) immutable.
 
-## Pending — Need Client Interview First
+## Domain Models
 
-- Role enum values (LMS had `STAFF_LOANS`, `STAFF_INVESTMENT`, `MANAGER`, `HEAD`, `ADMIN`)
-- `LoanType`, `IncomeSource` enum values — business-specific
-- Whether loans/deposits/borrowers domain even applies to new client
-- Soft delete policy per entity
+- `Borrower` → `Loan` → `LoanPayment`, `LoanInstallment`, `LoanProvisionEvent`
+- `Depositor` → `Deposit` → `DepositPayout`
+- `BusinessFund`
+- `CapitalEntry` (ledger)
+- `ActivityLog`
 
-## What to Do When Resuming
+## Next Steps
 
-1. Interview client → confirm domain models
-2. Write schema starting with: auth (better-auth integration) → audit log → capital ledger
-3. Domain models (Borrower, Loan, Deposit, etc.) last — most likely to change
-4. Reference LMS schema at `/Users/johnwary/Documents/GitHub/alpha-lms-expressjs/prisma/schema.prisma`
+1. Run first migration (`pnpm --filter api prisma:migrate`)
+2. Seed DB (`pnpm --filter api prisma:seed`)
+3. Build auth flow (better-auth setup + middleware)
+4. Start feature routes: loans first
