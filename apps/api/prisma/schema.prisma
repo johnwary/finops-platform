@@ -29,6 +29,29 @@ model User {
   sessions     Session[]
   accounts     Account[]
   activityLogs ActivityLog[]
+  invitationsSent Invitation[]
+}
+
+model Invitation {
+  id          String           @id @default(uuid())
+  email       String           @db.Citext
+  role        String           @default("user")
+  invitedById String
+  token       String           @unique @default(uuid())
+  status      InvitationStatus @default(PENDING)
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  revokedAt   DateTime?
+  deletedAt   DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  invitedBy User @relation(fields: [invitedById], references: [id], onDelete: Restrict)
+
+  @@index([email])
+  @@index([token])
+  @@index([status])
+  @@index([invitedById])
 }
 
 model Session {
@@ -464,4 +487,11 @@ enum ActivityActorType {
 enum ActivityCategory {
   AUDIT
   ACTIVITY
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
 }
