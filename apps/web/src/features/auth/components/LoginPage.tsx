@@ -1,45 +1,38 @@
-import { Navigate } from 'react-router-dom'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
-import { LoginForm } from './LoginForm'
-import { useSession } from '../hooks/useSession'
+import { Navigate } from 'react-router-dom';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { LoginForm } from '@/components/login-form';
+import { useSession } from '../hooks/useSession';
 
 export function LoginPage() {
-  const { data, isPending } = useSession()
+  const { data, isPending } = useSession();
 
   if (isPending) {
     return (
-      <main className="flex min-h-svh items-center justify-center bg-background p-6">
-        <Card className="w-full max-w-sm">
-          <CardHeader>
-            <Skeleton className="h-5 w-28" />
-            <Skeleton className="h-8 w-36" />
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-32 w-full" />
-          </CardContent>
-        </Card>
+      <main className="flex min-h-svh flex-col items-center justify-center bg-muted p-6 md:p-10">
+        <div className="w-full max-w-sm md:max-w-4xl">
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-8 w-44" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-80 w-full" />
+            </CardContent>
+          </Card>
+        </div>
       </main>
-    )
+    );
   }
 
   if (data) {
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to="/dashboard" replace />;
   }
 
   return (
-    <main className="flex min-h-svh items-center justify-center bg-background p-6">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <Badge variant="secondary">FinOps Platform</Badge>
-          <CardTitle>Sign in</CardTitle>
-          <CardDescription>Use your invited account to continue.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <LoginForm />
-        </CardContent>
-      </Card>
+    <main className="flex min-h-svh flex-col items-center justify-center bg-muted p-6 md:p-10">
+      <div className="w-full max-w-sm md:max-w-3xl">
+        <LoginForm />
+      </div>
     </main>
-  )
+  );
 }
