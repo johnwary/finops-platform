@@ -17,6 +17,9 @@
   "author": "",
   "license": "ISC",
   "type": "commonjs",
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "packageManager": "pnpm@10.30.3",
   "dependencies": {
     "@prisma/adapter-pg": "7.7.0",
