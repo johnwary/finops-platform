@@ -1,7 +1,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/inter";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -25,7 +26,8 @@
   --input: oklch(0.8731 0.021 173.87);
   --ring: oklch(0.5763 0.0495 168.74);
   --radius: 0.5rem;
-  font-family: 'Inter Variable', system-ui, sans-serif;
+  font-size: 18px;
+  font-family: 'Geist Variable', system-ui, sans-serif;
   color: var(--foreground);
   background: var(--background);
   font-synthesis: none;
@@ -56,7 +58,8 @@
 }
 
 @theme inline {
-  --font-sans: 'Inter Variable', sans-serif;
+  --font-sans: 'Geist Variable', sans-serif;
+  --font-mono: 'Geist Mono Variable', monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
