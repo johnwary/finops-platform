@@ -21,7 +21,7 @@ export class ApiError extends Error {
 
 const apiBaseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
-export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+async function apiFetchRaw(path: string, init: RequestInit = {}) {
   const response = await fetch(`${apiBaseUrl}${path}`, {
     ...init,
     credentials: 'include',
@@ -43,5 +43,24 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
     )
   }
 
+  return payload
+}
+
+export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const payload = await apiFetchRaw(path, init)
   return payload.data as T
+}
+
+export interface ListMeta {
+  nextCursor: string | null
+  hasMore: boolean
+  limit: number
+}
+
+export async function apiFetchList<T>(
+  path: string,
+  init: RequestInit = {},
+): Promise<{ data: T[]; meta: ListMeta }> {
+  const payload = await apiFetchRaw(path, init)
+  return payload as { data: T[]; meta: ListMeta }
 }

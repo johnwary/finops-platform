@@ -1,11 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { apiFetch } from '@/lib/api'
-import type { Role } from '@/lib/auth-client'
-
-interface CreateInvitationInput {
-  email: string
-  role: Role
-}
+import type { CreateInvitationInput } from '../schemas'
 
 export function useCreateInvitation() {
   const queryClient = useQueryClient()
@@ -17,6 +13,7 @@ export function useCreateInvitation() {
         body: JSON.stringify(input),
       }),
     onSuccess: () => {
+      toast.success('Invitation sent.')
       queryClient.invalidateQueries({ queryKey: ['invitations'] })
     },
   })

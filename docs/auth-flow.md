@@ -7,11 +7,10 @@
 1. Admin hits `POST /api/v1/invitations` → creates `Invitation` row + writes `Verification` staging marker → Resend sends invite email
 2. User clicks link → `/invite/accept?token=<token>`
 3. Frontend calls `POST /api/v1/invitations/validate` with token → verifies `Invitation` is PENDING + not expired → upserts `Verification` marker (10 min TTL) → returns `{ email, role, expiresAt }`
-4. User fills name + password → submits
-5. Frontend calls `POST /api/v1/invitations/validate` again (inside `useAcceptInvite`) to re-stage, then calls `authClient.signUp.email`
+5. User fills name + password → submits → `useAcceptInvite` calls `POST /api/v1/invitations/validate` again (re-stages marker, refreshes 10 min TTL), then calls `authClient.signUp.email`
 6. better-auth `user.create.before` hook fires → finds `Verification` marker → extracts role → deletes marker → injects role onto user
 7. better-auth creates `User` row with correct role
-8. better-auth `user.create.after` hook fires → marks `Invitation` as ACCEPTED → sends welcome email
+8. better-auth `user.create.after` hook fires → marks `Invitation` as ACCEPTED (`sendWelcomeEmail` exists in email.ts but not yet wired)
 9. `autoSignIn: true` → session created → redirected to `/dashboard`
 
 ## Login Flow (returning user)

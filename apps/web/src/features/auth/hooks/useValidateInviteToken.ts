@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
+import type { Role } from '@/lib/auth-client'
 
 export interface ValidatedInvite {
   email: string
-  role: 'admin' | 'manager' | 'user'
+  role: Role
   expiresAt: string
 }
 
