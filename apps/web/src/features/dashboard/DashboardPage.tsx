@@ -1,30 +1,44 @@
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Spinner } from '@/components/ui/spinner'
-import { useLogout } from '../auth/hooks/useLogout'
 
 export function DashboardPage() {
-  const logout = useLogout()
-
   return (
-    <main className="flex min-h-svh items-start justify-center bg-background p-6 pt-24">
-      <Card className="w-full max-w-2xl">
+    <>
+      <div className="grid auto-rows-min gap-4 md:grid-cols-3">
+        <Card className="aspect-video">
+          <CardHeader>
+            <CardDescription>Total portfolio</CardDescription>
+            <CardTitle>$2.4M</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="aspect-video">
+          <CardHeader>
+            <CardDescription>Active borrowers</CardDescription>
+            <CardTitle>184</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="aspect-video">
+          <CardHeader>
+            <CardDescription>Monthly collections</CardDescription>
+            <CardTitle>$148K</CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+      <Card className="min-h-[100vh] flex-1 md:min-h-min">
         <CardHeader>
-          <Badge variant="secondary">FinOps Platform</Badge>
           <CardTitle>Dashboard</CardTitle>
-          <CardDescription>Authentication is active. Invite-only access and role checks are enforced.</CardDescription>
+          <CardDescription>
+            Authentication is active. Invite-only access and role checks are enforced.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <Badge variant="outline">RBAC enabled</Badge>
+          <div className="rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground">
+            Portfolio activity will appear here.
+          </div>
         </CardContent>
-        <CardFooter>
-          <Button type="button" variant="outline" onClick={() => logout.mutate()} disabled={logout.isPending}>
-            {logout.isPending ? <Spinner data-icon="inline-start" /> : null}
-            {logout.isPending ? 'Signing out...' : 'Sign out'}
-          </Button>
+        <CardFooter className="text-xs text-muted-foreground">
+          RBAC enabled
         </CardFooter>
       </Card>
-    </main>
+    </>
   )
 }

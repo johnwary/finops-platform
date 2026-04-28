@@ -3,17 +3,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 
 export function SettingsPage() {
   return (
-    <main className="flex min-h-svh items-start justify-center bg-background p-6 pt-24">
-      <Card className="w-full max-w-2xl">
-        <CardHeader>
-          <Badge variant="secondary">Admin</Badge>
-          <CardTitle>Settings</CardTitle>
-          <CardDescription>Admin-only settings route.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Badge variant="outline">Protected by role</Badge>
-        </CardContent>
-      </Card>
-    </main>
+    <Card className="min-h-[100vh] flex-1 md:min-h-min">
+      <CardHeader>
+        <Badge variant="secondary">Admin</Badge>
+        <CardTitle>Settings</CardTitle>
+        <CardDescription>Admin-only settings route.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Badge variant="outline">Protected by role</Badge>
+      </CardContent>
+    </Card>
   )
 }

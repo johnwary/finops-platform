@@ -1,10 +1,12 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom'
-import { LoginPage } from './features/auth/components/LoginPage'
-import { InviteAcceptPage } from './features/auth/components/InviteAcceptPage'
-import { ProtectedRoute } from './features/auth/components/ProtectedRoute'
-import { RequireRole } from './features/auth/components/RequireRole'
-import { DashboardPage } from './features/dashboard/DashboardPage'
-import { SettingsPage } from './features/settings/SettingsPage'
+import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom'
+
+import { AppShell } from '@/components/layout/AppShell'
+import { LoginPage } from '@/features/auth/components/LoginPage'
+import { InviteAcceptPage } from '@/features/auth/components/InviteAcceptPage'
+import { ProtectedRoute } from '@/features/auth/components/ProtectedRoute'
+import { RequireRole } from '@/features/auth/components/RequireRole'
+import { DashboardPage } from '@/features/dashboard/DashboardPage'
+import { SettingsPage } from '@/features/settings/SettingsPage'
 
 export const router = createBrowserRouter([
   {
@@ -24,15 +26,25 @@ export const router = createBrowserRouter([
     children: [
       {
         path: '/dashboard',
-        element: <DashboardPage />,
-      },
-      {
-        path: '/dashboard/settings',
         element: (
-          <RequireRole role="admin">
-            <SettingsPage />
-          </RequireRole>
+          <AppShell>
+            <Outlet />
+          </AppShell>
         ),
+        children: [
+          {
+            index: true,
+            element: <DashboardPage />,
+          },
+          {
+            path: 'settings',
+            element: (
+              <RequireRole role="admin">
+                <SettingsPage />
+              </RequireRole>
+            ),
+          },
+        ],
       },
     ],
   },
