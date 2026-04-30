@@ -147,34 +147,33 @@ All Zod validation errors return all field errors at once (not first-error-only)
 ## Auth (better-auth)
 
 ### Providers
-- Email/password — email verification required before login
-- Google OAuth
+- Email/password only. No email verification required. `autoSignIn: true`.
+- No Google OAuth.
+- Invite-only: signup blocked at `user.create.before` hook unless a valid `Verification` staging marker exists.
+- better-auth `admin` plugin manages roles + banning.
 
 ### Session
 - Duration: 2 days
 - Cookie-based (`httpOnly`, `sameSite`)
 - better-auth handles session creation, rotation, CSRF
 
-### Config (`src/lib/auth.ts`)
-```ts
-export const auth = betterAuth({
-  database: prismaAdapter(prisma),
-  emailAndPassword: { enabled: true, requireEmailVerification: true },
-  emailVerification: { sendOnSignUp: true, sendVerificationEmail: async ({ user, url }) => {
-    await resend.emails.send({ to: user.email, subject: 'Verify your email', ... })
-  }},
-  socialProviders: { google: { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET } },
-  session: { expiresIn: 60 * 60 * 24 * 2 },
-})
+### Invite-only signup flow
+1. `POST /api/v1/invitations` — creates `Invitation` + `Verification` marker + sends email via Resend
+2. `POST /api/v1/invitations/validate` — checks token, upserts `Verification` marker (10 min TTL), returns `{ email, role, expiresAt }`
+3. `authClient.signUp.email(...)` — `before` hook reads marker, injects role, deletes marker; `after` hook marks invite `ACCEPTED`
+
+### Invitations API (implemented — admin only except `/validate`)
+```
+POST /api/v1/invitations            # create + send email
+GET  /api/v1/invitations            # list; ?status=PENDING|ACCEPTED|REVOKED|EXPIRED
+POST /api/v1/invitations/:id/revoke # revoke pending invite
+POST /api/v1/invitations/validate   # public — validate token + stage marker
 ```
 
 ### Middleware Usage
 ```ts
-// Require any authenticated user
 router.get('/me', requireAuth, handler)
-
-// Require specific role
-router.get('/admin', requireAuth, requireRole('admin'), handler)
+router.post('/', requireAuth, requireRole('admin'), handler)
 router.get('/reports', requireAuth, requireRole(['admin', 'manager']), handler)
 ```
 

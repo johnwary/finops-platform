@@ -45,7 +45,7 @@ Root `pnpm dev` runs both apps.
 
 **API:** Express 5, Prisma 7, PostgreSQL, better-auth, Zod, Pino, Vitest  
 **Web:** Vite, React 19, TypeScript, Tailwind 4, shadcn, React Query, Zustand, React Hook Form, Zod, Sonner  
-**Shared:** `@finops/types` (Prisma-derived types, shared to web via workspace import)
+**Shared:** `@finops/types` (Prisma-derived types, shared to web via workspace import) — planned, not yet built
 
 ## Roles
 
@@ -67,8 +67,8 @@ All routes prefixed `/api/v1/`.
 // Single resource
 { "data": { ... } }
 
-// List with pagination
-{ "data": [ ... ], "meta": { "total": 100, "page": 1, "limit": 20 } }
+// List with cursor pagination
+{ "data": [ ... ], "meta": { "nextCursor": "<id>", "hasMore": true, "limit": 20 } }
 ```
 Always wrap responses. No raw arrays or objects at top level.
 

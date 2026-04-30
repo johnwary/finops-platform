@@ -10,7 +10,7 @@
 5. User fills name + password → submits → `useAcceptInvite` calls `POST /api/v1/invitations/validate` again (re-stages marker, refreshes 10 min TTL), then calls `authClient.signUp.email`
 6. better-auth `user.create.before` hook fires → finds `Verification` marker → extracts role → deletes marker → injects role onto user
 7. better-auth creates `User` row with correct role
-8. better-auth `user.create.after` hook fires → marks `Invitation` as ACCEPTED (`sendWelcomeEmail` exists in email.ts but not yet wired)
+8. better-auth `user.create.after` hook fires → marks `Invitation` as ACCEPTED
 9. `autoSignIn: true` → session created → redirected to `/dashboard`
 
 ## Login Flow (returning user)

@@ -10,42 +10,42 @@ Vite, React 19, TypeScript, Tailwind 4, shadcn/ui, React Query, Zustand, React H
 apps/web/src/
 ├── features/
 │   ├── auth/
-│   │   ├── components/    # LoginForm, SignupForm
-│   │   ├── hooks/         # useSession, useLogin, useLogout
-│   │   ├── schemas.ts     # Zod schemas
+│   │   ├── components/    # LoginPage, LoginForm, InviteAcceptPage, ProtectedRoute, RequireRole
+│   │   ├── hooks/         # useSession, useLogin, useLogout, useAcceptInvite, useValidateInviteToken
+│   │   └── schemas.ts     # loginSchema, inviteAcceptSchema
+│   ├── invitations/
+│   │   ├── hooks/         # useInvitations, useCreateInvitation, useRevokeInvitation
+│   │   ├── schemas.ts
 │   │   └── types.ts
-│   ├── loans/
-│   ├── borrowers/
-│   ├── deposits/
-│   └── ...
+│   ├── settings/          # SettingsPage (admin only — invitation management)
+│   ├── dashboard/         # DashboardPage
+│   ├── borrowers/         # TODO
+│   ├── loans/             # TODO
+│   └── deposits/          # TODO
 ├── components/
 │   ├── ui/                # shadcn components only
-│   └── layout/            # AppShell, Sidebar, TopBar, ErrorBoundary
+│   └── layout/            # AppShell, AppSidebar, NavMain, NavUser, nav-config.ts
 ├── lib/
-│   ├── auth-client.ts     # better-auth client instance
-│   ├── api.ts             # Base fetch client — handles errors, wraps fetch
+│   ├── auth-client.ts     # better-auth client + exports Session, Role types
+│   ├── api.ts             # apiFetch<T>, apiFetchList<T>, ApiError class
 │   └── utils.ts           # cn() only
-├── hooks/                 # Global hooks only (useDebounce, useMediaQuery)
-├── store/                 # Zustand — global UI state only (sidebar, theme)
+├── hooks/                 # Global hooks only (use-mobile.ts)
 └── router.tsx             # All route definitions
 ```
 
 ## Routing
 
-Nested URLs. Unauthenticated → `/login`. Post-login → redirect to last visited page.
+Nested URLs. Unauthenticated → `/login`. Post-login → `/dashboard`.
 
 ```
 /login
-/signup
+/invite/accept             # public — invite token acceptance
 /dashboard
-/dashboard/loans
-/dashboard/loans/:id
-/dashboard/borrowers
-/dashboard/borrowers/:id
-/dashboard/deposits
-/dashboard/deposits/:id
-/dashboard/reports
-/dashboard/settings        # admin only
+/dashboard/settings        # admin only (RequireRole)
+/dashboard/borrowers       # TODO
+/dashboard/loans           # TODO
+/dashboard/deposits        # TODO
+/dashboard/reports         # TODO
 ```
 
 ## Route Guards
