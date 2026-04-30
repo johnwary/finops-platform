@@ -9,6 +9,8 @@ import { auth } from './lib/auth';
 import { AppError, error } from './lib/response';
 import { borrowersRouter } from './features/borrowers/borrowers.router';
 import { loansRouter } from './features/loans/loans.router';
+import { depositorsRouter } from './features/depositors/depositors.router';
+import { depositsRouter } from './features/deposits/deposits.router';
 import { invitationsRouter } from './features/invitations/invitations.router';
 import { startAutoDefaultScheduler } from './jobs/autoDefault.job';
 
@@ -27,6 +29,8 @@ app.get('/health', (_req, res) => {
 
 app.use('/api/v1/borrowers', borrowersRouter);
 app.use('/api/v1/loans', loansRouter);
+app.use('/api/v1/depositors', depositorsRouter);
+app.use('/api/v1/deposits', depositsRouter);
 app.use('/api/v1/invitations', invitationsRouter);
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

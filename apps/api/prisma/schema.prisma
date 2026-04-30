@@ -238,20 +238,27 @@ model LoanProvisionEvent {
 // ============================
 
 model Depositor {
-  id              String   @id @default(uuid())
+  id              String    @id @default(uuid())
   name            String
-  email           String   @unique @db.Citext
+  email           String    @db.Citext
   phone           String
   phoneNormalized String
   address         String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  dateOfBirth     DateTime?
+  idType          IdType?
+  idNumber        String?
+  notes           String?
+  deletedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   deposits Deposit[]
 
   @@index([name])
   @@index([phone])
   @@index([phoneNormalized])
+  @@index([idNumber])
+  @@index([deletedAt])
 }
 
 model Deposit {
@@ -271,6 +278,9 @@ model Deposit {
   totalPayoutPaid          Decimal                 @default(0) @db.Decimal(12, 2)
   closedAt                 DateTime?
   withdrawnAt              DateTime?
+  notes                    String?
+  reference                String?
+  deletedAt                DateTime?
   createdAt                DateTime                @default(now())
   updatedAt                DateTime                @updatedAt
 
@@ -285,6 +295,7 @@ model Deposit {
   @@index([termMonths, expectedReturnRatePeriod])
   @@index([depositType])
   @@index([payoutType])
+  @@index([deletedAt])
 }
 
 model DepositPayout {
