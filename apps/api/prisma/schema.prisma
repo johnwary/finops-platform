@@ -104,20 +104,25 @@ model Verification {
 // ============================
 
 model Borrower {
-  id              String       @id @default(uuid())
-  name            String
-  email           String       @unique @db.Citext
-  phone           String
-  phoneNormalized String
-  address         String
-  dateOfBirth     DateTime
-  gender          Gender
-  idType          IdType
-  idNumber        String       @unique
-  occupation      String?
-  incomeSource    IncomeSource
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  id                    String       @id @default(uuid())
+  name                  String
+  email                 String       @db.Citext
+  phone                 String
+  phoneNormalized       String
+  address               String
+  dateOfBirth           DateTime
+  gender                Gender
+  idType                IdType
+  idNumber              String
+  occupation            String?
+  incomeSource          IncomeSource
+  monthlyIncome         Decimal?     @db.Decimal(12, 2)
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  notes                 String?
+  deletedAt             DateTime?
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
 
   loans Loan[]
 
@@ -125,6 +130,7 @@ model Borrower {
   @@index([phone])
   @@index([phoneNormalized])
   @@index([idNumber])
+  @@index([deletedAt])
 }
 
 model Loan {

@@ -7,6 +7,7 @@ import { toNodeHandler } from 'better-auth/node';
 import { logger } from './lib/logger';
 import { auth } from './lib/auth';
 import { AppError, error } from './lib/response';
+import { borrowersRouter } from './features/borrowers/borrowers.router';
 import { invitationsRouter } from './features/invitations/invitations.router';
 
 const app = express();
@@ -22,6 +23,7 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
+app.use('/api/v1/borrowers', borrowersRouter);
 app.use('/api/v1/invitations', invitationsRouter);
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
