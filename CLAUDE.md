@@ -199,7 +199,7 @@ Validation errors inline. Success/fail via Sonner toast.
 
 ### Data Fetching
 Server state = React Query only. Zustand never holds server data.  
-Default `staleTime`: lists 3 min, financial totals/reports 10 min.
+Default `staleTime`: 3 min. Override per query to reduce VPS traffic.
 
 ### Locale & Formatting
 - Currency: Philippine Peso `₱`, 2 decimal places, `en-PH` locale

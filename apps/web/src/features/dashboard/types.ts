@@ -1,0 +1,105 @@
+export type ReportPeriod = 'today' | 'week' | 'month' | 'quarter' | 'year'
+
+interface LoanStatusEntry {
+  count: number
+  amount: string
+  remainingBalance: string
+  totalPaid: string
+}
+
+interface DepositStatusEntry {
+  count: number
+  amount: string
+  totalPayoutPaid: string
+}
+
+export interface DashboardSummary {
+  period: ReportPeriod
+  periodSince: string
+
+  borrowers: {
+    total: number
+    newInPeriod: number
+  }
+
+  loans: {
+    byStatus: {
+      pending: LoanStatusEntry
+      approved: LoanStatusEntry
+      active: LoanStatusEntry
+      paid: LoanStatusEntry
+      defaulted: LoanStatusEntry
+      canceled: LoanStatusEntry
+    }
+    activePortfolio: {
+      count: number
+      totalDisbursed: string
+      totalRemaining: string
+      totalCollected: string
+    }
+    periodDisbursements: {
+      count: number
+      amount: string
+    }
+  }
+
+  collections: {
+    inPeriod: {
+      count: number
+      amount: string
+      principalPortion: string
+      interestPortion: string
+    }
+  }
+
+  deposits: {
+    byStatus: {
+      active: DepositStatusEntry
+      withdrawn: DepositStatusEntry
+      closed: DepositStatusEntry
+    }
+    activePortfolio: {
+      count: number
+      totalAmount: string
+      totalPayoutPaid: string
+    }
+    maturingThisMonth: number
+  }
+
+  capital: {
+    allTime: {
+      totalInflow: string
+      totalOutflow: string
+      netCapital: string
+    }
+    inPeriod: {
+      inflow: string
+      outflow: string
+      net: string
+    }
+  }
+}
+
+export interface OverdueItem {
+  loanId: string
+  borrower: {
+    id: string
+    name: string
+    email: string
+    phone: string
+  }
+  amount: string
+  remainingBalance: string
+  earliestOverdueDueDate: string | null
+  daysPastDue: number
+  type: string
+  disbursedAt: string | null
+}
+
+export interface PortfolioAtRisk {
+  totalPortfolioBalance: string
+  totalPortfolioCount: number
+  atRiskBalance: string
+  atRiskCount: number
+  parRatio: string
+}

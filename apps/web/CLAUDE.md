@@ -84,10 +84,7 @@ Validation errors inline. Action feedback via Sonner toast.
 
 Server state = React Query only. Zustand never holds server data.
 
-Default `staleTime`:
-- Lists (loans, borrowers, deposits): 3 min
-- Financial totals / reports: 10 min
-- Override per query to reduce VPS traffic
+Default `staleTime`: 3 min. Override per query to reduce VPS traffic.
 
 Hook naming: `useLoans`, `useLoan`, `useCreateLoan`, `useUpdateLoan`
 Colocated in `features/[name]/hooks/`
