@@ -64,3 +64,7 @@ export async function apiFetchList<T>(
   const payload = await apiFetchRaw(path, init)
   return payload as { data: T[]; meta: ListMeta }
 }
+
+export async function apiFetchVoid(path: string, init: RequestInit = {}): Promise<void> {
+  await apiFetchRaw(path, init)
+}

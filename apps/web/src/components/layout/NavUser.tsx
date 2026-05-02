@@ -1,4 +1,4 @@
-import { ArrowUpDownIcon, Logout01Icon } from '@hugeicons/core-free-icons'
+import { Logout01Icon, MoreVerticalIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 
 import type { Role } from '@/lib/auth-client'
@@ -31,7 +31,7 @@ function UserInfo({ initials, email, role }: UserInfoProps) {
       <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-foreground">
         {initials}
       </div>
-      <div className="flex min-w-0 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <span className="truncate text-xs font-medium">{email}</span>
         {role && (
           <span className="truncate text-[10px] capitalize text-muted-foreground">{role}</span>
@@ -60,10 +60,10 @@ export function NavUser() {
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
               tooltip={email}
             >
-              <div className="flex min-w-0 flex-1 items-center gap-2 text-left">
+              <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden text-left">
                 <UserInfo initials={initials} email={email} role={role} />
               </div>
-              <HugeiconsIcon icon={ArrowUpDownIcon} size={16} className="ml-auto shrink-0" />
+              <HugeiconsIcon icon={MoreVerticalIcon} size={16} className="ml-auto shrink-0 text-muted-foreground group-data-[collapsible=icon]:hidden" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent

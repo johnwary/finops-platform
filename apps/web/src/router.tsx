@@ -6,6 +6,8 @@ import { InviteAcceptPage } from '@/features/auth/components/InviteAcceptPage'
 import { ProtectedRoute } from '@/features/auth/components/ProtectedRoute'
 import { RequireRole } from '@/features/auth/components/RequireRole'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
+import { LoanDetailPage } from '@/features/loans/LoanDetailPage'
+import { LoansListPage } from '@/features/loans/LoansListPage'
 import { SettingsPage } from '@/features/settings/SettingsPage'
 
 export const router = createBrowserRouter([
@@ -43,6 +45,14 @@ export const router = createBrowserRouter([
                 <SettingsPage />
               </RequireRole>
             ),
+          },
+          {
+            path: 'loans',
+            element: <LoansListPage />,
+          },
+          {
+            path: 'loans/:id',
+            element: <LoanDetailPage />,
           },
         ],
       },

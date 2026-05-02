@@ -89,6 +89,10 @@
     @apply border-border outline-ring/50;
   }
 
+  html {
+    scrollbar-gutter: stable;
+  }
+
   body {
     @apply bg-background text-foreground;
     margin: 0;
@@ -104,4 +108,8 @@
 
 #root {
   min-height: 100svh;
+}
+
+@utility scrollbar-gutter-stable {
+  scrollbar-gutter: stable;
 }
