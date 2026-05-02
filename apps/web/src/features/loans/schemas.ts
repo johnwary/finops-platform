@@ -30,17 +30,17 @@ export const cancelLoanSchema = z.object({
 
 export type CancelLoanInput = z.infer<typeof cancelLoanSchema>
 
-export const recordPaymentSchema = z.object({
-  amount: z.number().positive({ message: 'Amount must be positive' }),
-  principalPortion: z.number().min(0),
-  interestPortion: z.number().min(0),
-  investmentReturn: z.number().min(0),
-  insurance: z.number().min(0),
-  penalties: z.number().min(0),
-  paidAt: z.string().optional(),
-  method: z.enum(['CASH', 'BANK_TRANSFER', 'GCASH', 'CHECK']),
-  reference: z.string().max(255).optional(),
-  notes: z.string().max(2000).optional(),
-})
+export function recordPaymentSchema(maxAmount: number) {
+  return z.object({
+    amount: z
+      .number()
+      .positive({ message: 'Amount must be positive' })
+      .max(maxAmount, { message: `Cannot exceed remaining balance of ₱${maxAmount.toFixed(2)}` }),
+    paidAt: z.string().min(1, { message: 'Payment date required' }),
+    method: z.enum(['CASH', 'BANK_TRANSFER', 'GCASH', 'CHECK']),
+    reference: z.string().max(255).optional(),
+    notes: z.string().max(2000).optional(),
+  })
+}
 
-export type RecordPaymentInput = z.infer<typeof recordPaymentSchema>
+export type RecordPaymentInput = z.infer<ReturnType<typeof recordPaymentSchema>>

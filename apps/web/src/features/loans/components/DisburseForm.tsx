@@ -77,7 +77,7 @@ export function DisburseForm({ loanId, onSuccess }: DisburseFormProps) {
         ) : null}
       </FieldGroup>
 
-      <SheetFooter>
+      <SheetFooter className="flex-row justify-end">
         <SheetClose asChild>
           <Button type="button" variant="outline">Cancel</Button>
         </SheetClose>

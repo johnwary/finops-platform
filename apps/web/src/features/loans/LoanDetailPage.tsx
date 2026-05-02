@@ -211,9 +211,9 @@ export function LoanDetailPage() {
 }
 
 function FinancialSnapshot({ loan }: { loan: LoanDetail }) {
-  const totalPaid = Number(loan.totalPaid)
   const amount = Number(loan.amount)
-  const progressPct = amount > 0 ? Math.min((totalPaid / amount) * 100, 100) : 0
+  const principalRepaid = amount - Number(loan.remainingBalance)
+  const progressPct = amount > 0 ? Math.min((principalRepaid / amount) * 100, 100) : 0
 
   return (
     <Card>
@@ -329,9 +329,11 @@ function InstallmentTable({ loan }: { loan: LoanDetail }) {
       </TableHeader>
       <TableBody>
         {loan.loanInstallments.map((inst) => (
-          <TableRow key={inst.id}>
+          <TableRow key={inst.id} data-overdue={inst.status === 'OVERDUE' ? true : undefined} className="data-[overdue]:bg-destructive/5">
             <TableCell>{inst.sequence}</TableCell>
-            <TableCell>{format(new Date(inst.dueDate), 'MMM d, yyyy')}</TableCell>
+            <TableCell className={inst.status === 'OVERDUE' ? 'text-destructive font-medium' : ''}>
+              {format(new Date(inst.dueDate), 'MMM d, yyyy')}
+            </TableCell>
             <TableCell className="tabular-nums">{formatPeso(inst.principal)}</TableCell>
             <TableCell className="tabular-nums">{formatPeso(inst.interest)}</TableCell>
             <TableCell className="tabular-nums">
@@ -354,6 +356,8 @@ function PaymentTable({ loan }: { loan: LoanDetail }) {
     return <p className="text-sm text-muted-foreground">No payments recorded yet.</p>
   }
 
+  const hasPenalties = loan.loanPayments.some((p) => Number(p.penalties) > 0)
+
   return (
     <Table>
       <TableHeader>
@@ -362,6 +366,7 @@ function PaymentTable({ loan }: { loan: LoanDetail }) {
           <TableHead>Amount</TableHead>
           <TableHead>Principal</TableHead>
           <TableHead>Interest</TableHead>
+          {hasPenalties && <TableHead>Penalties</TableHead>}
           <TableHead>Method</TableHead>
           <TableHead>Reference</TableHead>
         </TableRow>
@@ -373,6 +378,9 @@ function PaymentTable({ loan }: { loan: LoanDetail }) {
             <TableCell className="tabular-nums">{formatPeso(payment.amount)}</TableCell>
             <TableCell className="tabular-nums">{formatPeso(payment.principalPortion)}</TableCell>
             <TableCell className="tabular-nums">{formatPeso(payment.interestPortion)}</TableCell>
+            {hasPenalties && (
+              <TableCell className="tabular-nums">{formatPeso(payment.penalties)}</TableCell>
+            )}
             <TableCell>{PAYMENT_METHOD_LABELS[payment.method]}</TableCell>
             <TableCell className="text-muted-foreground">{payment.reference ?? '—'}</TableCell>
           </TableRow>

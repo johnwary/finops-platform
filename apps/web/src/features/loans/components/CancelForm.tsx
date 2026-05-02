@@ -45,7 +45,7 @@ export function CancelForm({ loanId, onSuccess }: CancelFormProps) {
         ) : null}
       </FieldGroup>
 
-      <SheetFooter>
+      <SheetFooter className="flex-row justify-end">
         <SheetClose asChild>
           <Button type="button" variant="outline">Cancel</Button>
         </SheetClose>

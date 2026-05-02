@@ -64,7 +64,7 @@ export function CreateLoanForm({ onSuccess }: CreateLoanFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit(handleCreate)} className="flex flex-col h-full">
+    <form onSubmit={handleSubmit(handleCreate)} className="flex flex-col flex-1 min-h-0">
       <div className="flex-1 overflow-y-auto p-6">
         <FieldGroup>
           <Field data-invalid={!!errors.borrowerId}>
@@ -209,7 +209,7 @@ export function CreateLoanForm({ onSuccess }: CreateLoanFormProps) {
         </FieldGroup>
       </div>
 
-      <SheetFooter className="p-6 pt-0">
+      <SheetFooter className="shrink-0 flex-row justify-end p-6 pt-0">
         <SheetClose asChild>
           <Button type="button" variant="outline">Cancel</Button>
         </SheetClose>
