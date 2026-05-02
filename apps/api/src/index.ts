@@ -3,6 +3,8 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
+import pinoHttp from 'pino-http';
+import { randomUUID } from 'crypto';
 import { toNodeHandler } from 'better-auth/node';
 import { logger } from './lib/logger';
 import { auth } from './lib/auth';
@@ -20,6 +22,38 @@ const PORT = process.env.PORT || 3000;
 
 app.use(helmet());
 app.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:5173', credentials: true }));
+app.use(pinoHttp({
+  logger,
+  genReqId(req, res) {
+    const existing = req.headers['x-request-id'];
+    if (existing) return Array.isArray(existing) ? existing[0] : existing;
+    const id = randomUUID();
+    res.setHeader('X-Request-Id', id);
+    return id;
+  },
+  customLogLevel(_req, res, err) {
+    if (res.statusCode >= 500 || err) return 'error';
+    if (res.statusCode >= 400) return 'warn';
+    return 'info';
+  },
+  wrapSerializers: false,
+  serializers: {
+    req(req) {
+      return {
+        id: req.id,
+        method: req.method,
+        url: req.url,
+        query: req.query,
+        remoteAddress: req.socket?.remoteAddress,
+      };
+    },
+    res(res) {
+      return {
+        statusCode: res.statusCode,
+      };
+    },
+  },
+}));
 app.all('/api/auth/*splat', toNodeHandler(auth));
 app.use(express.json());
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 100 }));
