@@ -2,27 +2,65 @@ import { differenceInDays } from 'date-fns';
 import { Decimal } from '@prisma/client/runtime/client';
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
+import { resolveProvisionBucket } from '../lib/lending';
 
 const DEFAULT_DPD_THRESHOLD = 90;
 
-// BSP-aligned provision buckets — keep in sync with loans.service.ts
-const PROVISION_BUCKETS = [
-  { maxDpd: 30,       bucket: 1, rate: 0.01 },
-  { maxDpd: 90,       bucket: 2, rate: 0.05 },
-  { maxDpd: 180,      bucket: 3, rate: 0.25 },
-  { maxDpd: 365,      bucket: 4, rate: 0.50 },
-  { maxDpd: Infinity, bucket: 5, rate: 1.00 },
-] as const;
+export async function markPastDueInstallmentsOverdue(now = new Date()): Promise<number> {
+  const pastDueInstallments = await prisma.loanInstallment.findMany({
+    where: {
+      status: 'SCHEDULED',
+      dueDate: { lt: now },
+      loan: {
+        status: 'ACTIVE',
+        deletedAt: null,
+      },
+    },
+    select: {
+      id: true,
+      principal: true,
+      interest: true,
+      allocations: {
+        select: {
+          principalApplied: true,
+          interestApplied: true,
+        },
+      },
+    },
+  });
 
-function resolveProvisionBucket(dpd: number): { bucket: number; rate: number } {
-  for (const b of PROVISION_BUCKETS) {
-    if (dpd <= b.maxDpd) return { bucket: b.bucket, rate: b.rate };
-  }
-  return { bucket: 5, rate: 1.0 };
+  const overdueIds = pastDueInstallments
+    .filter((installment) => {
+      const principalPaid = installment.allocations.reduce(
+        (sum, allocation) => sum.plus(allocation.principalApplied),
+        new Decimal(0),
+      );
+      const interestPaid = installment.allocations.reduce(
+        (sum, allocation) => sum.plus(allocation.interestApplied),
+        new Decimal(0),
+      );
+
+      return (
+        new Decimal(installment.principal).minus(principalPaid).greaterThan(0) ||
+        new Decimal(installment.interest).minus(interestPaid).greaterThan(0)
+      );
+    })
+    .map((installment) => installment.id);
+
+  if (overdueIds.length === 0) return 0;
+
+  const result = await prisma.loanInstallment.updateMany({
+    where: { id: { in: overdueIds }, status: 'SCHEDULED' },
+    data: { status: 'OVERDUE' },
+  });
+
+  logger.info({ overdue: result.count }, 'Past-due installments marked overdue');
+  return result.count;
 }
 
 export async function runAutoDefaultJob(): Promise<void> {
   const now = new Date();
+  const markedOverdue = await markPastDueInstallmentsOverdue(now);
 
   // Find ACTIVE loans that have at least one OVERDUE installment
   const candidates = await prisma.loan.findMany({
@@ -97,7 +135,7 @@ export async function runAutoDefaultJob(): Promise<void> {
     }
   }
 
-  logger.info({ checked: candidates.length, defaulted }, 'Auto-default job complete');
+  logger.info({ markedOverdue, checked: candidates.length, defaulted }, 'Auto-default job complete');
 }
 
 export function startAutoDefaultScheduler(): void {

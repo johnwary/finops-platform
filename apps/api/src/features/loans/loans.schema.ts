@@ -28,11 +28,6 @@ export const cancelLoanSchema = z.object({
 
 export const recordPaymentSchema = z.object({
   amount: z.coerce.number().positive(),
-  principalPortion: z.coerce.number().min(0).default(0),
-  interestPortion: z.coerce.number().min(0).default(0),
-  investmentReturn: z.coerce.number().min(0).default(0),
-  insurance: z.coerce.number().min(0).default(0),
-  penalties: z.coerce.number().min(0).default(0),
   paidAt: z.coerce.date().optional(),
   method: z.enum(['CASH', 'BANK_TRANSFER', 'GCASH', 'CHECK']),
   reference: z.string().max(255).trim().optional(),

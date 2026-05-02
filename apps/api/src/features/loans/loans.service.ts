@@ -2,6 +2,7 @@ import { Decimal } from '@prisma/client/runtime/client';
 import { addMonths, addWeeks, addDays, differenceInDays } from 'date-fns';
 import { prisma } from '../../lib/prisma';
 import { AppError } from '../../lib/response';
+import { resolveProvisionBucket } from '../../lib/lending';
 import type {
   CreateLoanInput,
   DisburseLoanInput,
@@ -10,22 +11,6 @@ import type {
   DefaultLoanInput,
   ListLoansInput,
 } from './loans.schema';
-
-// BSP-aligned provision buckets (rates are regulatory minimums — update when BSP revises)
-const PROVISION_BUCKETS = [
-  { maxDpd: 30,       bucket: 1, rate: 0.01 }, // Pass
-  { maxDpd: 90,       bucket: 2, rate: 0.05 }, // Special Mention
-  { maxDpd: 180,      bucket: 3, rate: 0.25 }, // Substandard
-  { maxDpd: 365,      bucket: 4, rate: 0.50 }, // Doubtful
-  { maxDpd: Infinity, bucket: 5, rate: 1.00 }, // Loss
-] as const;
-
-function resolveProvisionBucket(dpd: number): { bucket: number; rate: number } {
-  for (const b of PROVISION_BUCKETS) {
-    if (dpd <= b.maxDpd) return { bucket: b.bucket, rate: b.rate };
-  }
-  return { bucket: 5, rate: 1.0 };
-}
 
 interface Actor {
   id: string;
@@ -145,6 +130,97 @@ function buildInstallments(
   }
 
   return installments;
+}
+
+type InstallmentWithAllocations = {
+  id: string;
+  principal: Decimal;
+  interest: Decimal;
+  allocations: Array<{
+    principalApplied: Decimal;
+    interestApplied: Decimal;
+    penaltiesApplied: Decimal;
+  }>;
+};
+
+type PaymentAllocationPlan = {
+  allocations: Array<{
+    installmentId: string;
+    principalApplied: Decimal;
+    interestApplied: Decimal;
+    penaltiesApplied: Decimal;
+  }>;
+  principalPortion: Decimal;
+  interestPortion: Decimal;
+  penalties: Decimal;
+};
+
+function minDecimal(a: Decimal, b: Decimal): Decimal {
+  return a.lessThan(b) ? a : b;
+}
+
+function maxZero(value: Decimal): Decimal {
+  return value.lessThan(0) ? new Decimal(0) : value;
+}
+
+function sumAllocationField(
+  allocations: InstallmentWithAllocations['allocations'],
+  field: keyof InstallmentWithAllocations['allocations'][number],
+): Decimal {
+  return allocations.reduce((sum, allocation) => sum.plus(allocation[field]), new Decimal(0));
+}
+
+function buildPaymentAllocationPlan(
+  amount: Decimal,
+  installments: InstallmentWithAllocations[],
+): PaymentAllocationPlan {
+  let remaining = amount;
+  let principalPortion = new Decimal(0);
+  let interestPortion = new Decimal(0);
+  const penalties = new Decimal(0);
+  const allocations: PaymentAllocationPlan['allocations'] = [];
+
+  for (const installment of installments) {
+    if (remaining.equals(0)) break;
+
+    const principalOutstanding = maxZero(
+      new Decimal(installment.principal).minus(
+        sumAllocationField(installment.allocations, 'principalApplied'),
+      ),
+    );
+    const interestOutstanding = maxZero(
+      new Decimal(installment.interest).minus(
+        sumAllocationField(installment.allocations, 'interestApplied'),
+      ),
+    );
+
+    const interestApplied = minDecimal(remaining, interestOutstanding);
+    remaining = remaining.minus(interestApplied);
+    interestPortion = interestPortion.plus(interestApplied);
+
+    const principalApplied = minDecimal(remaining, principalOutstanding);
+    remaining = remaining.minus(principalApplied);
+    principalPortion = principalPortion.plus(principalApplied);
+
+    if (interestApplied.greaterThan(0) || principalApplied.greaterThan(0)) {
+      allocations.push({
+        installmentId: installment.id,
+        principalApplied,
+        interestApplied,
+        penaltiesApplied: penalties,
+      });
+    }
+  }
+
+  if (remaining.greaterThan(0)) {
+    throw new AppError(
+      'PAYMENT_EXCEEDS_RECEIVABLE',
+      'Payment amount exceeds outstanding scheduled loan receivable.',
+      409,
+    );
+  }
+
+  return { allocations, principalPortion, interestPortion, penalties };
 }
 
 // ── service functions ─────────────────────────────────────────────────────────
@@ -395,31 +471,95 @@ export async function recordPayment(id: string, data: RecordPaymentInput, actor:
   }
 
   const paymentAmount = new Decimal(data.amount);
-  const newTotalPaid = new Decimal(loan.totalPaid).plus(paymentAmount);
-  const newRemainingBalance = new Decimal(loan.remainingBalance).minus(paymentAmount);
-
-  if (newRemainingBalance.lessThan(0)) {
-    throw new AppError('PAYMENT_EXCEEDS_BALANCE', 'Payment amount exceeds remaining balance.', 409);
-  }
-
-  const isPaidOff = newRemainingBalance.equals(0);
 
   return prisma.$transaction(async (tx) => {
+    const installments = await tx.loanInstallment.findMany({
+      where: { loanId: id, status: { not: 'PAID' } },
+      orderBy: [{ dueDate: 'asc' }, { sequence: 'asc' }],
+      include: {
+        allocations: {
+          select: {
+            principalApplied: true,
+            interestApplied: true,
+            penaltiesApplied: true,
+          },
+        },
+      },
+    });
+
+    const allocationPlan = buildPaymentAllocationPlan(paymentAmount, installments);
+    const newTotalPaid = new Decimal(loan.totalPaid).plus(paymentAmount);
+    const newRemainingBalance = new Decimal(loan.remainingBalance).minus(
+      allocationPlan.principalPortion,
+    );
+
+    if (newRemainingBalance.lessThan(0)) {
+      throw new AppError(
+        'PAYMENT_EXCEEDS_BALANCE',
+        'Allocated principal exceeds remaining principal balance.',
+        409,
+      );
+    }
+
+    const isPaidOff = newRemainingBalance.equals(0);
+
     const payment = await tx.loanPayment.create({
       data: {
         loanId: id,
         amount: paymentAmount,
-        principalPortion: new Decimal(data.principalPortion),
-        interestPortion: new Decimal(data.interestPortion),
-        investmentReturn: new Decimal(data.investmentReturn),
-        insurance: new Decimal(data.insurance),
-        penalties: new Decimal(data.penalties),
+        principalPortion: allocationPlan.principalPortion,
+        interestPortion: allocationPlan.interestPortion,
+        penalties: allocationPlan.penalties,
         paidAt: data.paidAt ?? new Date(),
         method: data.method,
         reference: data.reference,
         notes: data.notes,
       },
     });
+
+    if (allocationPlan.allocations.length > 0) {
+      await tx.loanPaymentAllocation.createMany({
+        data: allocationPlan.allocations.map((allocation) => ({
+          paymentId: payment.id,
+          ...allocation,
+        })),
+      });
+
+      // Mark installments PAID when fully covered by cumulative allocations
+      const touchedInstallmentIds = allocationPlan.allocations.map((a) => a.installmentId);
+      const touchedInstallments = await tx.loanInstallment.findMany({
+        where: { id: { in: touchedInstallmentIds } },
+        include: {
+          allocations: {
+            select: { principalApplied: true, interestApplied: true },
+          },
+        },
+      });
+
+      const fullyPaidIds = touchedInstallments
+        .filter((inst) => {
+          const totalPrincipalApplied = inst.allocations.reduce(
+            (sum, a) => sum.plus(a.principalApplied),
+            new Decimal(0),
+          );
+          const totalInterestApplied = inst.allocations.reduce(
+            (sum, a) => sum.plus(a.interestApplied),
+            new Decimal(0),
+          );
+          return (
+            totalPrincipalApplied.greaterThanOrEqualTo(inst.principal) &&
+            totalInterestApplied.greaterThanOrEqualTo(inst.interest)
+          );
+        })
+        .map((inst) => inst.id);
+
+      if (fullyPaidIds.length > 0) {
+        await tx.loanInstallment.updateMany({
+          where: { id: { in: fullyPaidIds } },
+          data: { status: 'PAID' },
+        });
+      }
+    }
 
     await tx.loan.update({
       where: { id },
