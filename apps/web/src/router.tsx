@@ -5,6 +5,8 @@ import { LoginPage } from '@/features/auth/components/LoginPage'
 import { InviteAcceptPage } from '@/features/auth/components/InviteAcceptPage'
 import { ProtectedRoute } from '@/features/auth/components/ProtectedRoute'
 import { RequireRole } from '@/features/auth/components/RequireRole'
+import { BorrowerDetailPage } from '@/features/borrowers/BorrowerDetailPage'
+import { BorrowersListPage } from '@/features/borrowers/BorrowersListPage'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
 import { LoanDetailPage } from '@/features/loans/LoanDetailPage'
 import { LoansListPage } from '@/features/loans/LoansListPage'
@@ -53,6 +55,14 @@ export const router = createBrowserRouter([
           {
             path: 'loans/:id',
             element: <LoanDetailPage />,
+          },
+          {
+            path: 'borrowers',
+            element: <BorrowersListPage />,
+          },
+          {
+            path: 'borrowers/:id',
+            element: <BorrowerDetailPage />,
           },
         ],
       },
