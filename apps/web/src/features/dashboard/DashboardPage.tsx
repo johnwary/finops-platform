@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { formatPeso } from '@/lib/format'
 import { useDashboardSummary, useOverdue, usePortfolioAtRisk } from './hooks/useDashboard'
 import type { ReportPeriod } from './types'
 
@@ -14,14 +15,6 @@ const PERIODS: { value: ReportPeriod; label: string }[] = [
   { value: 'quarter', label: 'This Quarter' },
   { value: 'year', label: 'This Year' },
 ]
-
-function formatPeso(value: string | number) {
-  return new Intl.NumberFormat('en-PH', {
-    style: 'currency',
-    currency: 'PHP',
-    minimumFractionDigits: 2,
-  }).format(Number(value))
-}
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat('en-PH').format(value)
