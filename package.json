@@ -4,7 +4,21 @@
   "scripts": {
     "dev": "pnpm --filter api dev & pnpm --filter web dev",
     "build": "pnpm --filter '*' build",
-    "lint": "pnpm --filter '*' lint"
+    "lint": "pnpm --filter '*' lint",
+    "api:dev": "pnpm --filter api dev",
+    "api:build": "pnpm --filter api build",
+    "api:typecheck": "pnpm --filter api typecheck",
+    "api:start": "pnpm --filter api start",
+    "api:test": "pnpm --filter api test",
+    "api:prisma:generate": "pnpm --filter api prisma:generate",
+    "api:prisma:migrate": "pnpm --filter api prisma:migrate",
+    "api:prisma:seed": "pnpm --filter api prisma:seed",
+    "api:data:clear": "pnpm --filter api data:clear",
+    "web:dev": "pnpm --filter web dev",
+    "web:build": "pnpm --filter web build",
+    "web:typecheck": "pnpm --filter web typecheck",
+    "web:lint": "pnpm --filter web lint",
+    "web:preview": "pnpm --filter web preview"
   },
   "engines": {
     "node": ">=20",
