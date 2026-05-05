@@ -15,6 +15,7 @@ FROM deps AS api-build
 WORKDIR /app
 
 COPY apps/api/ apps/api/
+RUN pnpm --filter api prisma:generate
 RUN pnpm --filter api build
 
 # ── Stage 3: build web ─────────────────────────────────────────────────────
