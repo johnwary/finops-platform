@@ -23,6 +23,7 @@ import {
   PAYMENT_FREQUENCY_LABELS,
   REPAYMENT_STRUCTURE_LABELS,
 } from '../utils'
+import { BorrowerSearchField } from './BorrowerSearchField'
 
 interface CreateLoanFormProps {
   onSuccess: () => void
@@ -67,15 +68,10 @@ export function CreateLoanForm({ onSuccess }: CreateLoanFormProps) {
     <form onSubmit={handleSubmit(handleCreate)} className="flex flex-col flex-1 min-h-0">
       <div className="flex-1 overflow-y-auto p-6">
         <FieldGroup>
-          <Field data-invalid={!!errors.borrowerId}>
-            <FieldLabel htmlFor="borrowerId">Borrower ID</FieldLabel>
-            <Input
-              id="borrowerId"
-              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-              {...register('borrowerId')}
-            />
-            <FieldError errors={[errors.borrowerId]} />
-          </Field>
+          <BorrowerSearchField
+            onChange={(id) => setValue('borrowerId', id, { shouldValidate: true })}
+            error={errors.borrowerId}
+          />
 
           <Field data-invalid={!!errors.type}>
             <FieldLabel htmlFor="type">Loan Type</FieldLabel>
