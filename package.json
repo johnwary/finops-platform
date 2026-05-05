@@ -23,5 +23,11 @@
   "engines": {
     "node": ">=20",
     "pnpm": ">=9"
+  },
+  "pnpm": {
+    "overrides": {
+      "@hono/node-server": "1.19.14",
+      "uuid": ">=14.0.0"
+    }
   }
 }
