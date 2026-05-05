@@ -3,13 +3,6 @@ import { Router } from 'express';
 import { requireAuth } from '../../middleware/auth.middleware';
 import { requireRole } from '../../middleware/rbac.middleware';
 import { validate } from '../../middleware/validate.middleware';
-
-function devDelay(ms: number) {
-  return (_req: Request, _res: Response, next: NextFunction) => {
-    if (process.env.NODE_ENV !== 'development') return next();
-    setTimeout(next, ms);
-  };
-}
 import {
   createBorrowerController,
   deleteBorrowerController,
@@ -23,6 +16,13 @@ import {
   listBorrowersSchema,
   updateBorrowerSchema,
 } from './borrowers.schema';
+
+function devDelay(ms: number) {
+  return (_req: Request, _res: Response, next: NextFunction) => {
+    if (process.env.NODE_ENV !== 'development') return next();
+    setTimeout(() => next(), ms);
+  };
+}
 
 export const borrowersRouter = Router();
 

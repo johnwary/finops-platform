@@ -182,6 +182,36 @@ describe('borrowers.service', () => {
         }),
       );
     });
+
+    it('matches comma-form full names across last, first, and middle name fields', async () => {
+      await listBorrowers({ limit: 25, search: 'ypil, preciouss pulluan' });
+
+      expect(mocks.prisma.borrower.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            OR: expect.arrayContaining([
+              {
+                AND: [
+                  { lastName: { contains: 'ypil', mode: 'insensitive' } },
+                  {
+                    OR: [
+                      { firstName: { contains: 'preciouss', mode: 'insensitive' } },
+                      { middleName: { contains: 'preciouss', mode: 'insensitive' } },
+                    ],
+                  },
+                  {
+                    OR: [
+                      { firstName: { contains: 'pulluan', mode: 'insensitive' } },
+                      { middleName: { contains: 'pulluan', mode: 'insensitive' } },
+                    ],
+                  },
+                ],
+              },
+            ]),
+          }),
+        }),
+      );
+    });
   });
 
   describe('updateBorrower', () => {

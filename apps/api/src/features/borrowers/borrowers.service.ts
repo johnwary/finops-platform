@@ -1,6 +1,11 @@
 import { Decimal } from '@prisma/client/runtime/client';
 import { prisma } from '../../lib/prisma';
 import { AppError } from '../../lib/response';
+import type {
+  CreateBorrowerInput,
+  ListBorrowersInput,
+  UpdateBorrowerInput,
+} from './borrowers.schema';
 
 function isUniqueViolation(err: unknown): boolean {
   return (
@@ -10,11 +15,6 @@ function isUniqueViolation(err: unknown): boolean {
     (err as { code: string }).code === 'P2002'
   );
 }
-import type {
-  CreateBorrowerInput,
-  ListBorrowersInput,
-  UpdateBorrowerInput,
-} from './borrowers.schema';
 
 interface Actor {
   id: string;
@@ -30,6 +30,56 @@ function normalizePhone(phone: string): string {
 function formatBorrowerName(b: { firstName: string; middleName?: string | null; lastName: string }): string {
   const first = b.middleName ? `${b.firstName} ${b.middleName}` : b.firstName;
   return `${b.lastName}, ${first}`;
+}
+
+function buildNameSearchClauses(search: string) {
+  const contains = (value: string) => ({ contains: value, mode: 'insensitive' as const });
+  const tokens = search
+    .replace(',', ' ')
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter(Boolean);
+
+  const clauses: object[] = [
+    { firstName: contains(search) },
+    { middleName: contains(search) },
+    { lastName: contains(search) },
+  ];
+
+  if (tokens.length > 1 && !search.includes(',')) {
+    clauses.push({
+      AND: tokens.map((token) => ({
+        OR: [
+          { firstName: contains(token) },
+          { middleName: contains(token) },
+          { lastName: contains(token) },
+        ],
+      })),
+    });
+  }
+
+  if (search.includes(',')) {
+    const [lastNamePart, givenNamePart] = search.split(',', 2).map((part) => part.trim());
+    const givenNameTokens = givenNamePart
+      ? givenNamePart.split(/\s+/).map((token) => token.trim()).filter(Boolean)
+      : [];
+
+    if (lastNamePart && givenNameTokens.length) {
+      clauses.push({
+        AND: [
+          { lastName: contains(lastNamePart) },
+          ...givenNameTokens.map((token) => ({
+            OR: [
+              { firstName: contains(token) },
+              { middleName: contains(token) },
+            ],
+          })),
+        ],
+      });
+    }
+  }
+
+  return clauses;
 }
 
 export async function createBorrower(data: CreateBorrowerInput, actor: Actor) {
@@ -130,9 +180,7 @@ export async function listBorrowers({ cursor, limit, search }: ListBorrowersInpu
     ...(search
       ? {
           OR: [
-            { firstName: { contains: search, mode: 'insensitive' as const } },
-            { middleName: { contains: search, mode: 'insensitive' as const } },
-            { lastName: { contains: search, mode: 'insensitive' as const } },
+            ...buildNameSearchClauses(search),
             { email: { contains: search, mode: 'insensitive' as const } },
             ...(normalizePhone(search)
               ? [{ phoneNormalized: { contains: normalizePhone(search) } }]
