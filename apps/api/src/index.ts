@@ -18,7 +18,7 @@ import { invitationsRouter } from './features/invitations/invitations.router';
 import { startAutoDefaultScheduler } from './jobs/autoDefault.job';
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const API_PORT = process.env.API_PORT || 3000;
 
 app.use(helmet());
 app.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:5173', credentials: true }));
@@ -89,8 +89,8 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
   res.status(500).json(error('INTERNAL_ERROR', 'Unexpected server error.', 500));
 });
 
-const server = app.listen(PORT, () => {
-  logger.info(`API running on port ${PORT}`);
+const server = app.listen(API_PORT, () => {
+  logger.info(`API running on port ${API_PORT}`);
   startAutoDefaultScheduler();
 });
 
