@@ -262,7 +262,7 @@ function LoanDetailsCard({ loan }: { loan: LoanDetail }) {
         <DetailRow label="Term" value={`${loan.termMonths} months`} />
         <DetailRow label="Frequency" value={PAYMENT_FREQUENCY_LABELS[loan.paymentFrequency]} />
         <DetailRow label="Structure" value={REPAYMENT_STRUCTURE_LABELS[loan.repaymentStructure]} />
-        <DetailRow label="Start Date" value={format(new Date(loan.startDate), 'MMM d, yyyy')} />
+        <DetailRow label="Application Date" value={format(new Date(loan.applicationDate), 'MMM d, yyyy')} />
         <DetailRow label="End Date" value={format(new Date(loan.endDate), 'MMM d, yyyy')} />
         {loan.loanFee && <DetailRow label="Loan Fee" value={formatPeso(loan.loanFee)} />}
         {loan.penaltyRate && <DetailRow label="Penalty Rate" value={formatPercent(loan.penaltyRate)} />}

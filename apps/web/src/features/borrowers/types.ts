@@ -48,7 +48,7 @@ export interface BorrowerLoanSummary {
   type: LoanType
   amount: string
   status: LoanStatus
-  startDate: string
+  applicationDate: string
   endDate: string
   remainingBalance: string
 }

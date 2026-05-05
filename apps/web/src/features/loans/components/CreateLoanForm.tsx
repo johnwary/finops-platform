@@ -119,10 +119,10 @@ export function CreateLoanForm({ onSuccess }: CreateLoanFormProps) {
             <FieldError errors={[errors.termMonths]} />
           </Field>
 
-          <Field data-invalid={!!errors.startDate}>
-            <FieldLabel htmlFor="startDate">Start Date</FieldLabel>
-            <Input id="startDate" type="date" {...register('startDate')} />
-            <FieldError errors={[errors.startDate]} />
+          <Field data-invalid={!!errors.applicationDate}>
+            <FieldLabel htmlFor="applicationDate">Application Date</FieldLabel>
+            <Input id="applicationDate" type="date" {...register('applicationDate')} />
+            <FieldError errors={[errors.applicationDate]} />
           </Field>
 
           <Field data-invalid={!!errors.paymentFrequency}>

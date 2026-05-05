@@ -231,7 +231,7 @@ export async function createLoan(data: CreateLoanInput, actor: Actor) {
   });
   if (!borrower) throw new AppError('NOT_FOUND', 'Borrower not found.', 404);
 
-  const endDate = addMonths(data.startDate, data.termMonths);
+  const projectedEndDate = addMonths(data.applicationDate, data.termMonths);
 
   try {
     return await prisma.$transaction(async (tx) => {
@@ -242,8 +242,8 @@ export async function createLoan(data: CreateLoanInput, actor: Actor) {
           amount: new Decimal(data.amount),
           interestRate: new Decimal(data.interestRate),
           termMonths: data.termMonths,
-          startDate: data.startDate,
-          endDate,
+          applicationDate: data.applicationDate,
+          endDate: projectedEndDate,
           paymentFrequency: data.paymentFrequency,
           repaymentStructure: data.repaymentStructure,
           remainingBalance: new Decimal(data.amount),
@@ -370,6 +370,9 @@ export async function disburseLoan(id: string, data: DisburseLoanInput, actor: A
     throw new AppError('LOAN_INVALID_STATE', `Cannot disburse a loan with status ${loan.status}.`, 409);
   }
 
+  const disbursedAt = new Date();
+  const endDate = addMonths(disbursedAt, loan.termMonths);
+
   const installments = buildInstallments(
     id,
     Number(loan.amount),
@@ -377,7 +380,7 @@ export async function disburseLoan(id: string, data: DisburseLoanInput, actor: A
     loan.termMonths,
     loan.paymentFrequency,
     loan.repaymentStructure,
-    loan.startDate,
+    disbursedAt,
   );
 
   return prisma.$transaction(async (tx) => {
@@ -385,9 +388,10 @@ export async function disburseLoan(id: string, data: DisburseLoanInput, actor: A
       where: { id },
       data: {
         status: 'ACTIVE',
-        disbursedAt: new Date(),
+        disbursedAt,
         disbursedById: actor.id,
         disbursementMethod: data.disbursementMethod,
+        endDate,
         notes: data.notes ?? loan.notes,
       },
     });

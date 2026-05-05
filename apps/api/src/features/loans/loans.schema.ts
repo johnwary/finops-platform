@@ -6,7 +6,7 @@ export const createLoanSchema = z.object({
   amount: z.coerce.number().positive(),
   interestRate: z.coerce.number().min(0).max(1), // decimal fraction e.g. 0.03 = 3%
   termMonths: z.coerce.number().int().min(1).max(360),
-  startDate: z.coerce.date(),
+  applicationDate: z.coerce.date(),
   paymentFrequency: z.enum(['MONTHLY', 'BIWEEKLY', 'WEEKLY', 'DAILY']).default('MONTHLY'),
   repaymentStructure: z.enum(['AMORTIZING', 'INTEREST_ONLY']).default('AMORTIZING'),
   loanFee: z.coerce.number().min(0).optional(),

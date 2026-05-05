@@ -28,7 +28,7 @@ export function BorrowerLoansList({ loans }: BorrowerLoansListProps) {
           <TableHead>Type</TableHead>
           <TableHead>Amount</TableHead>
           <TableHead>Status</TableHead>
-          <TableHead>Start</TableHead>
+          <TableHead>Applied</TableHead>
           <TableHead>End</TableHead>
           <TableHead>Remaining</TableHead>
           <TableHead />
@@ -41,7 +41,7 @@ export function BorrowerLoansList({ loans }: BorrowerLoansListProps) {
             <TableCell className="tabular-nums">{formatPeso(loan.amount)}</TableCell>
             <TableCell>{LOAN_STATUS_LABELS[loan.status]}</TableCell>
             <TableCell className="text-muted-foreground">
-              {format(new Date(loan.startDate), 'MMM d, yyyy')}
+              {format(new Date(loan.applicationDate), 'MMM d, yyyy')}
             </TableCell>
             <TableCell className="text-muted-foreground">
               {format(new Date(loan.endDate), 'MMM d, yyyy')}

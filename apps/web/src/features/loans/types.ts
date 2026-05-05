@@ -77,7 +77,7 @@ export interface Loan {
   interestRate: string
   termMonths: number
   status: LoanStatus
-  startDate: string
+  applicationDate: string
   endDate: string
   paymentFrequency: PaymentFrequency
   repaymentStructure: RepaymentStructure
