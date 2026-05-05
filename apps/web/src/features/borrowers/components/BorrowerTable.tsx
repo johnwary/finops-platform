@@ -52,21 +52,42 @@ export function BorrowerTable({
   )
 }
 
+function BorrowerTableColGroup() {
+  return (
+    <colgroup>
+      <col className="w-48" />
+      <col className="w-48" />
+      <col className="w-36" />
+      <col className="w-52" />
+      <col className="w-20" />
+      <col className="w-32" />
+      <col className="w-16" />
+    </colgroup>
+  )
+}
+
+function BorrowerTableHead() {
+  return (
+    <TableHeader>
+      <TableRow>
+        <TableHead>Name</TableHead>
+        <TableHead>Email</TableHead>
+        <TableHead>Phone</TableHead>
+        <TableHead>ID</TableHead>
+        <TableHead>Loans</TableHead>
+        <TableHead>Created</TableHead>
+        <TableHead />
+      </TableRow>
+    </TableHeader>
+  )
+}
+
 function BorrowerTableContent({ borrowers }: { borrowers: ReturnType<typeof useBorrowers> }) {
   if (borrowers.isPending) {
     return (
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Phone</TableHead>
-            <TableHead>ID</TableHead>
-            <TableHead>Loans</TableHead>
-            <TableHead>Created</TableHead>
-            <TableHead />
-          </TableRow>
-        </TableHeader>
+      <Table className="table-fixed">
+        <BorrowerTableColGroup />
+        <BorrowerTableHead />
         <TableBody>
           {Array.from({ length: SKELETON_ROW_COUNT }).map((_, i) => (
             <TableRow key={i}>
@@ -95,25 +116,16 @@ function BorrowerTableContent({ borrowers }: { borrowers: ReturnType<typeof useB
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Name</TableHead>
-          <TableHead>Email</TableHead>
-          <TableHead>Phone</TableHead>
-          <TableHead>ID</TableHead>
-          <TableHead>Loans</TableHead>
-          <TableHead>Created</TableHead>
-          <TableHead />
-        </TableRow>
-      </TableHeader>
+    <Table className="table-fixed">
+      <BorrowerTableColGroup />
+      <BorrowerTableHead />
       <TableBody>
         {borrowers.data.data.map((b) => (
           <TableRow key={b.id}>
-            <TableCell className="font-medium max-w-48 truncate">{formatBorrowerName(b)}</TableCell>
-            <TableCell className="max-w-48 truncate">{b.email}</TableCell>
+            <TableCell className="font-medium truncate">{formatBorrowerName(b)}</TableCell>
+            <TableCell className="truncate">{b.email}</TableCell>
             <TableCell className="tabular-nums">{formatPhone(b.phone)}</TableCell>
-            <TableCell>
+            <TableCell className="truncate">
               <span className="text-muted-foreground text-xs mr-1">{ID_TYPE_LABELS[b.idType]}</span>
               <span className="tabular-nums">{maskIdNumber(b.idNumber)}</span>
             </TableCell>
