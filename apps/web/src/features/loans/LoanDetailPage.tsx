@@ -2,9 +2,19 @@ import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { format } from 'date-fns'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Sheet,
@@ -57,6 +67,8 @@ export function LoanDetailPage() {
   const [isDisburseOpen, setIsDisburseOpen] = useState(false)
   const [isCancelOpen, setIsCancelOpen] = useState(false)
   const [isPaymentOpen, setIsPaymentOpen] = useState(false)
+  const [isDefaultOpen, setIsDefaultOpen] = useState(false)
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
 
   const approveLoan = useApproveLoan()
   const defaultLoan = useDefaultLoan()
@@ -119,16 +131,14 @@ export function LoanDetailPage() {
             {data.status === 'ACTIVE' && (
               <>
                 <Button size="sm" onClick={() => setIsPaymentOpen(true)}>Record Payment</Button>
-                <Button size="sm" variant="outline" onClick={() => defaultLoan.mutate(data.id)} disabled={defaultLoan.isPending}>
-                  {defaultLoan.isPending ? <Spinner data-icon="inline-start" /> : null}
+                <Button size="sm" variant="outline" onClick={() => setIsDefaultOpen(true)}>
                   Mark Default
                 </Button>
               </>
             )}
             <RequireRole role="admin" fallback="hide">
               {(data.status === 'PENDING' || data.status === 'APPROVED') && (
-                <Button size="sm" variant="destructive" onClick={() => deleteLoan.mutate(data.id)} disabled={deleteLoan.isPending}>
-                  {deleteLoan.isPending ? <Spinner data-icon="inline-start" /> : null}
+                <Button size="sm" variant="destructive" onClick={() => setIsDeleteOpen(true)}>
                   Delete
                 </Button>
               )}
@@ -207,7 +217,92 @@ export function LoanDetailPage() {
           />
         </SheetContent>
       </Sheet>
+
+      <ConfirmLoanActionDialog
+        open={isDefaultOpen}
+        onOpenChange={setIsDefaultOpen}
+        title="Mark loan as defaulted?"
+        description="This will set the loan status to DEFAULTED and record a provision event. This cannot be undone."
+        confirmLabel="Mark Default"
+        borrowerName={formatBorrowerName(data.borrower)}
+        isPending={defaultLoan.isPending}
+        onConfirm={() => defaultLoan.mutate(data.id, { onSuccess: () => setIsDefaultOpen(false) })}
+      />
+
+      <ConfirmLoanActionDialog
+        open={isDeleteOpen}
+        onOpenChange={setIsDeleteOpen}
+        title="Delete loan?"
+        description="This will permanently remove the loan record. This cannot be undone."
+        confirmLabel="Delete"
+        confirmVariant="destructive"
+        borrowerName={formatBorrowerName(data.borrower)}
+        isPending={deleteLoan.isPending}
+        onConfirm={() => deleteLoan.mutate(data.id, { onSuccess: () => setIsDeleteOpen(false) })}
+      />
     </div>
+  )
+}
+
+type ConfirmLoanActionDialogProps = {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  title: string
+  description: string
+  confirmLabel: string
+  confirmVariant?: 'destructive' | 'default'
+  borrowerName: string
+  isPending: boolean
+  onConfirm: () => void
+}
+
+function ConfirmLoanActionDialog({
+  open,
+  onOpenChange,
+  title,
+  description,
+  confirmLabel,
+  confirmVariant = 'default',
+  borrowerName,
+  isPending,
+  onConfirm,
+}: ConfirmLoanActionDialogProps) {
+  const [confirmName, setConfirmName] = useState('')
+  const isMatch = confirmName.trim() === borrowerName.trim()
+
+  function handleOpenChange(next: boolean) {
+    if (!next) setConfirmName('')
+    onOpenChange(next)
+  }
+
+  return (
+    <AlertDialog open={open} onOpenChange={handleOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {description} Type <span className="font-semibold text-foreground">{borrowerName}</span> to confirm.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <Input
+          value={confirmName}
+          onChange={(e) => setConfirmName(e.target.value)}
+          placeholder={borrowerName}
+          autoComplete="off"
+        />
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <Button
+            variant={confirmVariant}
+            disabled={!isMatch || isPending}
+            onClick={onConfirm}
+          >
+            {isPending ? <Spinner data-icon="inline-start" /> : null}
+            {confirmLabel}
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   )
 }
 
