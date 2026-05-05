@@ -1,7 +1,15 @@
+import type { NextFunction, Request, Response } from 'express';
 import { Router } from 'express';
 import { requireAuth } from '../../middleware/auth.middleware';
 import { requireRole } from '../../middleware/rbac.middleware';
 import { validate } from '../../middleware/validate.middleware';
+
+function devDelay(ms: number) {
+  return (_req: Request, _res: Response, next: NextFunction) => {
+    if (process.env.NODE_ENV !== 'development') return next();
+    setTimeout(next, ms);
+  };
+}
 import {
   createBorrowerController,
   deleteBorrowerController,
@@ -23,6 +31,7 @@ borrowersRouter.get(
   requireAuth,
   requireRole(['admin', 'manager', 'user']),
   validate(listBorrowersSchema, 'query'),
+  devDelay(1500),
   listBorrowersController,
 );
 

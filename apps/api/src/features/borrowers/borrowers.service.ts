@@ -133,8 +133,10 @@ export async function listBorrowers({ cursor, limit, search }: ListBorrowersInpu
             { firstName: { contains: search, mode: 'insensitive' as const } },
             { middleName: { contains: search, mode: 'insensitive' as const } },
             { lastName: { contains: search, mode: 'insensitive' as const } },
-            { phoneNormalized: { contains: normalizePhone(search) } },
             { email: { contains: search, mode: 'insensitive' as const } },
+            ...(normalizePhone(search)
+              ? [{ phoneNormalized: { contains: normalizePhone(search) } }]
+              : []),
           ],
         }
       : {}),

@@ -14,7 +14,7 @@ export function useBorrowers(params?: UseBorrowersParams) {
   const qs = query.toString()
 
   return useQuery({
-    queryKey: ['borrowers', params],
+    queryKey: ['borrowers', { search: params?.search, cursor: params?.cursor }],
     queryFn: () => apiFetchList<BorrowerListItem>(`/api/v1/borrowers${qs ? `?${qs}` : ''}`),
     staleTime: 3 * 60 * 1000,
   })
