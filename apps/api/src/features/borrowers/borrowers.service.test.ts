@@ -39,7 +39,9 @@ import {
 const actor = { id: 'user-1' };
 
 const createInput = {
-  name: 'Maria Santos',
+  firstName: 'Maria',
+  middleName: undefined,
+  lastName: 'Santos',
   email: 'maria@example.com',
   phone: '+639171234567',
   address: 'Makati City',
@@ -205,7 +207,7 @@ describe('borrowers.service', () => {
         data: expect.objectContaining({
           action: 'BORROWER_UPDATED',
           targetId: 'borrower-1',
-          metadata: { fields: ['phone', 'monthlyIncome'] },
+          metadata: expect.objectContaining({ fields: ['phone', 'monthlyIncome'] }),
         }),
       });
     });

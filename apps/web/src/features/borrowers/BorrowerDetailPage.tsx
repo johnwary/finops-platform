@@ -19,7 +19,7 @@ import { EditBorrowerForm } from './components/EditBorrowerForm'
 import { useBorrower } from './hooks/useBorrower'
 import { useDeleteBorrower } from './hooks/useDeleteBorrower'
 import type { BorrowerDetail } from './types'
-import { GENDER_LABELS, ID_TYPE_LABELS, INCOME_SOURCE_LABELS, formatPhone } from './utils'
+import { GENDER_LABELS, ID_TYPE_LABELS, INCOME_SOURCE_LABELS, formatBorrowerName, formatPhone } from './utils'
 
 export function BorrowerDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -69,7 +69,7 @@ export function BorrowerDetailPage() {
           <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
             Borrower
           </p>
-          <h1 className="text-2xl font-semibold">{data.name}</h1>
+          <h1 className="text-2xl font-semibold">{formatBorrowerName(data)}</h1>
           <p className="text-sm text-muted-foreground">{data.email}</p>
         </div>
 

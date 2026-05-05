@@ -1,5 +1,16 @@
 import type { Gender, IdType, IncomeSource } from './types'
 
+export type BorrowerNameParts = {
+  firstName: string
+  middleName?: string | null
+  lastName: string
+}
+
+export function formatBorrowerName(b: BorrowerNameParts): string {
+  const first = b.middleName ? `${b.firstName} ${b.middleName}` : b.firstName
+  return `${b.lastName}, ${first}`
+}
+
 export const GENDER_LABELS: Record<Gender, string> = {
   MALE: 'Male',
   FEMALE: 'Female',

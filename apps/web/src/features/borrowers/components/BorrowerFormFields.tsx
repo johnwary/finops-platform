@@ -39,10 +39,22 @@ export function BorrowerFormFields({ register, setValue, control, errors }: Borr
     <FieldGroup>
       <SectionLabel>Identity</SectionLabel>
 
-      <Field data-invalid={!!errors.name}>
-        <FieldLabel htmlFor="name">Full name</FieldLabel>
-        <Input id="name" {...register('name')} />
-        <FieldError errors={[errors.name]} />
+      <Field data-invalid={!!errors.lastName}>
+        <FieldLabel htmlFor="lastName">Last name</FieldLabel>
+        <Input id="lastName" {...register('lastName')} />
+        <FieldError errors={[errors.lastName]} />
+      </Field>
+
+      <Field data-invalid={!!errors.firstName}>
+        <FieldLabel htmlFor="firstName">First name</FieldLabel>
+        <Input id="firstName" {...register('firstName')} />
+        <FieldError errors={[errors.firstName]} />
+      </Field>
+
+      <Field data-invalid={!!errors.middleName}>
+        <FieldLabel htmlFor="middleName">Middle name (optional)</FieldLabel>
+        <Input id="middleName" {...register('middleName')} />
+        <FieldError errors={[errors.middleName]} />
       </Field>
 
       <Field data-invalid={!!errors.email}>

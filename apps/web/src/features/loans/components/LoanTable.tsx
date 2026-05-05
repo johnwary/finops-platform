@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/table'
 import { useLoans } from '../hooks/useLoans'
 import type { LoanStatus } from '../types'
+import { formatBorrowerName } from '@/features/borrowers/utils'
 import { formatPeso, formatPercent, LOAN_STATUS_LABELS, LOAN_TYPE_LABELS } from '../utils'
 import { LoanStatusBadge } from './LoanStatusBadge'
 
@@ -136,7 +137,7 @@ function LoanTableContent({ loans }: { loans: ReturnType<typeof useLoans> }) {
       <TableBody>
         {loans.data.data.map((loan) => (
           <TableRow key={loan.id}>
-            <TableCell className="font-medium max-w-32 truncate">{loan.borrower.name}</TableCell>
+            <TableCell className="font-medium max-w-32 truncate">{formatBorrowerName(loan.borrower)}</TableCell>
             <TableCell>{LOAN_TYPE_LABELS[loan.type]}</TableCell>
             <TableCell className="tabular-nums">{formatPeso(loan.amount)}</TableCell>
             <TableCell className="tabular-nums">{formatPercent(loan.interestRate)}</TableCell>

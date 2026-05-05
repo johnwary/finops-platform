@@ -24,13 +24,17 @@ export type PaymentMethod = 'CASH' | 'BANK_TRANSFER' | 'GCASH' | 'CHECK'
 
 export interface LoanBorrowerSummary {
   id: string
-  name: string
+  firstName: string
+  middleName: string | null
+  lastName: string
   email: string
 }
 
 export interface LoanBorrower {
   id: string
-  name: string
+  firstName: string
+  middleName: string | null
+  lastName: string
   email: string
   phone: string
 }

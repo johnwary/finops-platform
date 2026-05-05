@@ -258,7 +258,9 @@ async function seedBorrowersAndLoans(adminId: string) {
   const borrowers = [
     {
       id: BORROWER_IDS.clean,
-      name: 'Ana Santos',
+      firstName: 'Ana',
+      middleName: null,
+      lastName: 'Santos',
       email: 'ana.santos.seed@example.com',
       phone: '09170000001',
       address: '101 Poblacion, Manila',
@@ -273,7 +275,9 @@ async function seedBorrowersAndLoans(adminId: string) {
     },
     {
       id: BORROWER_IDS.pending,
-      name: 'Jose Reyes',
+      firstName: 'Jose',
+      middleName: null,
+      lastName: 'Reyes',
       email: 'jose.reyes.seed@example.com',
       phone: '09170000002',
       address: '22 San Antonio, Quezon City',
@@ -288,7 +292,9 @@ async function seedBorrowersAndLoans(adminId: string) {
     },
     {
       id: BORROWER_IDS.approved,
-      name: 'Maria Cruz',
+      firstName: 'Maria',
+      middleName: null,
+      lastName: 'Cruz',
       email: 'maria.cruz.seed@example.com',
       phone: '09170000003',
       address: '88 Santa Cruz, Pasig',
@@ -303,7 +309,9 @@ async function seedBorrowersAndLoans(adminId: string) {
     },
     {
       id: BORROWER_IDS.activeFresh,
-      name: 'Ramon Garcia',
+      firstName: 'Ramon',
+      middleName: null,
+      lastName: 'Garcia',
       email: 'ramon.garcia.seed@example.com',
       phone: '09170000004',
       address: '45 Barangay 5, Taguig',
@@ -318,7 +326,9 @@ async function seedBorrowersAndLoans(adminId: string) {
     },
     {
       id: BORROWER_IDS.activePartial,
-      name: 'Luz Flores',
+      firstName: 'Luz',
+      middleName: null,
+      lastName: 'Flores',
       email: 'luz.flores.seed@example.com',
       phone: '09170000005',
       address: '7 Bagong Silang, Caloocan',
@@ -333,7 +343,9 @@ async function seedBorrowersAndLoans(adminId: string) {
     },
     {
       id: BORROWER_IDS.defaulted,
-      name: 'Roberto Rivera',
+      firstName: 'Roberto',
+      middleName: null,
+      lastName: 'Rivera',
       email: 'roberto.rivera.seed@example.com',
       phone: '09170000006',
       address: '300 Barangay 10, Antipolo',

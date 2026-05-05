@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { RequireRole } from '@/features/auth/components/RequireRole'
+import { formatBorrowerName } from '@/features/borrowers/utils'
 import { CancelForm } from './components/CancelForm'
 import { DisburseForm } from './components/DisburseForm'
 import { LoanStatusBadge } from './components/LoanStatusBadge'
@@ -94,7 +95,7 @@ export function LoanDetailPage() {
           <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
             {LOAN_TYPE_LABELS[data.type]} Loan
           </p>
-          <h1 className="text-2xl font-semibold">{data.borrower.name}</h1>
+          <h1 className="text-2xl font-semibold">{formatBorrowerName(data.borrower)}</h1>
           <LoanStatusBadge status={data.status} />
         </div>
 
@@ -250,7 +251,7 @@ function LoanDetailsCard({ loan }: { loan: LoanDetail }) {
   return (
     <div className="flex flex-col gap-5">
       <DetailsGroup label="Borrower">
-        <DetailRow label="Name" value={loan.borrower.name} />
+        <DetailRow label="Name" value={formatBorrowerName(loan.borrower)} />
         <DetailRow label="Email" value={loan.borrower.email} />
         <DetailRow label="Phone" value={loan.borrower.phone} />
       </DetailsGroup>

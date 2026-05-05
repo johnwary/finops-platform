@@ -17,7 +17,9 @@ interface EditBorrowerFormProps {
 
 function toFormValues(b: BorrowerDetail): CreateBorrowerInput {
   return {
-    name: b.name,
+    firstName: b.firstName,
+    middleName: b.middleName ?? undefined,
+    lastName: b.lastName,
     email: b.email,
     phone: b.phone,
     address: b.address,

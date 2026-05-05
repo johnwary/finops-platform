@@ -3,7 +3,9 @@ import { z } from 'zod';
 const phoneRegex = /^(\+63|0)?[0-9]{10}$/;
 
 export const createBorrowerSchema = z.object({
-  name: z.string().min(1).max(255).trim(),
+  firstName: z.string().min(1).max(255).trim(),
+  middleName: z.string().max(255).trim().optional(),
+  lastName: z.string().min(1).max(255).trim(),
   email: z.email().toLowerCase(),
   phone: z.string().trim().regex(phoneRegex, 'Invalid PH phone number'),
   address: z.string().min(1).max(500).trim(),

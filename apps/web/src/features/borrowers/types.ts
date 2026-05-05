@@ -6,7 +6,9 @@ export type IncomeSource = 'EMPLOYMENT' | 'BUSINESS' | 'PENSION' | 'OTHER'
 
 export interface BorrowerListItem {
   id: string
-  name: string
+  firstName: string
+  middleName: string | null
+  lastName: string
   email: string
   phone: string
   address: string
@@ -20,7 +22,9 @@ export interface BorrowerListItem {
 
 export interface Borrower {
   id: string
-  name: string
+  firstName: string
+  middleName: string | null
+  lastName: string
   email: string
   phone: string
   phoneNormalized: string

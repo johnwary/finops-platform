@@ -283,7 +283,7 @@ export async function getLoan(id: string) {
     where: { id, deletedAt: null },
     include: {
       borrower: {
-        select: { id: true, name: true, email: true, phone: true },
+        select: { id: true, firstName: true, middleName: true, lastName: true, email: true, phone: true },
       },
       loanInstallments: {
         orderBy: { sequence: 'asc' },
@@ -305,7 +305,9 @@ export async function listLoans({ cursor, limit, borrowerId, status, search }: L
   if (status) where.status = status;
   if (search) {
     where.OR = [
-      { borrower: { name: { contains: search, mode: 'insensitive' } } },
+      { borrower: { firstName: { contains: search, mode: 'insensitive' } } },
+      { borrower: { middleName: { contains: search, mode: 'insensitive' } } },
+      { borrower: { lastName: { contains: search, mode: 'insensitive' } } },
       { purpose: { contains: search, mode: 'insensitive' } },
     ];
   }
@@ -317,7 +319,7 @@ export async function listLoans({ cursor, limit, borrowerId, status, search }: L
     skip: cursor ? 1 : 0,
     take: limit + 1,
     include: {
-      borrower: { select: { id: true, name: true, email: true } },
+      borrower: { select: { id: true, firstName: true, middleName: true, lastName: true, email: true } },
     },
   });
 

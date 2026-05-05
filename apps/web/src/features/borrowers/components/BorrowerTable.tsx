@@ -14,7 +14,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { useBorrowers } from '../hooks/useBorrowers'
-import { ID_TYPE_LABELS, formatPhone, maskIdNumber } from '../utils'
+import { ID_TYPE_LABELS, formatBorrowerName, formatPhone, maskIdNumber } from '../utils'
 
 interface BorrowerTableProps {
   borrowers: ReturnType<typeof useBorrowers>
@@ -110,7 +110,7 @@ function BorrowerTableContent({ borrowers }: { borrowers: ReturnType<typeof useB
       <TableBody>
         {borrowers.data.data.map((b) => (
           <TableRow key={b.id}>
-            <TableCell className="font-medium max-w-48 truncate">{b.name}</TableCell>
+            <TableCell className="font-medium max-w-48 truncate">{formatBorrowerName(b)}</TableCell>
             <TableCell className="max-w-48 truncate">{b.email}</TableCell>
             <TableCell className="tabular-nums">{formatPhone(b.phone)}</TableCell>
             <TableCell>

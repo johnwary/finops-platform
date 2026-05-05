@@ -105,7 +105,9 @@ model Verification {
 
 model Borrower {
   id                    String       @id @default(uuid())
-  name                  String
+  firstName             String
+  middleName            String?
+  lastName              String
   email                 String       @db.Citext
   phone                 String
   phoneNormalized       String
@@ -126,7 +128,7 @@ model Borrower {
 
   loans Loan[]
 
-  @@index([name])
+  @@index([lastName, firstName])
   @@index([phone])
   @@index([phoneNormalized])
   @@index([idNumber])

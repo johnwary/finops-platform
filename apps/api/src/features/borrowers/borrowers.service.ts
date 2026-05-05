@@ -22,10 +22,14 @@ interface Actor {
 
 function normalizePhone(phone: string): string {
   const digits = phone.replace(/\D/g, '');
-  // Normalize to 11-digit local format: 09XXXXXXXXX
   if (digits.startsWith('63') && digits.length === 12) return '0' + digits.slice(2);
   if (digits.length === 10) return '0' + digits;
   return digits;
+}
+
+function formatBorrowerName(b: { firstName: string; middleName?: string | null; lastName: string }): string {
+  const first = b.middleName ? `${b.firstName} ${b.middleName}` : b.firstName;
+  return `${b.lastName}, ${first}`;
 }
 
 export async function createBorrower(data: CreateBorrowerInput, actor: Actor) {
@@ -47,7 +51,9 @@ export async function createBorrower(data: CreateBorrowerInput, actor: Actor) {
     return await prisma.$transaction(async (tx) => {
       const borrower = await tx.borrower.create({
         data: {
-          name: data.name,
+          firstName: data.firstName,
+          middleName: data.middleName,
+          lastName: data.lastName,
           email: data.email,
           phone: data.phone,
           phoneNormalized,
@@ -71,7 +77,13 @@ export async function createBorrower(data: CreateBorrowerInput, actor: Actor) {
           category: 'AUDIT',
           action: 'BORROWER_CREATED',
           targetId: borrower.id,
-          metadata: { name: borrower.name, email: borrower.email },
+          metadata: {
+            name: formatBorrowerName(borrower),
+            firstName: borrower.firstName,
+            middleName: borrower.middleName,
+            lastName: borrower.lastName,
+            email: borrower.email,
+          },
         },
       });
 
@@ -118,9 +130,11 @@ export async function listBorrowers({ cursor, limit, search }: ListBorrowersInpu
     ...(search
       ? {
           OR: [
-            { name: { contains: search, mode: 'insensitive' as const } },
+            { firstName: { contains: search, mode: 'insensitive' as const } },
+            { middleName: { contains: search, mode: 'insensitive' as const } },
+            { lastName: { contains: search, mode: 'insensitive' as const } },
             { phoneNormalized: { contains: normalizePhone(search) } },
-            { email: { contains: search } },
+            { email: { contains: search, mode: 'insensitive' as const } },
           ],
         }
       : {}),
@@ -128,13 +142,15 @@ export async function listBorrowers({ cursor, limit, search }: ListBorrowersInpu
 
   const borrowers = await prisma.borrower.findMany({
     where,
-    orderBy: { createdAt: 'desc' },
+    orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }, { createdAt: 'desc' }],
     cursor: cursor ? { id: cursor } : undefined,
     skip: cursor ? 1 : 0,
     take: limit + 1,
     select: {
       id: true,
-      name: true,
+      firstName: true,
+      middleName: true,
+      lastName: true,
       email: true,
       phone: true,
       address: true,
@@ -195,7 +211,14 @@ export async function updateBorrower(id: string, data: UpdateBorrowerInput, acto
           category: 'AUDIT',
           action: 'BORROWER_UPDATED',
           targetId: id,
-          metadata: { fields: Object.keys(data) },
+          metadata: {
+            name: formatBorrowerName(updated),
+            firstName: updated.firstName,
+            middleName: updated.middleName,
+            lastName: updated.lastName,
+            email: updated.email,
+            fields: Object.keys(data),
+          },
         },
       });
 
@@ -240,7 +263,13 @@ export async function softDeleteBorrower(id: string, actor: Actor) {
         category: 'AUDIT',
         action: 'BORROWER_DELETED',
         targetId: id,
-        metadata: { name: borrower.name, email: borrower.email },
+        metadata: {
+          name: formatBorrowerName(borrower),
+          firstName: borrower.firstName,
+          middleName: borrower.middleName,
+          lastName: borrower.lastName,
+          email: borrower.email,
+        },
       },
     });
 
