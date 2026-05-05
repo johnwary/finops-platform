@@ -39,6 +39,7 @@ RUN pnpm install --frozen-lockfile --prod --filter api
 # API compiled output + Prisma generated client
 COPY --from=api-build /app/apps/api/dist apps/api/dist
 COPY --from=api-build /app/apps/api/src/generated apps/api/src/generated
+COPY apps/api/prisma.config.ts apps/api/prisma.config.ts
 COPY apps/api/prisma apps/api/prisma
 
 # Web static build
