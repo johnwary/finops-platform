@@ -1,8 +1,18 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Sheet,
@@ -19,7 +29,13 @@ import { EditBorrowerForm } from './components/EditBorrowerForm'
 import { useBorrower } from './hooks/useBorrower'
 import { useDeleteBorrower } from './hooks/useDeleteBorrower'
 import type { BorrowerDetail } from './types'
-import { GENDER_LABELS, ID_TYPE_LABELS, INCOME_SOURCE_LABELS, formatBorrowerName, formatPhone } from './utils'
+import {
+  GENDER_LABELS,
+  ID_TYPE_LABELS,
+  INCOME_SOURCE_LABELS,
+  formatBorrowerName,
+  formatPhone,
+} from './utils'
 
 export function BorrowerDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -27,6 +43,7 @@ export function BorrowerDetailPage() {
   const borrower = useBorrower(id)
 
   const [isEditOpen, setIsEditOpen] = useState(false)
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
 
   const deleteBorrower = useDeleteBorrower()
 
@@ -59,6 +76,7 @@ export function BorrowerDetailPage() {
     deleteBorrower.mutate(data.id, {
       onSuccess: () => navigate('/dashboard/borrowers'),
     })
+    setIsDeleteOpen(false)
   }
 
   return (
@@ -79,26 +97,27 @@ export function BorrowerDetailPage() {
               Edit
             </Button>
             <RequireRole role="admin" fallback="hide">
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={handleDelete}
-                disabled={deleteBorrower.isPending || hasLoans}
-                title={hasLoans ? 'Cannot delete: borrower has loans' : undefined}
-              >
-                {deleteBorrower.isPending ? <Spinner data-icon="inline-start" /> : null}
-                Delete
-              </Button>
+              <div className="flex flex-col items-end gap-0.5">
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => setIsDeleteOpen(true)}
+                  disabled={deleteBorrower.isPending || hasLoans}
+                >
+                  {deleteBorrower.isPending ? <Spinner data-icon="inline-start" /> : null}
+                  Delete
+                </Button>
+                {hasLoans && (
+                  <p className="text-xs text-muted-foreground">Has active loans</p>
+                )}
+              </div>
             </RequireRole>
           </div>
         </RequireRole>
       </div>
 
       {/* Details */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <BorrowerDetailsCard borrower={data} />
-        <BorrowerExtrasCard borrower={data} />
-      </div>
+      <BorrowerDetailsGrid borrower={data} />
 
       {/* Loans */}
       <div>
@@ -107,6 +126,15 @@ export function BorrowerDetailPage() {
         </h2>
         <BorrowerLoansList loans={data.loans} />
       </div>
+
+      {/* Delete confirmation */}
+      <DeleteBorrowerDialog
+        open={isDeleteOpen}
+        onOpenChange={setIsDeleteOpen}
+        borrowerName={formatBorrowerName(data)}
+        isPending={deleteBorrower.isPending}
+        onConfirm={handleDelete}
+      />
 
       {/* Edit sheet */}
       <Sheet open={isEditOpen} onOpenChange={setIsEditOpen}>
@@ -122,42 +150,36 @@ export function BorrowerDetailPage() {
   )
 }
 
-function BorrowerDetailsCard({ borrower }: { borrower: BorrowerDetail }) {
+function BorrowerDetailsGrid({ borrower }: { borrower: BorrowerDetail }) {
+  const hasEmergency = borrower.emergencyContactName || borrower.emergencyContactPhone
+
   return (
-    <div className="flex flex-col gap-5">
+    <div className="grid gap-5 lg:grid-cols-2 lg:gap-x-6">
       <DetailsGroup label="Identity">
         <DetailRow label="Email" value={borrower.email} />
         <DetailRow label="Phone" value={formatPhone(borrower.phone)} />
-        <StackedRow label="Address" value={borrower.address} />
+        <DetailRow label="Address" value={borrower.address} />
+      </DetailsGroup>
+
+      <DetailsGroup label="Income">
+        <DetailRow label="Source" value={INCOME_SOURCE_LABELS[borrower.incomeSource]} />
+        {borrower.occupation && <DetailRow label="Occupation" value={borrower.occupation} />}
+        {borrower.monthlyIncome != null && (
+          <DetailRow label="Monthly income" value={formatPeso(borrower.monthlyIncome)} />
+        )}
       </DetailsGroup>
 
       <DetailsGroup label="KYC">
         <DetailRow
           label="Date of birth"
-          value={format(new Date(borrower.dateOfBirth), 'MMM d, yyyy')}
+          value={format(parseISO(borrower.dateOfBirth), 'MMM d, yyyy')}
         />
         <DetailRow label="Gender" value={GENDER_LABELS[borrower.gender]} />
         <DetailRow label="ID type" value={ID_TYPE_LABELS[borrower.idType]} />
         <DetailRow label="ID number" value={borrower.idNumber} />
       </DetailsGroup>
-    </div>
-  )
-}
 
-function BorrowerExtrasCard({ borrower }: { borrower: BorrowerDetail }) {
-  const hasEmergency = borrower.emergencyContactName || borrower.emergencyContactPhone
-
-  return (
-    <div className="flex flex-col gap-5">
-      <DetailsGroup label="Income">
-        <DetailRow label="Source" value={INCOME_SOURCE_LABELS[borrower.incomeSource]} />
-        {borrower.occupation && <DetailRow label="Occupation" value={borrower.occupation} />}
-        {borrower.monthlyIncome && (
-          <DetailRow label="Monthly income" value={formatPeso(borrower.monthlyIncome)} />
-        )}
-      </DetailsGroup>
-
-      {hasEmergency && (
+      {hasEmergency ? (
         <DetailsGroup label="Emergency contact">
           {borrower.emergencyContactName && (
             <DetailRow label="Name" value={borrower.emergencyContactName} />
@@ -166,42 +188,99 @@ function BorrowerExtrasCard({ borrower }: { borrower: BorrowerDetail }) {
             <DetailRow label="Phone" value={formatPhone(borrower.emergencyContactPhone)} />
           )}
         </DetailsGroup>
+      ) : (
+        borrower.notes && <div />
       )}
 
       {borrower.notes && (
-        <DetailsGroup label="Notes">
-          <StackedRow label="Notes" value={borrower.notes} />
+        <DetailsGroup label="Notes" variant="prose">
+          <p className="text-sm font-medium leading-relaxed">{borrower.notes}</p>
         </DetailsGroup>
       )}
     </div>
   )
 }
 
-function DetailsGroup({ label, children }: { label: string; children: React.ReactNode }) {
+type DetailsGroupProps = {
+  label: string
+  children: ReactNode
+  className?: string
+  variant?: 'definition' | 'prose'
+}
+
+function DetailsGroup({
+  label,
+  children,
+  className,
+  variant = 'definition',
+}: DetailsGroupProps) {
   return (
-    <div>
+    <div className={className}>
       <p className="text-xs font-semibold uppercase tracking-widest text-foreground pb-1.5 mb-2 border-b">
         {label}
       </p>
-      <dl className="flex flex-col gap-2 text-sm">{children}</dl>
+      {variant === 'prose' ? (
+        <div>{children}</div>
+      ) : (
+        <dl className="flex flex-col gap-2 text-sm">{children}</dl>
+      )}
     </div>
   )
 }
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between gap-4">
-      <dt className="text-muted-foreground shrink-0">{label}</dt>
-      <dd className="font-medium text-right">{value}</dd>
+    <div className="grid grid-cols-5 gap-2">
+      <dt className="col-span-2 text-muted-foreground">{label}</dt>
+      <dd className="col-span-3 font-medium">{value}</dd>
     </div>
   )
 }
 
-function StackedRow({ label, value }: { label: string; value: string }) {
+type DeleteBorrowerDialogProps = {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  borrowerName: string
+  isPending: boolean
+  onConfirm: () => void
+}
+
+function DeleteBorrowerDialog({ open, onOpenChange, borrowerName, isPending, onConfirm }: DeleteBorrowerDialogProps) {
+  const [confirmName, setConfirmName] = useState('')
+  const isMatch = confirmName.trim() === borrowerName.trim()
+
+  function handleOpenChange(next: boolean) {
+    if (!next) setConfirmName('')
+    onOpenChange(next)
+  }
+
   return (
-    <div className="flex flex-col gap-0.5">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="font-medium leading-snug">{value}</dd>
-    </div>
+    <AlertDialog open={open} onOpenChange={handleOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete borrower?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This action cannot be undone. Type <span className="font-semibold text-foreground">{borrowerName}</span> to confirm.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <Input
+          value={confirmName}
+          onChange={(e) => setConfirmName(e.target.value)}
+          placeholder={borrowerName}
+          autoComplete="off"
+        />
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <Button
+            variant="destructive"
+            disabled={!isMatch || isPending}
+            onClick={onConfirm}
+          >
+            {isPending ? <Spinner data-icon="inline-start" /> : null}
+            Delete
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   )
 }
