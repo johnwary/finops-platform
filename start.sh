@@ -8,7 +8,7 @@ fi
 
 # Run Prisma migrations
 cd /app/apps/api
-/app/node_modules/.bin/prisma migrate deploy
+/app/apps/api/node_modules/.bin/prisma migrate deploy
 
 # Start Express in background
 node /app/apps/api/dist/index.js &
