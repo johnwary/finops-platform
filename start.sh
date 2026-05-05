@@ -6,18 +6,18 @@ if [ -z "$DATABASE_URL" ]; then
   exit 1
 fi
 
-# Run Prisma migrations before starting
-node -e "
-const { execSync } = require('child_process');
-execSync('npx prisma migrate deploy', {
-  cwd: '/app/apps/api',
-  stdio: 'inherit',
-  env: { ...process.env }
-});
-"
+# Run Prisma migrations
+cd /app/apps/api
+/app/node_modules/.bin/prisma migrate deploy
 
 # Start Express in background
 node /app/apps/api/dist/index.js &
 
+# Nginx on Alpine needs this dir for pid file
+mkdir -p /run/nginx
+
+# Verify nginx config before starting
+nginx -t
+
 # Start Nginx in foreground
-nginx -g "daemon off;"
+exec nginx -g "daemon off;"
