@@ -19,7 +19,7 @@ export class ApiError extends Error {
   }
 }
 
-const apiBaseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
+const apiBaseUrl = import.meta.env.VITE_API_URL ?? ''
 
 async function apiFetchRaw(path: string, init: RequestInit = {}) {
   const response = await fetch(`${apiBaseUrl}${path}`, {
