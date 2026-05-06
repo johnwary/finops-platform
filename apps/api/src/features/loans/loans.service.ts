@@ -285,6 +285,15 @@ export async function getLoan(id: string) {
       },
       loanInstallments: {
         orderBy: { sequence: 'asc' },
+        include: {
+          allocations: {
+            select: {
+              principalApplied: true,
+              interestApplied: true,
+              penaltiesApplied: true,
+            },
+          },
+        },
       },
       loanPayments: {
         orderBy: { paidAt: 'desc' },

@@ -47,8 +47,15 @@ export interface LoanInstallment {
   principal: string
   interest: string
   status: InstallmentStatus
+  allocations?: LoanPaymentAllocation[]
   createdAt: string
   updatedAt: string
+}
+
+export interface LoanPaymentAllocation {
+  principalApplied: string
+  interestApplied: string
+  penaltiesApplied: string
 }
 
 export interface LoanPayment {

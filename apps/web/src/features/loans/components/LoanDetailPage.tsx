@@ -222,6 +222,7 @@ export function LoanDetailPage() {
           <RecordPaymentForm
             loanId={data.id}
             remainingBalance={data.remainingBalance}
+            installments={data.loanInstallments}
             onSuccess={() => setIsPaymentOpen(false)}
           />
         </SheetContent>

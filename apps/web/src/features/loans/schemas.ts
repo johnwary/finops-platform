@@ -48,7 +48,7 @@ export function recordPaymentSchema(maxAmount: number) {
     amount: z
       .number()
       .positive({ message: 'Amount must be positive' })
-      .max(maxAmount, { message: `Cannot exceed remaining balance of ₱${maxAmount.toFixed(2)}` }),
+      .max(maxAmount, { message: `Cannot exceed scheduled receivable of ₱${maxAmount.toFixed(2)}` }),
     paidAt: z.string().min(1, { message: 'Payment date required' }),
     method: z.enum(['CASH', 'BANK_TRANSFER', 'GCASH', 'CHECK']),
     reference: z.string().max(255).optional(),
