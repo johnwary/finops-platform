@@ -26,6 +26,14 @@
   --input: oklch(0.8731 0.021 173.87);
   --ring: oklch(0.5763 0.0495 168.74);
   --radius: 0.5rem;
+  --sidebar: oklch(0.9385 0.0104 174.26);
+  --sidebar-foreground: oklch(0.1517 0.019 230.11);
+  --sidebar-primary: oklch(0.3333 0.0421 195.32);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.9017 0.0173 174.06);
+  --sidebar-accent-foreground: oklch(0.1517 0.019 230.11);
+  --sidebar-border: oklch(0.8731 0.021 173.87);
+  --sidebar-ring: oklch(0.5763 0.0495 168.74);
   font-size: 18px;
   font-family: 'Geist Variable', system-ui, sans-serif;
   color: var(--foreground);
@@ -55,6 +63,14 @@
   --border: oklch(0.3264 0.034 195.61);
   --input: oklch(0.3264 0.034 195.61);
   --ring: oklch(0.5763 0.0495 168.74);
+  --sidebar: oklch(0.2239 0.0239 195.58);
+  --sidebar-foreground: oklch(0.9485 0.0089 179.6);
+  --sidebar-primary: oklch(0.5763 0.0495 168.74);
+  --sidebar-primary-foreground: oklch(0.1517 0.019 230.11);
+  --sidebar-accent: oklch(0.2739 0.0321 195.4);
+  --sidebar-accent-foreground: oklch(0.9485 0.0089 179.6);
+  --sidebar-border: oklch(0.3264 0.034 195.61);
+  --sidebar-ring: oklch(0.5763 0.0495 168.74);
 }
 
 @theme inline {
@@ -82,6 +98,14 @@
   --radius-md: var(--radius);
   --radius-lg: calc(var(--radius) * 1.25);
   --radius-xl: calc(var(--radius) * 1.5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
 }
 
 @layer base {
