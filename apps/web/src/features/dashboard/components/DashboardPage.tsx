@@ -5,8 +5,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatPeso } from '@/lib/format'
-import { useDashboardSummary, useOverdue, usePortfolioAtRisk } from './hooks/useDashboard'
-import type { ReportPeriod } from './types'
+import { useDashboardSummary, useOverdue, usePortfolioAtRisk } from '../hooks/useDashboard'
+import type { ReportPeriod } from '../types'
 
 const PERIODS: { value: ReportPeriod; label: string }[] = [
   { value: 'today', label: 'Today' },

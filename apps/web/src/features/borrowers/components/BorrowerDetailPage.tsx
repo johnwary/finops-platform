@@ -24,18 +24,18 @@ import {
 import { Spinner } from '@/components/ui/spinner'
 import { RequireRole } from '@/features/auth/components/RequireRole'
 import { formatPeso } from '@/lib/format'
-import { BorrowerLoansList } from './components/BorrowerLoansList'
-import { EditBorrowerForm } from './components/EditBorrowerForm'
-import { useBorrower } from './hooks/useBorrower'
-import { useDeleteBorrower } from './hooks/useDeleteBorrower'
-import type { BorrowerDetail } from './types'
+import { BorrowerLoansList } from '../components/BorrowerLoansList'
+import { EditBorrowerForm } from '../components/EditBorrowerForm'
+import { useBorrower } from '../hooks/useBorrower'
+import { useDeleteBorrower } from '../hooks/useDeleteBorrower'
+import type { BorrowerDetail } from '../types'
 import {
   GENDER_LABELS,
   ID_TYPE_LABELS,
   INCOME_SOURCE_LABELS,
   formatBorrowerName,
   formatPhone,
-} from './utils'
+} from '../utils'
 
 export function BorrowerDetailPage() {
   const { id } = useParams<{ id: string }>()

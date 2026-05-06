@@ -10,10 +10,10 @@ import {
 } from '@/components/ui/sheet'
 import { RequireRole } from '@/features/auth/components/RequireRole'
 import { useDebounce } from '@/hooks/use-debounce'
-import { CreateLoanForm } from './components/CreateLoanForm'
-import { LoanTable } from './components/LoanTable'
-import { useLoans } from './hooks/useLoans'
-import type { LoanStatus, LoanType } from './types'
+import { CreateLoanForm } from '../components/CreateLoanForm'
+import { LoanTable } from '../components/LoanTable'
+import { useLoans } from '../hooks/useLoans'
+import type { LoanStatus, LoanType } from '../types'
 
 export function LoansListPage() {
   const [status, setStatus] = useState<LoanStatus | undefined>(undefined)

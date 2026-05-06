@@ -35,15 +35,15 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { RequireRole } from '@/features/auth/components/RequireRole'
 import { formatBorrowerName } from '@/features/borrowers/utils'
-import { CancelForm } from './components/CancelForm'
-import { DisburseForm } from './components/DisburseForm'
-import { LoanStatusBadge } from './components/LoanStatusBadge'
-import { RecordPaymentForm } from './components/RecordPaymentForm'
-import { useApproveLoan } from './hooks/useApproveLoan'
-import { useDefaultLoan } from './hooks/useDefaultLoan'
-import { useDeleteLoan } from './hooks/useDeleteLoan'
-import { useLoan } from './hooks/useLoan'
-import type { LoanDetail } from './types'
+import { CancelForm } from '../components/CancelForm'
+import { DisburseForm } from '../components/DisburseForm'
+import { LoanStatusBadge } from '../components/LoanStatusBadge'
+import { RecordPaymentForm } from '../components/RecordPaymentForm'
+import { useApproveLoan } from '../hooks/useApproveLoan'
+import { useDefaultLoan } from '../hooks/useDefaultLoan'
+import { useDeleteLoan } from '../hooks/useDeleteLoan'
+import { useLoan } from '../hooks/useLoan'
+import type { LoanDetail } from '../types'
 import {
   formatPeso,
   formatPercent,
@@ -52,7 +52,7 @@ import {
   PAYMENT_FREQUENCY_LABELS,
   PAYMENT_METHOD_LABELS,
   REPAYMENT_STRUCTURE_LABELS,
-} from './utils'
+} from '../utils'
 
 const INSTALLMENT_STATUS_VARIANTS = {
   SCHEDULED: 'outline',

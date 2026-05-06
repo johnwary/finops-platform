@@ -10,6 +10,7 @@ Vite, React 19, TypeScript, Tailwind 4, shadcn/ui, React Query, Zustand, React H
 apps/web/src/
 ├── features/
 │   ├── auth/
+│   │   ├── assets/        # login-image.jpg
 │   │   ├── components/    # LoginPage, LoginForm, InviteAcceptPage, ProtectedRoute, RequireRole
 │   │   ├── hooks/         # useSession, useLogin, useLogout, useAcceptInvite, useValidateInviteToken
 │   │   └── schemas.ts     # loginSchema, inviteAcceptSchema
@@ -17,10 +18,24 @@ apps/web/src/
 │   │   ├── hooks/         # useInvitations, useCreateInvitation, useRevokeInvitation
 │   │   ├── schemas.ts
 │   │   └── types.ts
-│   ├── settings/          # SettingsPage (admin only — invitation management)
-│   ├── dashboard/         # DashboardPage
-│   ├── borrowers/         # TODO
-│   ├── loans/             # TODO
+│   ├── settings/
+│   │   └── components/    # SettingsPage (admin only — invitation management)
+│   ├── dashboard/
+│   │   ├── components/    # DashboardPage
+│   │   ├── hooks/         # useDashboard
+│   │   └── types.ts
+│   ├── borrowers/
+│   │   ├── components/    # BorrowersListPage, BorrowerDetailPage, BorrowerTable, forms
+│   │   ├── hooks/         # useBorrowers, useBorrower, useCreateBorrower, etc.
+│   │   ├── schemas.ts
+│   │   ├── types.ts
+│   │   └── utils.ts
+│   ├── loans/
+│   │   ├── components/    # LoansListPage, LoanDetailPage, LoanTable, forms
+│   │   ├── hooks/         # useLoans, useLoan, useCreateLoan, etc.
+│   │   ├── schemas.ts
+│   │   ├── types.ts
+│   │   └── utils.ts
 │   └── deposits/          # TODO
 ├── components/
 │   ├── ui/                # shadcn components only
@@ -32,6 +47,8 @@ apps/web/src/
 ├── hooks/                 # Global hooks only (use-mobile.ts)
 └── router.tsx             # All route definitions
 ```
+
+All page components live in `features/[name]/components/` — no page files at feature root.
 
 ## Routing
 

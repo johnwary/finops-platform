@@ -5,12 +5,12 @@ import { LoginPage } from '@/features/auth/components/LoginPage'
 import { InviteAcceptPage } from '@/features/auth/components/InviteAcceptPage'
 import { ProtectedRoute } from '@/features/auth/components/ProtectedRoute'
 import { RequireRole } from '@/features/auth/components/RequireRole'
-import { BorrowerDetailPage } from '@/features/borrowers/BorrowerDetailPage'
-import { BorrowersListPage } from '@/features/borrowers/BorrowersListPage'
-import { DashboardPage } from '@/features/dashboard/DashboardPage'
-import { LoanDetailPage } from '@/features/loans/LoanDetailPage'
-import { LoansListPage } from '@/features/loans/LoansListPage'
-import { SettingsPage } from '@/features/settings/SettingsPage'
+import { BorrowerDetailPage } from '@/features/borrowers/components/BorrowerDetailPage'
+import { BorrowersListPage } from '@/features/borrowers/components/BorrowersListPage'
+import { DashboardPage } from '@/features/dashboard/components/DashboardPage'
+import { LoanDetailPage } from '@/features/loans/components/LoanDetailPage'
+import { LoansListPage } from '@/features/loans/components/LoansListPage'
+import { SettingsPage } from '@/features/settings/components/SettingsPage'
 
 export const router = createBrowserRouter([
   {

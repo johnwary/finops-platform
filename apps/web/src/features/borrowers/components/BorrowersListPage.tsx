@@ -10,9 +10,9 @@ import {
 } from '@/components/ui/sheet'
 import { RequireRole } from '@/features/auth/components/RequireRole'
 import { useDebounce } from '@/hooks/use-debounce'
-import { BorrowerTable } from './components/BorrowerTable'
-import { CreateBorrowerForm } from './components/CreateBorrowerForm'
-import { useBorrowers } from './hooks/useBorrowers'
+import { BorrowerTable } from '../components/BorrowerTable'
+import { CreateBorrowerForm } from '../components/CreateBorrowerForm'
+import { useBorrowers } from '../hooks/useBorrowers'
 
 export function BorrowersListPage() {
   const [search, setSearch] = useState('')
