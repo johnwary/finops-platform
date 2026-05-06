@@ -19,6 +19,11 @@ function sumDecimals(rows: { _sum: { [k: string]: Decimal | null } }, key: strin
   return (val ?? new Decimal(0)).toFixed(2);
 }
 
+function formatBorrowerName(b: { firstName: string; middleName?: string | null; lastName: string }): string {
+  const first = b.middleName ? `${b.firstName} ${b.middleName}` : b.firstName;
+  return `${b.lastName}, ${first}`;
+}
+
 export async function getSummary(input: PeriodInput) {
   const since = periodStart(input.period);
 
@@ -258,7 +263,16 @@ export async function getOverdue() {
       loanInstallments: { some: { status: 'OVERDUE' } },
     },
     include: {
-      borrower: { select: { id: true, name: true, email: true, phone: true } },
+      borrower: {
+        select: {
+          id: true,
+          firstName: true,
+          middleName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+        },
+      },
       loanInstallments: {
         where: { status: 'OVERDUE' },
         orderBy: { dueDate: 'asc' },
@@ -278,7 +292,12 @@ export async function getOverdue() {
 
     return {
       loanId: loan.id,
-      borrower: loan.borrower,
+      borrower: {
+        id: loan.borrower.id,
+        name: formatBorrowerName(loan.borrower),
+        email: loan.borrower.email,
+        phone: loan.borrower.phone,
+      },
       amount: loan.amount.toFixed(2),
       remainingBalance: loan.remainingBalance.toFixed(2),
       earliestOverdueDueDate: earliest?.dueDate ?? null,
