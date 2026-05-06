@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Loan" ALTER COLUMN "endDate" DROP NOT NULL;

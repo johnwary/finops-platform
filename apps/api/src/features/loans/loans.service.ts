@@ -5,6 +5,7 @@ import { AppError } from '../../lib/response';
 import { resolveProvisionBucket } from '../../lib/lending';
 import type {
   CreateLoanInput,
+  ApproveLoanInput,
   DisburseLoanInput,
   CancelLoanInput,
   RecordPaymentInput,
@@ -231,8 +232,6 @@ export async function createLoan(data: CreateLoanInput, actor: Actor) {
   });
   if (!borrower) throw new AppError('NOT_FOUND', 'Borrower not found.', 404);
 
-  const projectedEndDate = addMonths(data.applicationDate, data.termMonths);
-
   try {
     return await prisma.$transaction(async (tx) => {
       const loan = await tx.loan.create({
@@ -243,7 +242,6 @@ export async function createLoan(data: CreateLoanInput, actor: Actor) {
           interestRate: new Decimal(data.interestRate),
           termMonths: data.termMonths,
           applicationDate: data.applicationDate,
-          endDate: projectedEndDate,
           paymentFrequency: data.paymentFrequency,
           repaymentStructure: data.repaymentStructure,
           remainingBalance: new Decimal(data.amount),
@@ -330,7 +328,7 @@ export async function listLoans({ cursor, limit, borrowerId, status, search, typ
   return { data, meta: { nextCursor, hasMore, limit } };
 }
 
-export async function approveLoan(id: string, actor: Actor) {
+export async function approveLoan(id: string, data: ApproveLoanInput, actor: Actor) {
   const loan = await prisma.loan.findFirst({ where: { id, deletedAt: null } });
   if (!loan) throw new AppError('NOT_FOUND', 'Loan not found.', 404);
 
@@ -338,12 +336,16 @@ export async function approveLoan(id: string, actor: Actor) {
     throw new AppError('LOAN_INVALID_STATE', `Cannot approve a loan with status ${loan.status}.`, 409);
   }
 
+  const approvedAt = data.approvedAt
+    ? new Date(Date.UTC(data.approvedAt.getUTCFullYear(), data.approvedAt.getUTCMonth(), data.approvedAt.getUTCDate(), 4, 0, 0))
+    : new Date();
+
   return prisma.$transaction(async (tx) => {
     const updated = await tx.loan.update({
       where: { id },
       data: {
         status: 'APPROVED',
-        approvedAt: new Date(),
+        approvedAt,
         approvedById: actor.id,
       },
     });
@@ -370,7 +372,10 @@ export async function disburseLoan(id: string, data: DisburseLoanInput, actor: A
     throw new AppError('LOAN_INVALID_STATE', `Cannot disburse a loan with status ${loan.status}.`, 409);
   }
 
-  const disbursedAt = data.disbursedAt ?? new Date();
+  // Use noon Manila time (UTC+8 = UTC+480 min) to avoid UTC day-shift on date-only input
+  const disbursedAt = data.disbursedAt
+    ? new Date(Date.UTC(data.disbursedAt.getUTCFullYear(), data.disbursedAt.getUTCMonth(), data.disbursedAt.getUTCDate(), 4, 0, 0))
+    : new Date();
   const endDate = addMonths(disbursedAt, loan.termMonths);
 
   const installments = buildInstallments(

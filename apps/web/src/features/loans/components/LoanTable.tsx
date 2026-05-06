@@ -106,7 +106,7 @@ function LoanTableContent({ loans }: { loans: ReturnType<typeof useLoans> }) {
             <TableHead>Term</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Remaining</TableHead>
-            <TableHead>Created</TableHead>
+            <TableHead>Disbursed</TableHead>
             <TableHead />
           </TableRow>
         </TableHeader>
@@ -148,7 +148,7 @@ function LoanTableContent({ loans }: { loans: ReturnType<typeof useLoans> }) {
           <TableHead>Term</TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Remaining</TableHead>
-          <TableHead>Created</TableHead>
+          <TableHead>Disbursed</TableHead>
           <TableHead />
         </TableRow>
       </TableHeader>
@@ -163,7 +163,7 @@ function LoanTableContent({ loans }: { loans: ReturnType<typeof useLoans> }) {
             <TableCell><LoanStatusBadge status={loan.status} /></TableCell>
             <TableCell className="tabular-nums">{formatPeso(loan.remainingBalance)}</TableCell>
             <TableCell className="text-muted-foreground">
-              {format(new Date(loan.createdAt), 'MMM d, yyyy')}
+              {loan.disbursedAt ? format(new Date(loan.disbursedAt), 'MMM d, yyyy') : '—'}
             </TableCell>
             <TableCell className="text-right">
               <Button variant="ghost" size="sm" asChild>

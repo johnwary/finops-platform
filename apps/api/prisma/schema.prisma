@@ -145,7 +145,7 @@ model Loan {
   termMonths         Int
   status             LoanStatus         @default(PENDING)
   applicationDate    DateTime
-  endDate            DateTime
+  endDate            DateTime?
   paymentFrequency   PaymentFrequency   @default(MONTHLY)
   repaymentStructure RepaymentStructure @default(AMORTIZING)
   totalPaid          Decimal            @default(0) @db.Decimal(12, 2)

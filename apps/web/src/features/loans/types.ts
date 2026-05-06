@@ -78,7 +78,7 @@ export interface Loan {
   termMonths: number
   status: LoanStatus
   applicationDate: string
-  endDate: string
+  endDate: string | null
   paymentFrequency: PaymentFrequency
   repaymentStructure: RepaymentStructure
   totalPaid: string

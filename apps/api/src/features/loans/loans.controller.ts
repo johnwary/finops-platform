@@ -3,6 +3,7 @@ import { success, successList } from '../../lib/response';
 import * as loansService from './loans.service';
 import type {
   CreateLoanInput,
+  ApproveLoanInput,
   DisburseLoanInput,
   CancelLoanInput,
   RecordPaymentInput,
@@ -44,7 +45,7 @@ export async function listLoansController(req: Request, res: Response, next: Nex
 export async function approveLoanController(req: Request, res: Response, next: NextFunction) {
   try {
     const { id } = req.validatedParams as { id: string };
-    const loan = await loansService.approveLoan(id, { id: req.user!.id });
+    const loan = await loansService.approveLoan(id, req.validatedBody as ApproveLoanInput, { id: req.user!.id });
     res.json(success(loan));
   } catch (err) {
     next(err);

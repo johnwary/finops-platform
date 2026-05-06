@@ -15,14 +15,19 @@ export const createLoanSchema = z.object({
   notes: z.string().max(2000).trim().optional(),
 });
 
-export const approveLoanSchema = z.object({});
+const dateStringSchema = z
+  .string()
+  .refine((v) => !isNaN(Date.parse(v)), { message: 'Invalid date' })
+  .transform((v) => new Date(v))
+  .refine((d) => d <= new Date(), { message: 'Date cannot be in the future' });
+
+export const approveLoanSchema = z.object({
+  approvedAt: dateStringSchema.optional(),
+});
 
 export const disburseLoanSchema = z.object({
   disbursementMethod: z.enum(['CASH', 'BANK_TRANSFER', 'GCASH', 'CHECK']),
-  disbursedAt: z.coerce
-    .date()
-    .max(new Date(), { message: 'Disbursement date cannot be in the future' })
-    .optional(),
+  disbursedAt: dateStringSchema.optional(),
   notes: z.string().max(2000).trim().optional(),
 });
 
@@ -59,6 +64,7 @@ export const defaultLoanSchema = z.object({
 export const loanParamsSchema = z.object({ id: z.uuid() });
 
 export type CreateLoanInput = z.infer<typeof createLoanSchema>;
+export type ApproveLoanInput = z.infer<typeof approveLoanSchema>;
 export type DisburseLoanInput = z.infer<typeof disburseLoanSchema>;
 export type CancelLoanInput = z.infer<typeof cancelLoanSchema>;
 export type RecordPaymentInput = z.infer<typeof recordPaymentSchema>;

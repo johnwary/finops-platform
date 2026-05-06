@@ -35,11 +35,11 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { RequireRole } from '@/features/auth/components/RequireRole'
 import { formatBorrowerName } from '@/features/borrowers/utils'
+import { ApproveForm } from '../components/ApproveForm'
 import { CancelForm } from '../components/CancelForm'
 import { DisburseForm } from '../components/DisburseForm'
 import { LoanStatusBadge } from '../components/LoanStatusBadge'
 import { RecordPaymentForm } from '../components/RecordPaymentForm'
-import { useApproveLoan } from '../hooks/useApproveLoan'
 import { useDefaultLoan } from '../hooks/useDefaultLoan'
 import { useDeleteLoan } from '../hooks/useDeleteLoan'
 import { useLoan } from '../hooks/useLoan'
@@ -64,13 +64,13 @@ export function LoanDetailPage() {
   const { id } = useParams<{ id: string }>()
   const loan = useLoan(id!)
 
+  const [isApproveOpen, setIsApproveOpen] = useState(false)
   const [isDisburseOpen, setIsDisburseOpen] = useState(false)
   const [isCancelOpen, setIsCancelOpen] = useState(false)
   const [isPaymentOpen, setIsPaymentOpen] = useState(false)
   const [isDefaultOpen, setIsDefaultOpen] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
 
-  const approveLoan = useApproveLoan()
   const defaultLoan = useDefaultLoan()
   const deleteLoan = useDeleteLoan()
 
@@ -115,8 +115,7 @@ export function LoanDetailPage() {
           <div className="flex items-center gap-2 flex-wrap">
             {data.status === 'PENDING' && (
               <>
-                <Button size="sm" onClick={() => approveLoan.mutate(data.id)} disabled={approveLoan.isPending}>
-                  {approveLoan.isPending ? <Spinner data-icon="inline-start" /> : null}
+                <Button size="sm" onClick={() => setIsApproveOpen(true)}>
                   Approve
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => setIsCancelOpen(true)}>Cancel</Button>
@@ -184,6 +183,16 @@ export function LoanDetailPage() {
       </div>
 
       {/* Sheets */}
+      <Sheet open={isApproveOpen} onOpenChange={setIsApproveOpen}>
+        <SheetContent className="flex flex-col p-0">
+          <SheetHeader className="p-6 pb-0">
+            <SheetTitle>Approve Loan</SheetTitle>
+            <SheetDescription>Set the approval date for this loan.</SheetDescription>
+          </SheetHeader>
+          <ApproveForm loanId={data.id} onSuccess={() => setIsApproveOpen(false)} />
+        </SheetContent>
+      </Sheet>
+
       <Sheet open={isDisburseOpen} onOpenChange={setIsDisburseOpen}>
         <SheetContent className="flex flex-col p-0">
           <SheetHeader className="p-6 pb-0">
@@ -351,19 +360,25 @@ function LoanDetailsCard({ loan }: { loan: LoanDetail }) {
         <DetailRow label="Phone" value={loan.borrower.phone} />
       </DetailsGroup>
 
-      <DetailsGroup label="Terms">
+      <DetailsGroup label="Loan Terms">
         <DetailRow label="Amount" value={formatPeso(loan.amount)} />
         <DetailRow label="Interest Rate" value={formatPercent(loan.interestRate)} />
         <DetailRow label="Term" value={`${loan.termMonths} months`} />
         <DetailRow label="Frequency" value={PAYMENT_FREQUENCY_LABELS[loan.paymentFrequency]} />
         <DetailRow label="Structure" value={REPAYMENT_STRUCTURE_LABELS[loan.repaymentStructure]} />
-        <DetailRow label="Application Date" value={format(new Date(loan.applicationDate), 'MMM d, yyyy')} />
-        <DetailRow label="End Date" value={format(new Date(loan.endDate), 'MMM d, yyyy')} />
         {loan.loanFee && <DetailRow label="Loan Fee" value={formatPeso(loan.loanFee)} />}
         {loan.penaltyRate && <DetailRow label="Penalty Rate" value={formatPercent(loan.penaltyRate)} />}
         {loan.disbursementMethod && (
-          <DetailRow label="Disbursement" value={PAYMENT_METHOD_LABELS[loan.disbursementMethod]} />
+          <DetailRow label="Disbursement Method" value={PAYMENT_METHOD_LABELS[loan.disbursementMethod]} />
         )}
+      </DetailsGroup>
+
+      <DetailsGroup label="Timeline">
+        <DetailRow label="Application Date" value={format(new Date(loan.applicationDate), 'MMM d, yyyy')} />
+        {loan.approvedAt && <DetailRow label="Approved Date" value={format(new Date(loan.approvedAt), 'MMM d, yyyy')} />}
+        {loan.disbursedAt && <DetailRow label="Disbursed Date" value={format(new Date(loan.disbursedAt), 'MMM d, yyyy')} />}
+        {loan.endDate && <DetailRow label="End Date" value={format(new Date(loan.endDate), 'MMM d, yyyy')} />}
+        <DetailRow label="Date Created" value={format(new Date(loan.createdAt), 'MMM d, yyyy')} />
       </DetailsGroup>
 
       {(loan.purpose || loan.notes || loan.cancellationReason) && (
