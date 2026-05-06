@@ -370,7 +370,7 @@ export async function disburseLoan(id: string, data: DisburseLoanInput, actor: A
     throw new AppError('LOAN_INVALID_STATE', `Cannot disburse a loan with status ${loan.status}.`, 409);
   }
 
-  const disbursedAt = new Date();
+  const disbursedAt = data.disbursedAt ?? new Date();
   const endDate = addMonths(disbursedAt, loan.termMonths);
 
   const installments = buildInstallments(

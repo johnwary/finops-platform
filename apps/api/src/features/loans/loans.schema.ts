@@ -19,6 +19,10 @@ export const approveLoanSchema = z.object({});
 
 export const disburseLoanSchema = z.object({
   disbursementMethod: z.enum(['CASH', 'BANK_TRANSFER', 'GCASH', 'CHECK']),
+  disbursedAt: z.coerce
+    .date()
+    .max(new Date(), { message: 'Disbursement date cannot be in the future' })
+    .optional(),
   notes: z.string().max(2000).trim().optional(),
 });
 

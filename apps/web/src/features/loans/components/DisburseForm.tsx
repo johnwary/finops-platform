@@ -25,6 +25,8 @@ interface DisburseFormProps {
 export function DisburseForm({ loanId, onSuccess }: DisburseFormProps) {
   const disburseLoan = useDisburseLoan()
 
+  const todayLocal = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
+
   const {
     register,
     handleSubmit,
@@ -33,6 +35,7 @@ export function DisburseForm({ loanId, onSuccess }: DisburseFormProps) {
     formState: { errors },
   } = useForm<DisburseLoanInput>({
     resolver: zodResolver(disburseLoanSchema),
+    defaultValues: { disbursedAt: todayLocal },
   })
 
   const disbursementMethod = useWatch({ control, name: 'disbursementMethod' })
@@ -62,6 +65,17 @@ export function DisburseForm({ loanId, onSuccess }: DisburseFormProps) {
             </SelectContent>
           </Select>
           <FieldError errors={[errors.disbursementMethod]} />
+        </Field>
+
+        <Field data-invalid={!!errors.disbursedAt}>
+          <FieldLabel htmlFor="disbursedAt">Disbursement Date</FieldLabel>
+          <Input
+            id="disbursedAt"
+            type="date"
+            max={todayLocal}
+            {...register('disbursedAt')}
+          />
+          <FieldError errors={[errors.disbursedAt]} />
         </Field>
 
         <Field data-invalid={!!errors.notes}>

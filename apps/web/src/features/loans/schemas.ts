@@ -19,6 +19,10 @@ export type CreateLoanInput = z.infer<typeof createLoanSchema>
 
 export const disburseLoanSchema = z.object({
   disbursementMethod: z.enum(['CASH', 'BANK_TRANSFER', 'GCASH', 'CHECK']),
+  disbursedAt: z
+    .string()
+    .min(1, { message: 'Disbursement date required' })
+    .refine((val) => new Date(val) <= new Date(), { message: 'Disbursement date cannot be in the future' }),
   notes: z.string().max(2000).optional(),
 })
 
