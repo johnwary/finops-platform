@@ -13,10 +13,11 @@ import { useDebounce } from '@/hooks/use-debounce'
 import { CreateLoanForm } from './components/CreateLoanForm'
 import { LoanTable } from './components/LoanTable'
 import { useLoans } from './hooks/useLoans'
-import type { LoanStatus } from './types'
+import type { LoanStatus, LoanType } from './types'
 
 export function LoansListPage() {
   const [status, setStatus] = useState<LoanStatus | undefined>(undefined)
+  const [type, setType] = useState<LoanType | undefined>(undefined)
   const [search, setSearch] = useState('')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [pageIndex, setPageIndex] = useState(0)
@@ -26,6 +27,7 @@ export function LoansListPage() {
   const isSearchPending = search !== debouncedSearch
   const loans = useLoans({
     status,
+    type,
     search: debouncedSearch || undefined,
     cursor: pageCursors[pageIndex],
   })
@@ -38,6 +40,11 @@ export function LoansListPage() {
 
   function handleStatusChange(nextStatus: LoanStatus | undefined) {
     setStatus(nextStatus)
+    resetPagination()
+  }
+
+  function handleTypeChange(nextType: LoanType | undefined) {
+    setType(nextType)
     resetPagination()
   }
 
@@ -75,9 +82,11 @@ export function LoansListPage() {
       <LoanTable
         loans={loans}
         statusFilter={status}
+        typeFilter={type}
         search={search}
         isSearchPending={isSearchPending}
         onStatusChange={handleStatusChange}
+        onTypeChange={handleTypeChange}
         onSearchChange={handleSearchChange}
       />
       {loans.data?.data?.length ? (

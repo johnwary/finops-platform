@@ -42,6 +42,9 @@ export const listLoansSchema = z.object({
     .enum(['PENDING', 'APPROVED', 'ACTIVE', 'PAID', 'CANCELED', 'DEFAULTED'])
     .optional(),
   search: z.string().max(100).trim().optional(),
+  type: z
+    .enum(['SALARY', 'BUSINESS', 'PERSONAL', 'PURCHASE_ORDER', 'PENSION', 'INVESTMENT'])
+    .optional(),
 });
 
 export const defaultLoanSchema = z.object({

@@ -298,17 +298,17 @@ export async function getLoan(id: string) {
   return loan;
 }
 
-export async function listLoans({ cursor, limit, borrowerId, status, search }: ListLoansInput) {
+export async function listLoans({ cursor, limit, borrowerId, status, search, type }: ListLoansInput) {
   const where: Record<string, unknown> = { deletedAt: null };
 
   if (borrowerId) where.borrowerId = borrowerId;
   if (status) where.status = status;
+  if (type) where.type = type;
   if (search) {
     where.OR = [
       { borrower: { firstName: { contains: search, mode: 'insensitive' } } },
       { borrower: { middleName: { contains: search, mode: 'insensitive' } } },
       { borrower: { lastName: { contains: search, mode: 'insensitive' } } },
-      { purpose: { contains: search, mode: 'insensitive' } },
     ];
   }
 

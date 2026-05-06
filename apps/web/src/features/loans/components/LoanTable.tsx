@@ -21,7 +21,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { useLoans } from '../hooks/useLoans'
-import type { LoanStatus } from '../types'
+import type { LoanStatus, LoanType } from '../types'
 import { formatBorrowerName } from '@/features/borrowers/utils'
 import { formatPeso, formatPercent, LOAN_STATUS_LABELS, LOAN_TYPE_LABELS } from '../utils'
 import { LoanStatusBadge } from './LoanStatusBadge'
@@ -29,18 +29,22 @@ import { LoanStatusBadge } from './LoanStatusBadge'
 interface LoanTableProps {
   loans: ReturnType<typeof useLoans>
   statusFilter: LoanStatus | undefined
+  typeFilter: LoanType | undefined
   search: string
   isSearchPending: boolean
   onStatusChange: (status: LoanStatus | undefined) => void
+  onTypeChange: (type: LoanType | undefined) => void
   onSearchChange: (search: string) => void
 }
 
 const LOAN_STATUSES: LoanStatus[] = ['PENDING', 'APPROVED', 'ACTIVE', 'PAID', 'CANCELED', 'DEFAULTED']
+const LOAN_TYPES: LoanType[] = ['SALARY', 'BUSINESS', 'PERSONAL', 'PURCHASE_ORDER', 'PENSION', 'INVESTMENT']
 const ALL_STATUSES_VALUE = 'ALL_STATUSES'
+const ALL_TYPES_VALUE = 'ALL_TYPES'
 const SKELETON_ROW_COUNT = 5
 const TABLE_COL_COUNT = 9
 
-export function LoanTable({ loans, statusFilter, search, isSearchPending, onStatusChange, onSearchChange }: LoanTableProps) {
+export function LoanTable({ loans, statusFilter, typeFilter, search, isSearchPending, onStatusChange, onTypeChange, onSearchChange }: LoanTableProps) {
   const isRefetching = isSearchPending || (loans.isFetching && !loans.isPending)
 
   return (
@@ -60,9 +64,23 @@ export function LoanTable({ loans, statusFilter, search, isSearchPending, onStat
             ))}
           </SelectContent>
         </Select>
+        <Select
+          value={typeFilter ?? ALL_TYPES_VALUE}
+          onValueChange={(val) => onTypeChange(val === ALL_TYPES_VALUE ? undefined : val as LoanType)}
+        >
+          <SelectTrigger className="w-44">
+            <SelectValue placeholder="All types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_TYPES_VALUE}>All types</SelectItem>
+            {LOAN_TYPES.map((t) => (
+              <SelectItem key={t} value={t}>{LOAN_TYPE_LABELS[t]}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Input
           type="search"
-          placeholder="Search borrower or purpose…"
+          placeholder="Search borrower…"
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           className="w-64"
