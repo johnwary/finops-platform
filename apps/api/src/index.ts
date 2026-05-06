@@ -20,6 +20,7 @@ import { startAutoDefaultScheduler } from './jobs/autoDefault.job';
 const app = express();
 const API_PORT = process.env.API_PORT || 3000;
 
+app.set('trust proxy', 1);
 app.use(helmet());
 app.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:5173', credentials: true }));
 app.use(pinoHttp({
