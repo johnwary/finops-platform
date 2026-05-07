@@ -175,7 +175,7 @@ export function RecordPaymentForm({ loanId, remainingBalance, installments, onSu
                   size="sm"
                   onClick={() => setValue('amount', suggestedAmount, { shouldDirty: true, shouldValidate: true })}
                 >
-                  Use Suggested
+                  Use Suggested Amount
                 </Button>
               ) : null}
               {maxAmount > 0 && maxAmount !== suggestedAmount ? (
@@ -185,7 +185,7 @@ export function RecordPaymentForm({ loanId, remainingBalance, installments, onSu
                   size="sm"
                   onClick={() => setValue('amount', maxAmount, { shouldDirty: true, shouldValidate: true })}
                 >
-                  Pay All Scheduled
+                  Pay in Full
                 </Button>
               ) : null}
             </div>
