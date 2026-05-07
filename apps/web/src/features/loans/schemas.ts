@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { formatPeso } from './utils'
 
 export const createLoanSchema = z.object({
   borrowerId: z.string().uuid({ message: 'Must be a valid UUID' }),
@@ -46,11 +47,15 @@ export type CancelLoanInput = z.infer<typeof cancelLoanSchema>
 export function recordPaymentSchema(maxAmount: number) {
   return z.object({
     amount: z
-      .number()
-      .positive({ message: 'Amount must be positive' })
-      .max(maxAmount, { message: `Cannot exceed scheduled receivable of ₱${maxAmount.toFixed(2)}` }),
+      .preprocess(
+        (val) => (typeof val === 'number' && isNaN(val) ? undefined : val),
+        z
+          .number({ error: 'Please enter a valid amount' })
+          .positive({ message: 'Amount must be greater than zero' })
+          .max(maxAmount, { message: `Amount cannot exceed the scheduled total of ${formatPeso(maxAmount)}` }),
+      ),
     paidAt: z.string().min(1, { message: 'Payment date required' }),
-    method: z.enum(['CASH', 'BANK_TRANSFER', 'GCASH', 'CHECK']),
+    method: z.enum(['CASH', 'BANK_TRANSFER', 'GCASH', 'CHECK'], { message: 'Payment method required' }),
     reference: z.string().max(255).optional(),
     notes: z.string().max(2000).optional(),
   })
