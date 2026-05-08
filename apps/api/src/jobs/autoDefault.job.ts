@@ -1,5 +1,6 @@
 import { differenceInDays } from 'date-fns';
 import { Decimal } from '@prisma/client/runtime/client';
+import nodeCron from 'node-cron';
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
 import { resolveProvisionBucket } from '../lib/lending';
@@ -139,7 +140,13 @@ export async function runAutoDefaultJob(): Promise<void> {
 }
 
 export function startAutoDefaultScheduler(): void {
-  // Run once at startup (catches any missed during downtime), then every 24h
+  // Run once at startup to catch any missed during downtime
   void runAutoDefaultJob();
-  setInterval(() => void runAutoDefaultJob(), 24 * 60 * 60 * 1000);
+
+  // Then daily at midnight Manila time
+  nodeCron.schedule('0 0 * * *', () => void runAutoDefaultJob(), {
+    timezone: 'Asia/Manila',
+    name: 'auto-default-job',
+    noOverlap: true,
+  });
 }
