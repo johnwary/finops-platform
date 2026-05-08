@@ -2,7 +2,7 @@
 FROM node:22-alpine AS deps
 WORKDIR /app
 
-RUN npm install -g pnpm
+RUN npm install -g pnpm@10
 
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/api/package.json apps/api/
@@ -29,7 +29,7 @@ RUN pnpm --filter web build
 FROM node:22-alpine AS runner
 WORKDIR /app
 
-RUN npm install -g pnpm && apk add --no-cache nginx
+RUN npm install -g pnpm@10 && apk add --no-cache nginx
 
 # API runtime deps only
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
