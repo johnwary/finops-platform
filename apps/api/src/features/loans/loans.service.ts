@@ -586,7 +586,7 @@ export async function recordPayment(id: string, data: RecordPaymentInput, actor:
       data: {
         totalPaid: newTotalPaid,
         remainingBalance: newRemainingBalance,
-        ...(isPaidOff ? { status: 'PAID', paidAt: new Date() } : {}),
+        ...(isPaidOff ? { status: 'PAID', paidAt: data.paidAt ?? new Date() } : {}),
       },
     });
 
