@@ -379,6 +379,9 @@ function LoanDetailsCard({ loan }: { loan: LoanDetail }) {
         {loan.approvedAt && <DetailRow label="Approved Date" value={format(new Date(loan.approvedAt), 'MMM d, yyyy')} />}
         {loan.disbursedAt && <DetailRow label="Disbursed Date" value={format(new Date(loan.disbursedAt), 'MMM d, yyyy')} />}
         {loan.endDate && <DetailRow label="End Date" value={format(new Date(loan.endDate), 'MMM d, yyyy')} />}
+        {loan.paidAt && <DetailRow label="Paid Date" value={format(new Date(loan.paidAt), 'MMM d, yyyy')} />}
+        {loan.canceledAt && <DetailRow label="Canceled Date" value={format(new Date(loan.canceledAt), 'MMM d, yyyy')} />}
+        {loan.defaultedAt && <DetailRow label="Defaulted Date" value={format(new Date(loan.defaultedAt), 'MMM d, yyyy')} />}
         <DetailRow label="Date Created" value={format(new Date(loan.createdAt), 'MMM d, yyyy')} />
       </DetailsGroup>
 
