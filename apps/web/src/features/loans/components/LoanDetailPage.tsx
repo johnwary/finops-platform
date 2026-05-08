@@ -422,6 +422,12 @@ function StackedRow({ label, value }: { label: string; value: string }) {
   )
 }
 
+function resolveInstallmentStatus(inst: LoanDetail['loanInstallments'][number]): 'SCHEDULED' | 'PAID' | 'OVERDUE' {
+  if (inst.status === 'PAID') return 'PAID'
+  if (inst.status === 'OVERDUE' || new Date(inst.dueDate) <= new Date()) return 'OVERDUE'
+  return 'SCHEDULED'
+}
+
 function InstallmentTable({ loan }: { loan: LoanDetail }) {
   if (!loan.loanInstallments.length) {
     return <p className="text-sm text-muted-foreground">Installments generated upon disbursement.</p>
@@ -440,24 +446,27 @@ function InstallmentTable({ loan }: { loan: LoanDetail }) {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {loan.loanInstallments.map((inst) => (
-          <TableRow key={inst.id} data-overdue={inst.status === 'OVERDUE' ? true : undefined} className="data-[overdue]:bg-destructive/5">
-            <TableCell>{inst.sequence}</TableCell>
-            <TableCell className={inst.status === 'OVERDUE' ? 'text-destructive font-medium' : ''}>
-              {format(new Date(inst.dueDate), 'MMM d, yyyy')}
-            </TableCell>
-            <TableCell className="tabular-nums">{formatPeso(inst.principal)}</TableCell>
-            <TableCell className="tabular-nums">{formatPeso(inst.interest)}</TableCell>
-            <TableCell className="tabular-nums">
-              {formatPeso(Number(inst.principal) + Number(inst.interest))}
-            </TableCell>
-            <TableCell>
-              <Badge variant={INSTALLMENT_STATUS_VARIANTS[inst.status]}>
-                {INSTALLMENT_STATUS_LABELS[inst.status]}
-              </Badge>
-            </TableCell>
-          </TableRow>
-        ))}
+        {loan.loanInstallments.map((inst) => {
+          const status = resolveInstallmentStatus(inst)
+          return (
+            <TableRow key={inst.id} data-overdue={status === 'OVERDUE' ? true : undefined} className="data-[overdue]:bg-destructive/5">
+              <TableCell>{inst.sequence}</TableCell>
+              <TableCell className={status === 'OVERDUE' ? 'text-destructive font-medium' : ''}>
+                {format(new Date(inst.dueDate), 'MMM d, yyyy')}
+              </TableCell>
+              <TableCell className="tabular-nums">{formatPeso(inst.principal)}</TableCell>
+              <TableCell className="tabular-nums">{formatPeso(inst.interest)}</TableCell>
+              <TableCell className="tabular-nums">
+                {formatPeso(Number(inst.principal) + Number(inst.interest))}
+              </TableCell>
+              <TableCell>
+                <Badge variant={INSTALLMENT_STATUS_VARIANTS[status]}>
+                  {INSTALLMENT_STATUS_LABELS[status]}
+                </Badge>
+              </TableCell>
+            </TableRow>
+          )
+        })}
       </TableBody>
     </Table>
   )
