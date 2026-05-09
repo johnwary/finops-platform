@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
 import type { ZodSchema } from 'zod';
-import { validationError } from '../lib/response';
+import { validationError } from '../lib/response.js';
 
 type ValidationSource = 'body' | 'query' | 'params';
 

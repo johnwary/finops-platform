@@ -1,19 +1,19 @@
 import { Router } from 'express';
-import { requireAuth } from '../../middleware/auth.middleware';
-import { requireRole } from '../../middleware/rbac.middleware';
-import { validate } from '../../middleware/validate.middleware';
+import { requireAuth } from '../../middleware/auth.middleware.js';
+import { requireRole } from '../../middleware/rbac.middleware.js';
+import { validate } from '../../middleware/validate.middleware.js';
 import {
   createInvitationController,
   listInvitationsController,
   revokeInvitationController,
   validateInviteController,
-} from './invitations.controller';
+} from './invitations.controller.js';
 import {
   createInvitationSchema,
   invitationParamsSchema,
   listInvitationsSchema,
   validateInviteTokenSchema,
-} from './invitations.schema';
+} from './invitations.schema.js';
 
 export const invitationsRouter = Router();
 

@@ -1,17 +1,17 @@
 import type { NextFunction, Request, Response } from 'express';
-import { success, successList } from '../../lib/response';
+import { success, successList } from '../../lib/response.js';
 import type {
   CreateInvitationInput,
   InvitationParamsInput,
   ListInvitationsInput,
   ValidateInviteTokenInput,
-} from './invitations.schema';
+} from './invitations.schema.js';
 import {
   createInvitation,
   listInvitations,
   revokeInvitation,
   validateAndStageInvite,
-} from './invitations.service';
+} from './invitations.service.js';
 
 export async function createInvitationController(req: Request, res: Response, next: NextFunction) {
   try {

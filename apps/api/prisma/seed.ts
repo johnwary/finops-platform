@@ -3,7 +3,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { hashPassword } from 'better-auth/crypto';
 import { addMonths, subDays, subMonths } from 'date-fns';
 import { Decimal } from '@prisma/client/runtime/client';
-import { PrismaClient } from '../src/generated/prisma/client';
+import { PrismaClient } from '../src/generated/prisma/client.js';
 
 const databaseUrl = process.env.DATABASE_URL;
 

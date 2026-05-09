@@ -1,20 +1,20 @@
 import { Router } from 'express';
-import { requireAuth } from '../../middleware/auth.middleware';
-import { requireRole } from '../../middleware/rbac.middleware';
-import { validate } from '../../middleware/validate.middleware';
+import { requireAuth } from '../../middleware/auth.middleware.js';
+import { requireRole } from '../../middleware/rbac.middleware.js';
+import { validate } from '../../middleware/validate.middleware.js';
 import {
   createDepositorController,
   getDepositorController,
   listDepositorsController,
   updateDepositorController,
   deleteDepositorController,
-} from './depositors.controller';
+} from './depositors.controller.js';
 import {
   createDepositorSchema,
   updateDepositorSchema,
   listDepositorsSchema,
   depositorParamsSchema,
-} from './depositors.schema';
+} from './depositors.schema.js';
 
 export const depositorsRouter = Router();
 

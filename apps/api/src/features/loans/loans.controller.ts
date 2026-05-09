@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
-import { success, successList } from '../../lib/response';
-import * as loansService from './loans.service';
+import { success, successList } from '../../lib/response.js';
+import * as loansService from './loans.service.js';
 import type {
   CreateLoanInput,
   ApproveLoanInput,
@@ -9,7 +9,7 @@ import type {
   RecordPaymentInput,
   DefaultLoanInput,
   ListLoansInput,
-} from './loans.schema';
+} from './loans.schema.js';
 
 export async function createLoanController(req: Request, res: Response, next: NextFunction) {
   try {

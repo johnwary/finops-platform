@@ -1,13 +1,13 @@
 import { Router } from 'express';
-import { requireAuth } from '../../middleware/auth.middleware';
-import { requireRole } from '../../middleware/rbac.middleware';
-import { validate } from '../../middleware/validate.middleware';
+import { requireAuth } from '../../middleware/auth.middleware.js';
+import { requireRole } from '../../middleware/rbac.middleware.js';
+import { validate } from '../../middleware/validate.middleware.js';
 import {
   summaryController,
   overdueController,
   portfolioAtRiskController,
-} from './reports.controller';
-import { periodSchema } from './reports.schema';
+} from './reports.controller.js';
+import { periodSchema } from './reports.schema.js';
 
 export const reportsRouter = Router();
 

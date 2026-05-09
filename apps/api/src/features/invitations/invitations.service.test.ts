@@ -41,7 +41,7 @@ import {
   createInvitation,
   revokeInvitation,
   validateAndStageInvite,
-} from './invitations.service';
+} from './invitations.service.js';
 
 const actor = { id: 'admin-1', name: 'Admin User' };
 

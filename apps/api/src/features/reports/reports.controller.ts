@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
-import { success } from '../../lib/response';
-import type { PeriodInput } from './reports.schema';
-import { getSummary, getOverdue, getPortfolioAtRisk } from './reports.service';
+import { success } from '../../lib/response.js';
+import type { PeriodInput } from './reports.schema.js';
+import { getSummary, getOverdue, getPortfolioAtRisk } from './reports.service.js';
 
 export async function summaryController(req: Request, res: Response, next: NextFunction) {
   try {

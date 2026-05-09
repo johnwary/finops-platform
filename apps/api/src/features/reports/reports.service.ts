@@ -1,7 +1,7 @@
 import { Decimal } from '@prisma/client/runtime/client';
 import { startOfDay, startOfWeek, startOfMonth, startOfQuarter, startOfYear } from 'date-fns';
-import { prisma } from '../../lib/prisma';
-import type { PeriodInput } from './reports.schema';
+import { prisma } from '../../lib/prisma.js';
+import type { PeriodInput } from './reports.schema.js';
 
 function periodStart(period: PeriodInput['period']): Date {
   const now = new Date();

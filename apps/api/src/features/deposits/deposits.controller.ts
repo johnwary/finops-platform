@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
-import { success, successList } from '../../lib/response';
+import { success, successList } from '../../lib/response.js';
 import type {
   CreateDepositInput,
   UpdateDepositInput,
@@ -7,7 +7,7 @@ import type {
   CloseDepositInput,
   RecordPayoutInput,
   ListDepositsInput,
-} from './deposits.schema';
+} from './deposits.schema.js';
 import {
   createDeposit,
   getDeposit,
@@ -17,7 +17,7 @@ import {
   closeDeposit,
   recordPayout,
   softDeleteDeposit,
-} from './deposits.service';
+} from './deposits.service.js';
 
 export async function createDepositController(req: Request, res: Response, next: NextFunction) {
   try {

@@ -1,18 +1,18 @@
 import type { NextFunction, Request, Response } from 'express';
-import { success, successList } from '../../lib/response';
+import { success, successList } from '../../lib/response.js';
 import type {
   BorrowerParamsInput,
   CreateBorrowerInput,
   ListBorrowersInput,
   UpdateBorrowerInput,
-} from './borrowers.schema';
+} from './borrowers.schema.js';
 import {
   createBorrower,
   getBorrower,
   listBorrowers,
   softDeleteBorrower,
   updateBorrower,
-} from './borrowers.service';
+} from './borrowers.service.js';
 
 export async function createBorrowerController(req: Request, res: Response, next: NextFunction) {
   try {

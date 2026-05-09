@@ -1,18 +1,18 @@
 import type { NextFunction, Request, Response } from 'express';
-import { success, successList } from '../../lib/response';
+import { success, successList } from '../../lib/response.js';
 import type {
   CreateDepositorInput,
   UpdateDepositorInput,
   ListDepositorsInput,
   DepositorParamsInput,
-} from './depositors.schema';
+} from './depositors.schema.js';
 import {
   createDepositor,
   getDepositor,
   listDepositors,
   updateDepositor,
   softDeleteDepositor,
-} from './depositors.service';
+} from './depositors.service.js';
 
 export async function createDepositorController(req: Request, res: Response, next: NextFunction) {
   try {

@@ -1,8 +1,11 @@
 generator client {
-  provider        = "prisma-client"
-  output          = "../src/generated/prisma"
-  previewFeatures = ["postgresqlExtensions"]
-  binaryTargets   = ["native", "linux-musl-openssl-3.0.x"]
+  provider               = "prisma-client"
+  output                 = "../src/generated/prisma"
+  moduleFormat           = "esm"
+  generatedFileExtension = "ts"
+  importFileExtension    = "js"
+  previewFeatures        = ["postgresqlExtensions"]
+  binaryTargets          = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {

@@ -1,7 +1,7 @@
 import { APIError, betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { admin } from 'better-auth/plugins';
-import { prisma } from './prisma';
+import { prisma } from './prisma.js';
 
 function inviteIdentifier(email: string) {
   return `invite:${email.toLowerCase()}`;

@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
-import { error } from '../lib/response';
+import { error } from '../lib/response.js';
 
 export type Role = 'admin' | 'manager' | 'user';
 

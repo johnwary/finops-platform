@@ -1,11 +1,11 @@
 import { Decimal } from '@prisma/client/runtime/client';
-import { prisma } from '../../lib/prisma';
-import { AppError } from '../../lib/response';
+import { prisma } from '../../lib/prisma.js';
+import { AppError } from '../../lib/response.js';
 import type {
   CreateBorrowerInput,
   ListBorrowersInput,
   UpdateBorrowerInput,
-} from './borrowers.schema';
+} from './borrowers.schema.js';
 
 function isUniqueViolation(err: unknown): boolean {
   return (

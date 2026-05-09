@@ -1,5 +1,5 @@
-import { logger } from './logger';
-import { resend } from './resend';
+import { logger } from './logger.js';
+import { resend } from './resend.js';
 
 const fromEmail = process.env.RESEND_FROM_EMAIL ?? 'noreply@example.com';
 const webUrl = process.env.WEB_URL ?? 'http://localhost:5173';

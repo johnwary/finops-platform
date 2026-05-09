@@ -34,7 +34,7 @@ import {
   listBorrowers,
   softDeleteBorrower,
   updateBorrower,
-} from './borrowers.service';
+} from './borrowers.service.js';
 
 const actor = { id: 'user-1' };
 

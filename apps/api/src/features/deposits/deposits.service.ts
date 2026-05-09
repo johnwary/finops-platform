@@ -1,7 +1,7 @@
 import { Decimal } from '@prisma/client/runtime/client';
 import { addMonths } from 'date-fns';
-import { prisma } from '../../lib/prisma';
-import { AppError } from '../../lib/response';
+import { prisma } from '../../lib/prisma.js';
+import { AppError } from '../../lib/response.js';
 import type {
   CreateDepositInput,
   UpdateDepositInput,
@@ -9,7 +9,7 @@ import type {
   CloseDepositInput,
   RecordPayoutInput,
   ListDepositsInput,
-} from './deposits.schema';
+} from './deposits.schema.js';
 
 interface Actor {
   id: string;

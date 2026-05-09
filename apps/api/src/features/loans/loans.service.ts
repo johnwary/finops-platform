@@ -1,8 +1,8 @@
 import { Decimal } from '@prisma/client/runtime/client';
 import { addMonths, addWeeks, addDays, differenceInDays } from 'date-fns';
-import { prisma } from '../../lib/prisma';
-import { AppError } from '../../lib/response';
-import { resolveProvisionBucket } from '../../lib/lending';
+import { prisma } from '../../lib/prisma.js';
+import { AppError } from '../../lib/response.js';
+import { resolveProvisionBucket } from '../../lib/lending.js';
 import type {
   CreateLoanInput,
   ApproveLoanInput,
@@ -11,7 +11,7 @@ import type {
   RecordPaymentInput,
   DefaultLoanInput,
   ListLoansInput,
-} from './loans.schema';
+} from './loans.schema.js';
 
 interface Actor {
   id: string;

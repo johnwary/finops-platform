@@ -1,9 +1,9 @@
 import { addDays, addMinutes } from 'date-fns';
 import { randomUUID } from 'node:crypto';
-import { prisma } from '../../lib/prisma';
-import { AppError } from '../../lib/response';
-import { sendInviteEmail } from '../../lib/email';
-import type { CreateInvitationInput, ListInvitationsInput } from './invitations.schema';
+import { prisma } from '../../lib/prisma.js';
+import { AppError } from '../../lib/response.js';
+import { sendInviteEmail } from '../../lib/email.js';
+import type { CreateInvitationInput, ListInvitationsInput } from './invitations.schema.js';
 
 interface Actor {
   id: string;

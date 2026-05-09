@@ -18,7 +18,7 @@ vi.mock('../lib/logger', () => ({
   },
 }));
 
-import { markPastDueInstallmentsOverdue } from './autoDefault.job';
+import { markPastDueInstallmentsOverdue } from './autoDefault.job.js';
 
 describe('autoDefault.job', () => {
   beforeEach(() => {

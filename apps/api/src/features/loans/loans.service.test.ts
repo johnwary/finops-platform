@@ -36,7 +36,7 @@ const mocks = vi.hoisted(() => {
 
 vi.mock('../../lib/prisma', () => ({ prisma: mocks.prisma }));
 
-import { recordPayment } from './loans.service';
+import { recordPayment } from './loans.service.js';
 
 const actor = { id: 'user-1' };
 

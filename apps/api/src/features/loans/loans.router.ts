@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { requireAuth } from '../../middleware/auth.middleware';
-import { requireRole } from '../../middleware/rbac.middleware';
-import { validate } from '../../middleware/validate.middleware';
+import { requireAuth } from '../../middleware/auth.middleware.js';
+import { requireRole } from '../../middleware/rbac.middleware.js';
+import { validate } from '../../middleware/validate.middleware.js';
 import {
   createLoanController,
   getLoanController,
@@ -12,7 +12,7 @@ import {
   recordPaymentController,
   defaultLoanController,
   deleteLoanController,
-} from './loans.controller';
+} from './loans.controller.js';
 import {
   createLoanSchema,
   approveLoanSchema,
@@ -22,7 +22,7 @@ import {
   defaultLoanSchema,
   listLoansSchema,
   loanParamsSchema,
-} from './loans.schema';
+} from './loans.schema.js';
 
 export const loansRouter = Router();
 

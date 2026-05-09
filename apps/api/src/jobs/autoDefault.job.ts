@@ -1,9 +1,9 @@
 import { differenceInDays } from 'date-fns';
 import { Decimal } from '@prisma/client/runtime/client';
 import nodeCron from 'node-cron';
-import { prisma } from '../lib/prisma';
-import { logger } from '../lib/logger';
-import { resolveProvisionBucket } from '../lib/lending';
+import { prisma } from '../lib/prisma.js';
+import { logger } from '../lib/logger.js';
+import { resolveProvisionBucket } from '../lib/lending.js';
 
 const DEFAULT_DPD_THRESHOLD = 90;
 

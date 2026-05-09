@@ -1,10 +1,10 @@
-import { prisma } from '../../lib/prisma';
-import { AppError } from '../../lib/response';
+import { prisma } from '../../lib/prisma.js';
+import { AppError } from '../../lib/response.js';
 import type {
   CreateDepositorInput,
   UpdateDepositorInput,
   ListDepositorsInput,
-} from './depositors.schema';
+} from './depositors.schema.js';
 
 interface Actor {
   id: string;
