@@ -114,21 +114,21 @@ import { z } from 'zod'
 
 export const createBorrowerSchema = z.object({
   firstName: z.string().min(1).max(255).trim(),
-  middleName: z.string().max(255).optional(),
+  middleName: z.string().max(255).trim().optional(),
   lastName: z.string().min(1).max(255).trim(),
-  email: z.string().email().toLowerCase(),
-  phone: z.string().regex(/^(\+63|0)?[0-9]{10}$/).trim(),
+  email: z.email().toLowerCase(),                          // Zod v4: z.email() not z.string().email()
+  phone: z.string().trim().regex(phoneRegex, 'Invalid PH phone number'),
   address: z.string().min(1).max(500).trim(),
   dateOfBirth: z.coerce.date(),
   gender: z.enum(['MALE', 'FEMALE']),
   idType: z.enum(['NATIONAL_ID', 'PASSPORT', 'DRIVER_LICENSE']),
   idNumber: z.string().min(1).max(100).trim(),
-  occupation: z.string().max(255).optional(),
+  occupation: z.string().max(255).trim().optional(),
   incomeSource: z.enum(['EMPLOYMENT', 'BUSINESS', 'PENSION', 'OTHER']),
-  monthlyIncome: z.number().positive().optional(),
-  emergencyContactName: z.string().max(255).optional(),
-  emergencyContactPhone: z.string().regex(/^(\+63|0)?[0-9]{10}$/).optional(),
-  notes: z.string().max(2000).optional(),
+  monthlyIncome: z.coerce.number().positive().optional(),
+  emergencyContactName: z.string().max(255).trim().optional(),
+  emergencyContactPhone: z.string().trim().regex(phoneRegex, 'Invalid PH phone number').optional(),
+  notes: z.string().max(2000).trim().optional(),
 })
 
 export const updateBorrowerSchema = createBorrowerSchema.partial()
@@ -136,11 +136,11 @@ export const updateBorrowerSchema = createBorrowerSchema.partial()
 export const listBorrowersSchema = z.object({
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(25),
-  search: z.string().max(100).optional(),
+  search: z.string().max(100).trim().optional(),
 })
 
 export const borrowerParamsSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),                                            // Zod v4: z.uuid() not z.string().uuid()
 })
 
 export type CreateBorrowerInput = z.infer<typeof createBorrowerSchema>
@@ -152,8 +152,9 @@ Rules:
 
 - Export inferred TypeScript types from each schema (`z.infer<typeof ...>`).
 - Export one schema per operation: create, update, list, params.
-- Update schema is always `createSchema.partial()`.
-- Validate IDs via `borrowerParamsSchema` — never trust raw `:id` strings.
+- Use `z.email()` and `z.uuid()` directly — not `z.string().email()` or `z.string().uuid()` (Zod v4).
+- For normal editable CRUD resources, update schema is `createSchema.partial()`. For financial or stateful records, define an explicit update schema listing only what is actually editable (e.g. deposits only allow `notes` and `reference` to be patched — not amount, rate, or term).
+- Validate IDs via params schema — never trust raw `:id` strings.
 - Use `z.coerce` for query params that arrive as strings (numbers, dates).
 - The `validate` middleware attaches clean data to `req.validatedBody`, `req.validatedQuery`, `req.validatedParams`. Read from those — never from `req.body` directly.
 
@@ -224,8 +225,10 @@ Rules for every service:
 
 - Always check `deletedAt: null` in every query.
 - Pre-check uniqueness constraints before writing to provide clear error messages. The DB unique constraint is still the safety net — the pre-check is for UX.
+- For soft-deletable models with unique fields (email, idNumber), Prisma `@unique` alone is not enough — it would block reuse of a value after soft delete. Add a partial unique index in the SQL migration instead: `CREATE UNIQUE INDEX "Borrower_email_unique_active" ON "Borrower" (email) WHERE "deletedAt" IS NULL`. This enforces uniqueness only among active records.
 - Use `prisma.$transaction` for any write that touches more than one table.
 - Always write an `ActivityLog` entry inside the same transaction as the main write.
+- For financial flows (deposit received, payout made, withdrawal, loan disbursed, payment received), also write a `CapitalEntry` inside the same transaction. This is the capital ledger — it tracks every peso in and out of the business. `INFLOW` = money entering (deposit received, loan repayment). `OUTFLOW` = money leaving (deposit payout, loan disbursed).
 - Throw `AppError` (not raw `Error`) so the error handler maps it correctly.
 - Use `try/catch` on write operations to catch Prisma P2002 (unique constraint violation) and map it to `CONFLICT` 409.
 - Never return deleted records.
@@ -442,12 +445,16 @@ apps/api/src/index.ts
 ```
 
 ```ts
-import { borrowersRouter } from './features/borrowers/borrowers.router'
+import { borrowersRouter } from './features/borrowers/borrowers.router.js'
+import { depositsRouter } from './features/deposits/deposits.router.js'
 
 app.use('/api/v1/borrowers', borrowersRouter)
+app.use('/api/v1/deposits', depositsRouter)
 ```
 
-All routes in `borrowersRouter` become available under `/api/v1/borrowers`.
+Two things to note:
+- Import paths use `.js` extensions (ESM — this repo uses `"type": "module"`).
+- All feature routers mount under `/api/v1/[resource]`. The resource name is always plural.
 
 ---
 
@@ -475,14 +482,14 @@ Add a status enum and field to the model:
 
 ```prisma
 enum DepositStatus {
-  PENDING
   ACTIVE
+  WITHDRAWN
   CLOSED
 }
 
 model Deposit {
   id        String        @id @default(uuid())
-  status    DepositStatus @default(PENDING)
+  status    DepositStatus @default(ACTIVE)
   // ...other fields
   deletedAt DateTime?
   createdAt DateTime      @default(now())
@@ -495,103 +502,95 @@ model Deposit {
 }
 ```
 
+Note: not every feature needs a `PENDING` state. Deposits are created directly as `ACTIVE` — there is no activation step. Design the status enum around your actual business flow, not assumed workflow stages.
+
 ### Zod Schemas — Transition Input
 
 Each transition may accept a body or may need no body at all. Define a schema per transition:
 
 ```ts
-// No body needed — activation is just a state change
-export const activateDepositSchema = z.object({})
-
-// Payout requires an amount and date
-export const depositPayoutSchema = z.object({
-  amount: z.number().positive(),
-  payoutDate: z.coerce.date(),
-  notes: z.string().max(1000).optional(),
+// Payout requires financial fields
+export const recordPayoutSchema = z.object({
+  amount: z.coerce.number().positive(),
+  principalPortion: z.coerce.number().min(0).default(0),
+  returnPortion: z.coerce.number().min(0).default(0),
+  paidAt: z.coerce.date().optional(),
+  method: z.enum(['CASH', 'BANK_TRANSFER', 'GCASH', 'CHECK']),
+  notes: z.string().max(2000).trim().optional(),
 })
 
-export type DepositPayoutInput = z.infer<typeof depositPayoutSchema>
+// Withdrawal only needs optional notes
+export const withdrawDepositSchema = z.object({
+  notes: z.string().max(2000).trim().optional(),
+})
+
+export type RecordPayoutInput = z.infer<typeof recordPayoutSchema>
+export type WithdrawDepositInput = z.infer<typeof withdrawDepositSchema>
 ```
 
 ### Service — Guard the Transition
 
-Each transition function does four things:
+Each transition function does five things for financial flows:
 
 1. Fetch the record and verify it exists
-2. Check current status — throw if the transition is not allowed from this state
-3. Write the state change and any side-effect records inside one transaction
-4. Write an audit log entry inside the same transaction
+2. Check current status — throw `[FEATURE]_INVALID_STATE` (409) if not allowed
+3. Write the state change inside a transaction
+4. Write a `CapitalEntry` for any money movement inside the same transaction
+5. Write an `ActivityLog` entry inside the same transaction
 
 ```ts
-export async function activateDeposit(id: string, actor: AuthUser) {
-  const deposit = await prisma.deposit.findFirst({
-    where: { id, deletedAt: null },
-  })
+export async function withdrawDeposit(id: string, data: WithdrawDepositInput, actor: Actor) {
+  const deposit = await prisma.deposit.findFirst({ where: { id, deletedAt: null } })
+  if (!deposit) throw new AppError('NOT_FOUND', 'Deposit not found.', 404)
 
-  if (!deposit) throw new AppError('NOT_FOUND', 'Deposit not found', 404)
-
-  if (deposit.status !== 'PENDING') {
-    throw new AppError('INVALID_TRANSITION', 'Only pending deposits can be activated', 409)
+  if (deposit.status !== 'ACTIVE') {
+    throw new AppError(
+      'DEPOSIT_INVALID_STATE',
+      `Cannot withdraw a deposit with status ${deposit.status}.`,
+      409,
+    )
   }
 
   return prisma.$transaction(async (tx) => {
     const updated = await tx.deposit.update({
       where: { id },
-      data: { status: 'ACTIVE' },
+      data: { status: 'WITHDRAWN', withdrawnAt: new Date() },
+    })
+
+    // Capital outflow: principal returned to depositor
+    await tx.capitalEntry.create({
+      data: {
+        flowType: 'OUTFLOW',
+        source: 'DEPOSIT_WITHDRAWAL',
+        sourceId: id,
+        amount: deposit.amount,
+        description: `Deposit withdrawn by depositor ${deposit.depositorId}`,
+        createdById: actor.id,
+      },
     })
 
     await tx.activityLog.create({
       data: {
         userId: actor.id,
         category: 'AUDIT',
-        action: 'DEPOSIT_ACTIVATED',
+        action: 'DEPOSIT_WITHDRAWN',
         targetId: id,
-        metadata: { previousStatus: 'PENDING' },
+        metadata: { amount: deposit.amount },
       },
     })
 
     return updated
   })
 }
-
-export async function recordDepositPayout(id: string, data: DepositPayoutInput, actor: AuthUser) {
-  const deposit = await prisma.deposit.findFirst({
-    where: { id, deletedAt: null },
-  })
-
-  if (!deposit) throw new AppError('NOT_FOUND', 'Deposit not found', 404)
-
-  if (deposit.status !== 'ACTIVE') {
-    throw new AppError('INVALID_TRANSITION', 'Payouts can only be recorded on active deposits', 409)
-  }
-
-  return prisma.$transaction(async (tx) => {
-    // DepositPayout is an immutable financial record — never deleted, never updated
-    const payout = await tx.depositPayout.create({
-      data: { depositId: id, ...data },
-    })
-
-    await tx.activityLog.create({
-      data: {
-        userId: actor.id,
-        category: 'AUDIT',
-        action: 'DEPOSIT_PAYOUT_RECORDED',
-        targetId: id,
-        metadata: { payoutId: payout.id, amount: data.amount.toString() },
-      },
-    })
-
-    return payout
-  })
-}
 ```
 
 Key rules:
 
-- Always check `deposit.status` before proceeding. Throw `INVALID_TRANSITION` (409) if the current state does not allow this action.
+- Always check `deposit.status` before proceeding. Throw `[FEATURE]_INVALID_STATE` (409) if the current state does not allow this action.
+- Financial flows require three writes in one transaction: domain record update + `CapitalEntry` + `ActivityLog`. All three or none.
+- `CapitalEntry` `flowType`: `INFLOW` = money entering the business (deposit received, loan repayment). `OUTFLOW` = money leaving (payout, withdrawal, loan disbursed).
 - Financial records created by transitions (`DepositPayout`, `LoanPayment`, `CapitalEntry`) are immutable — never add soft delete or update logic to them.
-- The audit log `action` name describes the event, not just the resource (`DEPOSIT_ACTIVATED`, not `DEPOSIT_UPDATED`).
-- Include `previousStatus` in metadata so the audit trail shows the full picture.
+- The audit log `action` name describes the event, not the resource (`DEPOSIT_WITHDRAWN`, not `DEPOSIT_UPDATED`).
 
 ### Controller — Same Pattern as CRUD
 
@@ -640,8 +639,8 @@ Transitions always use `POST`. They are events, not updates. The URL makes the a
 
 | Method | Path | Allowed From | Role |
 |---|---|---|---|
-| `POST` | `/api/v1/deposits/:id/activate` | `PENDING` | admin, manager |
 | `POST` | `/api/v1/deposits/:id/payout` | `ACTIVE` | admin, manager |
+| `POST` | `/api/v1/deposits/:id/withdraw` | `ACTIVE` | admin, manager |
 | `POST` | `/api/v1/deposits/:id/close` | `ACTIVE` | admin |
 
 ### Testing Transitions
@@ -722,9 +721,12 @@ Use this when adding any new API feature:
 - Define Prisma model with `id`, `createdAt`, `updatedAt`, `deletedAt`.
 - Add `@@index` for searchable, filterable, and ordered fields.
 - Run `prisma:migrate` and `prisma:generate`.
-- Write Zod schemas for create, update (partial), list (query), and params.
+- Write Zod schemas for create, update, list (query), and params. Use `partial()` for normal CRUD; define explicit update schema for financial/stateful records.
+- Use `z.email()` and `z.uuid()` directly (Zod v4) — not `z.string().email()`.
 - Export inferred TypeScript types from each schema.
+- For unique fields on soft-deletable models: add a partial unique index in the migration SQL (`WHERE "deletedAt" IS NULL`) — do not rely on Prisma `@unique` alone.
 - Write service functions — existence checks, business rules, transactions, audit log.
+- For financial flows: write `CapitalEntry` + `ActivityLog` in the same transaction as the domain write.
 - Write service unit tests — happy path, 404, 409, business rule blocks.
 - Write thin controllers — read validated input, call service, send response.
 - Write router — `requireAuth` once, `requireRole` per route, `validate` per source.

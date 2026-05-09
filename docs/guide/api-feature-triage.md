@@ -198,14 +198,21 @@ If you cannot check a box, answer it before writing code. Unknown inputs produce
 
 ## Example: Deposits Feature
 
-**Plain language:** A borrower places a deposit. Starts pending, gets activated, earns payouts, closes at maturity. Admins and managers manage it. Payouts are immutable.
+**Plain language:** A depositor places a deposit. It is created directly as `ACTIVE` — no pending step. While active it earns periodic payouts. It can be withdrawn early or closed at maturity. Admins and managers manage it. Payouts are immutable financial records.
 
 **Schema check:**
 - No `Deposit` model found.
 - No `DepositPayout` model found.
 - Decision: build from scratch.
 
-**Result:** Full build. Follow api-feature-guide.md Step 1 through Step 8, including state transitions (activate, payout, close).
+**Router check:** No feature folder exists — nothing to check.
+
+**Service check:** No feature folder exists — nothing to check.
+
+**Result:** Full build. Follow api-feature-guide.md Step 1 through Step 8.
+- Status enum: `ACTIVE | WITHDRAWN | CLOSED`. No `PENDING` — deposits go live immediately.
+- Transitions: `POST /:id/payout`, `POST /:id/withdraw`, `POST /:id/close` — all guard against non-`ACTIVE` status.
+- Every financial write (create, payout, withdraw, close) needs three records in one transaction: domain write + `CapitalEntry` + `ActivityLog`.
 
 ---
 
