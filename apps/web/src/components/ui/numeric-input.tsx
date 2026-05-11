@@ -7,49 +7,67 @@ interface NumericInputProps extends Omit<React.ComponentProps<'input'>, 'type' |
   decimalPlaces?: number
 }
 
+function formatWithCommas(raw: string, decimalPlaces: number): string {
+  if (raw === '' || raw === '-') return raw
+  const [intPart, decPart] = raw.split('.')
+  const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  if (decPart !== undefined) {
+    return `${formattedInt}.${decPart.slice(0, decimalPlaces)}`
+  }
+  return formattedInt
+}
+
+function stripCommas(str: string): string {
+  return str.replace(/,/g, '')
+}
+
 function NumericInput({ value, onChange, decimalPlaces = 2, className, onBlur, onFocus, ...props }: NumericInputProps) {
+  const inputRef = React.useRef<HTMLInputElement>(null)
+
   const [raw, setRaw] = React.useState<string>(() =>
     value != null ? String(value) : ''
   )
-  const [focused, setFocused] = React.useState(false)
 
   React.useEffect(() => {
-    if (!focused) {
-      setRaw(value != null ? String(value) : '')
-    }
-  }, [value, focused])
+    setRaw(value != null ? String(value) : '')
+  }, [value])
 
-  const displayValue = React.useMemo(() => {
-    if (focused) return raw
-    const n = parseFloat(raw)
-    if (raw === '' || isNaN(n)) return raw
-    return new Intl.NumberFormat('en-PH', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: decimalPlaces,
-    }).format(n)
-  }, [focused, raw, decimalPlaces])
+  const displayValue = formatWithCommas(raw, decimalPlaces)
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const next = e.target.value
-    if (next === '' || /^-?\d*\.?\d*$/.test(next)) {
-      setRaw(next)
-      const n = parseFloat(next)
-      onChange?.(next === '' || isNaN(n) ? undefined : n)
-    }
-  }
+    const input = e.target
+    const cursorPos = input.selectionStart ?? 0
+    const prevDisplay = input.value
+    const stripped = stripCommas(e.target.value)
 
-  function handleFocus(e: React.FocusEvent<HTMLInputElement>) {
-    setFocused(true)
-    onFocus?.(e)
+    if (stripped !== '' && !/^-?\d*\.?\d*$/.test(stripped)) return
+
+    setRaw(stripped)
+    const n = parseFloat(stripped)
+    onChange?.(stripped === '' || isNaN(n) ? undefined : n)
+
+    // Restore cursor accounting for added/removed commas
+    requestAnimationFrame(() => {
+      if (!inputRef.current) return
+      const newDisplay = formatWithCommas(stripped, decimalPlaces)
+      const commasBefore = (prevDisplay.slice(0, cursorPos).match(/,/g) ?? []).length
+      const newCommasBefore = (newDisplay.slice(0, cursorPos).match(/,/g) ?? []).length
+      const adjusted = cursorPos + (newCommasBefore - commasBefore)
+      inputRef.current.setSelectionRange(adjusted, adjusted)
+    })
   }
 
   function handleBlur(e: React.FocusEvent<HTMLInputElement>) {
-    setFocused(false)
     onBlur?.(e)
+  }
+
+  function handleFocus(e: React.FocusEvent<HTMLInputElement>) {
+    onFocus?.(e)
   }
 
   return (
     <input
+      ref={inputRef}
       inputMode="decimal"
       data-slot="input"
       className={cn(
