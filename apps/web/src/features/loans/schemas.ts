@@ -7,7 +7,10 @@ export const createLoanSchema = z.object({
   amount: z.number().positive({ message: 'Amount must be positive' }),
   interestRate: z.number().min(0).max(100, { message: 'Rate must be 0–100' }),
   termMonths: z.number().int().min(1).max(360),
-  applicationDate: z.string().min(1, { message: 'Application date required' }),
+  applicationDate: z.string().min(1, { message: 'Application date required' }).refine(
+    (val) => !isNaN(Date.parse(val)),
+    { message: 'Application date must be a valid date' },
+  ),
   paymentFrequency: z.enum(['MONTHLY', 'BIWEEKLY', 'WEEKLY', 'DAILY']),
   repaymentStructure: z.enum(['AMORTIZING', 'INTEREST_ONLY']),
   loanFee: z.number().min(0).optional(),

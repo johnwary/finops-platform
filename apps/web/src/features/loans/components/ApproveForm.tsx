@@ -6,6 +6,7 @@ import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field
 import { Input } from '@/components/ui/input'
 import { SheetClose, SheetFooter } from '@/components/ui/sheet'
 import { Spinner } from '@/components/ui/spinner'
+import { todayManilaDateString } from '@/lib/format'
 import { useApproveLoan } from '../hooks/useApproveLoan'
 import { approveLoanSchema, type ApproveLoanInput } from '../schemas'
 
@@ -17,7 +18,7 @@ interface ApproveFormProps {
 export function ApproveForm({ loanId, onSuccess }: ApproveFormProps) {
   const approveLoan = useApproveLoan()
 
-  const todayLocal = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
+  const todayLocal = todayManilaDateString()
 
   const {
     register,

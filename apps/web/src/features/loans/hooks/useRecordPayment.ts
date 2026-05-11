@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { apiFetch } from '@/lib/api'
+import { getErrorMessage } from '@/lib/format'
 import type { RecordPaymentInput } from '../schemas'
 import type { LoanPayment } from '../types'
 
@@ -17,6 +18,9 @@ export function useRecordPayment() {
       toast.success('Payment recorded.')
       queryClient.invalidateQueries({ queryKey: ['loans'] })
       queryClient.invalidateQueries({ queryKey: ['loans', id] })
+    },
+    onError: (err) => {
+      toast.error(getErrorMessage(err, 'Failed to record payment.'))
     },
   })
 }

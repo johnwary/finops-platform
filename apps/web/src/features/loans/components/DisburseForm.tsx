@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/select'
 import { SheetClose, SheetFooter } from '@/components/ui/sheet'
 import { Spinner } from '@/components/ui/spinner'
+import { todayManilaDateString } from '@/lib/format'
 import { useDisburseLoan } from '../hooks/useDisburseLoan'
 import { disburseLoanSchema, type DisburseLoanInput } from '../schemas'
 import { PAYMENT_METHOD_LABELS } from '../utils'
@@ -25,7 +26,7 @@ interface DisburseFormProps {
 export function DisburseForm({ loanId, onSuccess }: DisburseFormProps) {
   const disburseLoan = useDisburseLoan()
 
-  const todayLocal = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
+  const todayLocal = todayManilaDateString()
 
   const {
     register,

@@ -9,7 +9,7 @@ const STATUS_VARIANTS: Record<LoanStatus, 'outline' | 'secondary' | 'default' | 
   PENDING: 'outline',
   APPROVED: 'secondary',
   ACTIVE: 'default',
-  PAID: 'default',
+  PAID: 'secondary',
   CANCELED: 'outline',
   DEFAULTED: 'destructive',
 }

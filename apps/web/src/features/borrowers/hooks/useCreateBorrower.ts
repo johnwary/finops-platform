@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { ApiError, apiFetch } from '@/lib/api'
+import { getErrorMessage } from '@/lib/format'
 import type { CreateBorrowerInput } from '../schemas'
 import type { Borrower } from '../types'
 
@@ -19,7 +20,7 @@ export function useCreateBorrower() {
     },
     onError: (err) => {
       if (err instanceof ApiError && err.code === 'CONFLICT') return
-      toast.error(err instanceof Error ? err.message : 'Failed to create borrower.')
+      toast.error(getErrorMessage(err, 'Failed to create borrower.'))
     },
   })
 }

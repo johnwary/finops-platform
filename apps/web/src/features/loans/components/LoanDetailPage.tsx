@@ -97,7 +97,8 @@ export function LoanDetailPage() {
     )
   }
 
-  const data = loan.data!
+  const data = loan.data
+  if (!data) return null
 
   return (
     <div className="flex flex-col gap-6">

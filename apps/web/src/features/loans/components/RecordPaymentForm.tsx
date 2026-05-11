@@ -35,6 +35,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { useRecordPayment } from '../hooks/useRecordPayment';
 import { recordPaymentSchema, type RecordPaymentInput } from '../schemas';
 import type { LoanInstallment } from '../types';
+import { todayManilaDateString } from '@/lib/format';
 import { formatPeso, PAYMENT_METHOD_LABELS } from '../utils';
 
 interface RecordPaymentFormProps {
@@ -130,7 +131,7 @@ function buildPaymentPreview(
 }
 
 function todayInputValue() {
-  return format(new Date(), 'yyyy-MM-dd');
+  return todayManilaDateString();
 }
 
 const FIELD_ORDER: (keyof RecordPaymentInput)[] = ['amount', 'method', 'paidAt', 'reference', 'notes'];

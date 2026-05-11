@@ -3,6 +3,7 @@ import type { FieldError as RHFFieldError } from 'react-hook-form'
 import { Input } from '@/components/ui/input'
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Spinner } from '@/components/ui/spinner'
+import { useDebounce } from '@/hooks/use-debounce'
 import { useBorrowers } from '@/features/borrowers/hooks/useBorrowers'
 import { formatBorrowerName } from '@/features/borrowers/utils'
 import type { BorrowerListItem } from '@/features/borrowers/types'
@@ -14,15 +15,11 @@ interface BorrowerSearchFieldProps {
 
 export function BorrowerSearchField({ onChange, error }: BorrowerSearchFieldProps) {
   const [inputValue, setInputValue] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [open, setOpen] = useState(false)
   const [selectedBorrower, setSelectedBorrower] = useState<BorrowerListItem | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(inputValue), 300)
-    return () => clearTimeout(timer)
-  }, [inputValue])
+  const debouncedSearch = useDebounce(inputValue)
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {

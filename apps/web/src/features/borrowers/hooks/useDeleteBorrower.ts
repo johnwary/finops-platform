@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { ApiError, apiFetchVoid } from '@/lib/api'
+import { getErrorMessage } from '@/lib/format'
 
 export function useDeleteBorrower() {
   const queryClient = useQueryClient()
@@ -16,7 +17,7 @@ export function useDeleteBorrower() {
         toast.error('Cannot delete a borrower with existing loans.')
         return
       }
-      toast.error(err instanceof Error ? err.message : 'Failed to delete borrower.')
+      toast.error(getErrorMessage(err, 'Failed to delete borrower.'))
     },
   })
 }

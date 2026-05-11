@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { apiFetch } from '@/lib/api'
+import { getErrorMessage } from '@/lib/format'
 import type { ApproveLoanInput } from '../schemas'
 import type { Loan } from '../types'
 
@@ -14,6 +15,9 @@ export function useApproveLoan() {
       toast.success('Loan approved.')
       queryClient.invalidateQueries({ queryKey: ['loans'] })
       queryClient.invalidateQueries({ queryKey: ['loans', id] })
+    },
+    onError: (err) => {
+      toast.error(getErrorMessage(err, 'Failed to approve loan.'))
     },
   })
 }

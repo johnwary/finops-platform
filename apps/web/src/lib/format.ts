@@ -9,3 +9,11 @@ export function formatPeso(value: string | number): string {
 export function formatPercent(raw: string | number): string {
   return (Number(raw) * 100).toFixed(2) + '%'
 }
+
+export function todayManilaDateString(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
+}
+
+export function getErrorMessage(err: unknown, fallback: string): string {
+  return err instanceof Error ? err.message : fallback
+}
