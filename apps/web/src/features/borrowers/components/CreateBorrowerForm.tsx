@@ -4,9 +4,10 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { SheetClose, SheetFooter } from '@/components/ui/sheet'
 import { Spinner } from '@/components/ui/spinner'
-import { ApiError } from '@/lib/api'
+import { isConflictError } from '@/lib/api'
 import { useCreateBorrower } from '../hooks/useCreateBorrower'
 import { createBorrowerSchema, type CreateBorrowerInput } from '../schemas'
+import { applyBorrowerConflictErrors } from '../utils'
 import { BorrowerFormFields } from './BorrowerFormFields'
 
 interface CreateBorrowerFormProps {
@@ -34,15 +35,7 @@ export function CreateBorrowerForm({ onSuccess }: CreateBorrowerFormProps) {
         reset()
         onSuccess()
       },
-      onError: (err) => {
-        if (err instanceof ApiError && err.code === 'CONFLICT') {
-          if (err.message.toLowerCase().includes('email')) {
-            setError('email', { message: err.message })
-          } else if (err.message.toLowerCase().includes('id number')) {
-            setError('idNumber', { message: err.message })
-          }
-        }
-      },
+      onError: (err) => applyBorrowerConflictErrors(err, setError),
     })
   }
 
@@ -56,7 +49,7 @@ export function CreateBorrowerForm({ onSuccess }: CreateBorrowerFormProps) {
           errors={errors}
         />
 
-        {createBorrower.error && !(createBorrower.error instanceof ApiError && createBorrower.error.code === 'CONFLICT') ? (
+        {createBorrower.error && !isConflictError(createBorrower.error) ? (
           <Alert variant="destructive" className="mt-4">
             <AlertDescription>{createBorrower.error.message}</AlertDescription>
           </Alert>

@@ -1,3 +1,6 @@
+import type { UseFormSetError } from 'react-hook-form'
+import { isConflictError } from '@/lib/api'
+import type { CreateBorrowerInput } from './schemas'
 import type { Gender, IdType, IncomeSource } from './types'
 
 export type BorrowerNameParts = {
@@ -47,4 +50,16 @@ export function maskIdNumber(idNumber: string): string {
 
 export const optionalNumber = {
   setValueAs: (value: string) => (value === '' ? undefined : Number(value)),
+}
+
+export function applyBorrowerConflictErrors(
+  err: unknown,
+  setError: UseFormSetError<CreateBorrowerInput>,
+): void {
+  if (!isConflictError(err)) return
+  if (err.message.toLowerCase().includes('email')) {
+    setError('email', { message: err.message })
+  } else if (err.message.toLowerCase().includes('id number')) {
+    setError('idNumber', { message: err.message })
+  }
 }

@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { ApiError, apiFetch } from '@/lib/api'
+import { isConflictError, apiFetch } from '@/lib/api'
 import { getErrorMessage } from '@/lib/format'
 import type { UpdateBorrowerInput } from '../schemas'
 import type { Borrower } from '../types'
@@ -25,7 +25,7 @@ export function useUpdateBorrower() {
       queryClient.invalidateQueries({ queryKey: ['borrower', variables.id] })
     },
     onError: (err) => {
-      if (err instanceof ApiError && err.code === 'CONFLICT') return
+      if (isConflictError(err)) return
       toast.error(getErrorMessage(err, 'Failed to update borrower.'))
     },
   })

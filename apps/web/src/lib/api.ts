@@ -19,6 +19,10 @@ export class ApiError extends Error {
   }
 }
 
+export function isConflictError(err: unknown): err is ApiError {
+  return err instanceof ApiError && err.code === 'CONFLICT'
+}
+
 const apiBaseUrl = import.meta.env.VITE_API_URL ?? ''
 
 async function apiFetchRaw(path: string, init: RequestInit = {}) {
