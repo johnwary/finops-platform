@@ -4,6 +4,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { NumericInput } from '@/components/ui/numeric-input'
 import {
   Select,
   SelectContent,
@@ -54,6 +55,8 @@ export function CreateLoanForm({ onSuccess }: CreateLoanFormProps) {
   const type = useWatch({ control, name: 'type' })
   const paymentFrequency = useWatch({ control, name: 'paymentFrequency' })
   const repaymentStructure = useWatch({ control, name: 'repaymentStructure' })
+  const amount = useWatch({ control, name: 'amount' })
+  const loanFee = useWatch({ control, name: 'loanFee' })
 
   function handleCreate(values: CreateLoanInput) {
     createLoan.mutate(values, {
@@ -95,7 +98,13 @@ export function CreateLoanForm({ onSuccess }: CreateLoanFormProps) {
 
           <Field data-invalid={!!errors.amount}>
             <FieldLabel htmlFor="amount">Amount (₱)</FieldLabel>
-            <Input id="amount" type="number" min="0" step="0.01" {...register('amount', { valueAsNumber: true })} />
+            <NumericInput
+              id="amount"
+              placeholder="0.00"
+              value={amount ?? undefined}
+              onChange={(val) => setValue('amount', val as number, { shouldValidate: true })}
+              aria-invalid={!!errors.amount}
+            />
             <FieldError errors={[errors.amount]} />
           </Field>
 
@@ -167,7 +176,13 @@ export function CreateLoanForm({ onSuccess }: CreateLoanFormProps) {
 
           <Field data-invalid={!!errors.loanFee}>
             <FieldLabel htmlFor="loanFee">Loan Fee (₱, optional)</FieldLabel>
-            <Input id="loanFee" type="number" min="0" step="0.01" {...register('loanFee', optionalNumber)} />
+            <NumericInput
+              id="loanFee"
+              placeholder="0.00"
+              value={loanFee ?? undefined}
+              onChange={(val) => setValue('loanFee', val, { shouldValidate: true })}
+              aria-invalid={!!errors.loanFee}
+            />
             <FieldError errors={[errors.loanFee]} />
           </Field>
 

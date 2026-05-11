@@ -35,7 +35,7 @@ export function formatPhone(phone: string): string {
     return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`
   }
   if (digits.length === 12 && digits.startsWith('63')) {
-    return `+63 ${digits.slice(2, 5)} ${digits.slice(5, 8)} ${digits.slice(8)}`
+    return `+63 ${digits.slice(2, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`
   }
   return phone
 }

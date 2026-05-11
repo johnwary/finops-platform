@@ -56,7 +56,7 @@ export function CreateBorrowerForm({ onSuccess }: CreateBorrowerFormProps) {
           errors={errors}
         />
 
-        {createBorrower.error ? (
+        {createBorrower.error && !(createBorrower.error instanceof ApiError && createBorrower.error.code === 'CONFLICT') ? (
           <Alert variant="destructive" className="mt-4">
             <AlertDescription>{createBorrower.error.message}</AlertDescription>
           </Alert>

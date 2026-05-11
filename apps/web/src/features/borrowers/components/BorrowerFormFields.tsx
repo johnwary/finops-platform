@@ -7,6 +7,7 @@ import type {
 import { useWatch } from 'react-hook-form'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { NumericInput } from '@/components/ui/numeric-input'
 import {
   Select,
   SelectContent,
@@ -20,7 +21,6 @@ import {
   GENDER_LABELS,
   ID_TYPE_LABELS,
   INCOME_SOURCE_LABELS,
-  optionalNumber,
 } from '../utils'
 
 interface BorrowerFormFieldsProps {
@@ -34,6 +34,7 @@ export function BorrowerFormFields({ register, setValue, control, errors }: Borr
   const gender = useWatch({ control, name: 'gender' })
   const idType = useWatch({ control, name: 'idType' })
   const incomeSource = useWatch({ control, name: 'incomeSource' })
+  const monthlyIncome = useWatch({ control, name: 'monthlyIncome' })
 
   return (
     <FieldGroup>
@@ -175,12 +176,12 @@ export function BorrowerFormFields({ register, setValue, control, errors }: Borr
 
       <Field data-invalid={!!errors.monthlyIncome}>
         <FieldLabel htmlFor="monthlyIncome">Monthly income (₱, optional)</FieldLabel>
-        <Input
+        <NumericInput
           id="monthlyIncome"
-          type="number"
-          min="0"
-          step="0.01"
-          {...register('monthlyIncome', optionalNumber)}
+          placeholder="0.00"
+          value={monthlyIncome ?? undefined}
+          onChange={(val) => setValue('monthlyIncome', val, { shouldValidate: true })}
+          aria-invalid={!!errors.monthlyIncome}
         />
         <FieldError errors={[errors.monthlyIncome]} />
       </Field>

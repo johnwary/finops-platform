@@ -74,9 +74,11 @@ export function BorrowerDetailPage() {
 
   function handleDelete() {
     deleteBorrower.mutate(data.id, {
-      onSuccess: () => navigate('/dashboard/borrowers'),
+      onSuccess: () => {
+        setIsDeleteOpen(false)
+        navigate('/dashboard/borrowers')
+      },
     })
-    setIsDeleteOpen(false)
   }
 
   return (

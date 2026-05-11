@@ -9,7 +9,10 @@ export const createBorrowerSchema = z.object({
   email: z.string().trim().toLowerCase().email({ message: 'Invalid email' }),
   phone: z.string().trim().regex(phoneRegex, { message: 'Invalid PH phone number' }),
   address: z.string().trim().min(1, { message: 'Address required' }).max(500),
-  dateOfBirth: z.string().min(1, { message: 'Date of birth required' }),
+  dateOfBirth: z.string().min(1, { message: 'Date of birth required' }).refine(
+    (val) => !isNaN(Date.parse(val)) && new Date(val) < new Date(),
+    { message: 'Date of birth must be a valid past date' },
+  ),
   gender: z.enum(['MALE', 'FEMALE']),
   idType: z.enum(['NATIONAL_ID', 'PASSPORT', 'DRIVER_LICENSE']),
   idNumber: z.string().trim().min(1, { message: 'ID number required' }).max(100),

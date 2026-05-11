@@ -22,6 +22,7 @@ import {
   FieldLabel,
 } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { NumericInput } from '@/components/ui/numeric-input';
 import {
   Select,
   SelectContent,
@@ -207,13 +208,12 @@ export function RecordPaymentForm({
             data-invalid={!!errors.amount}
           >
             <FieldLabel htmlFor="paymentAmount">Amount (₱)</FieldLabel>
-            <Input
+            <NumericInput
               id="paymentAmount"
-              type="number"
-              min="0"
-              step="0.01"
+              placeholder="0.00"
+              value={amount || undefined}
+              onChange={(val) => setValue('amount', val as number, { shouldValidate: true })}
               aria-invalid={!!errors.amount}
-              {...register('amount', { valueAsNumber: true })}
             />
             <div className="grid grid-cols-3 rounded-md border divide-x text-xs">
               <div className="flex flex-col gap-0.5 px-3 py-2">

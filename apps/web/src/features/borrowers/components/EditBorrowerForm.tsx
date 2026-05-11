@@ -79,7 +79,7 @@ export function EditBorrowerForm({ borrower, onSuccess }: EditBorrowerFormProps)
           errors={errors}
         />
 
-        {updateBorrower.error ? (
+        {updateBorrower.error && !(updateBorrower.error instanceof ApiError && updateBorrower.error.code === 'CONFLICT') ? (
           <Alert variant="destructive" className="mt-4">
             <AlertDescription>{updateBorrower.error.message}</AlertDescription>
           </Alert>
