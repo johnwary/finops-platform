@@ -31,6 +31,11 @@ describe('borrowers.schema', () => {
     expect(result.success).toBe(true);
   });
 
+  it('rejects an empty update body', () => {
+    const result = updateBorrowerSchema.safeParse({});
+    expect(result.success).toBe(false);
+  });
+
   it('rejects a borrower younger than 18 years old on create and update', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-05-12T12:00:00.000Z'));

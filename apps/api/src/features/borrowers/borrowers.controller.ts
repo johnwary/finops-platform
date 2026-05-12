@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
-import { AppError, success, successList } from '../../lib/response.js';
+import { success, successList } from '../../lib/response.js';
 import type {
   BorrowerParamsInput,
   CreateBorrowerInput,
@@ -40,9 +40,6 @@ export async function getBorrowerController(req: Request, res: Response, next: N
 export async function listBorrowersController(req: Request, res: Response, next: NextFunction) {
   try {
     const query = req.validatedQuery as ListBorrowersInput;
-    if (query.deleted && req.user!.role !== 'admin') {
-      throw new AppError('FORBIDDEN', 'Only admins can list deleted borrowers.', 403);
-    }
     const { data, meta } = await listBorrowers(query);
     res.json(successList(data, meta));
   } catch (err) {

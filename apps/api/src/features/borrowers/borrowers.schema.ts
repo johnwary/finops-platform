@@ -31,7 +31,10 @@ export const createBorrowerSchema = z.object({
   notes: z.string().max(2000).trim().optional(),
 });
 
-export const updateBorrowerSchema = createBorrowerSchema.partial();
+export const updateBorrowerSchema = createBorrowerSchema.partial().refine(
+  (data) => Object.keys(data).length > 0,
+  { message: 'At least one field must be provided' },
+);
 
 export const listBorrowersSchema = z.object({
   cursor: z.string().optional(),

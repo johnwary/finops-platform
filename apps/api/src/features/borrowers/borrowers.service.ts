@@ -387,6 +387,18 @@ export async function restoreBorrower(id: string, actor: Actor) {
     throw new AppError('NOT_FOUND', 'Deleted borrower not found.', 404);
   }
 
+  const [emailConflict, idConflict] = await Promise.all([
+    prisma.borrower.findFirst({ where: { email: borrower.email, deletedAt: null } }),
+    prisma.borrower.findFirst({ where: { idNumber: borrower.idNumber, deletedAt: null } }),
+  ]);
+
+  if (emailConflict) {
+    throw new AppError('CONFLICT', 'An active borrower with this email already exists.', 409);
+  }
+  if (idConflict) {
+    throw new AppError('CONFLICT', 'An active borrower with this ID number already exists.', 409);
+  }
+
   try {
     return await prisma.$transaction(async (tx) => {
       const restored = await tx.borrower.update({

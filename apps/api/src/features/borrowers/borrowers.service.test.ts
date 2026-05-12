@@ -462,6 +462,36 @@ describe('borrowers.service', () => {
       expect(mocks.tx.borrower.update).not.toHaveBeenCalled();
     });
 
+    it('throws CONFLICT when an active borrower has the same email', async () => {
+      const deletedBorrower = { ...borrower, deletedAt: new Date('2026-05-01T00:00:00.000Z') };
+      mocks.prisma.borrower.findFirst
+        .mockResolvedValueOnce(deletedBorrower)
+        .mockResolvedValueOnce({ id: 'borrower-2' })
+        .mockResolvedValueOnce(null);
+
+      await expect(restoreBorrower('borrower-1', actor)).rejects.toMatchObject({
+        code: 'CONFLICT',
+        status: 409,
+        message: expect.stringContaining('email'),
+      });
+      expect(mocks.tx.borrower.update).not.toHaveBeenCalled();
+    });
+
+    it('throws CONFLICT when an active borrower has the same idNumber', async () => {
+      const deletedBorrower = { ...borrower, deletedAt: new Date('2026-05-01T00:00:00.000Z') };
+      mocks.prisma.borrower.findFirst
+        .mockResolvedValueOnce(deletedBorrower)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 'borrower-2' });
+
+      await expect(restoreBorrower('borrower-1', actor)).rejects.toMatchObject({
+        code: 'CONFLICT',
+        status: 409,
+        message: expect.stringContaining('ID number'),
+      });
+      expect(mocks.tx.borrower.update).not.toHaveBeenCalled();
+    });
+
     it('maps Prisma unique violations to CONFLICT', async () => {
       mocks.prisma.borrower.findFirst.mockResolvedValueOnce({
         ...borrower,
