@@ -248,10 +248,24 @@ export async function updateBorrower(id: string, data: UpdateBorrowerInput, acto
       const updated = await tx.borrower.update({
         where: { id },
         data: {
-          ...data,
+          firstName: data.firstName,
+          middleName: data.middleName,
+          lastName: data.lastName,
+          email: data.email,
+          phone: data.phone,
           phoneNormalized,
+          address: data.address,
+          dateOfBirth: data.dateOfBirth,
+          gender: data.gender,
+          idType: data.idType,
+          idNumber: data.idNumber,
+          occupation: data.occupation,
+          incomeSource: data.incomeSource,
           monthlyIncome:
             data.monthlyIncome != null ? new Decimal(data.monthlyIncome) : undefined,
+          emergencyContactName: data.emergencyContactName,
+          emergencyContactPhone: data.emergencyContactPhone,
+          notes: data.notes,
         },
       });
 
