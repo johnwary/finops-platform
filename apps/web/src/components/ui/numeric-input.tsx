@@ -23,15 +23,21 @@ function stripCommas(str: string): string {
 
 function NumericInput({ value, onChange, decimalPlaces = 2, className, onBlur, onFocus, ...props }: NumericInputProps) {
   const inputRef = React.useRef<HTMLInputElement>(null)
+  const valueString = value != null ? String(value) : ''
 
-  const [raw, setRaw] = React.useState<string>(() =>
-    value != null ? String(value) : ''
-  )
+  const [inputState, setInputState] = React.useState(() => ({
+    valueString,
+    raw: valueString,
+  }))
 
-  React.useEffect(() => {
-    setRaw(value != null ? String(value) : '')
-  }, [value])
+  if (inputState.valueString !== valueString) {
+    setInputState({
+      valueString,
+      raw: valueString,
+    })
+  }
 
+  const raw = inputState.valueString === valueString ? inputState.raw : valueString
   const displayValue = formatWithCommas(raw, decimalPlaces)
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -42,7 +48,7 @@ function NumericInput({ value, onChange, decimalPlaces = 2, className, onBlur, o
 
     if (stripped !== '' && !/^-?\d*\.?\d*$/.test(stripped)) return
 
-    setRaw(stripped)
+    setInputState((current) => ({ ...current, raw: stripped }))
     const n = parseFloat(stripped)
     onChange?.(stripped === '' || isNaN(n) ? undefined : n)
 
