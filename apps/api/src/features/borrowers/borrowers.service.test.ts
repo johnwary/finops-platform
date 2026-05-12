@@ -32,6 +32,7 @@ import {
   createBorrower,
   getBorrower,
   listBorrowers,
+  restoreBorrower,
   softDeleteBorrower,
   updateBorrower,
 } from './borrowers.service.js';
@@ -295,6 +296,54 @@ describe('borrowers.service', () => {
         status: 409,
       });
       expect(mocks.tx.borrower.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('restoreBorrower', () => {
+    it('restores a soft-deleted borrower and writes an activity log', async () => {
+      const deletedBorrower = { ...borrower, deletedAt: new Date('2026-05-01T00:00:00.000Z') };
+      mocks.prisma.borrower.findFirst.mockResolvedValueOnce(deletedBorrower);
+      mocks.tx.borrower.update.mockResolvedValueOnce({ ...borrower, deletedAt: null });
+
+      const result = await restoreBorrower('borrower-1', actor);
+
+      expect(result).toMatchObject({ id: 'borrower-1', deletedAt: null });
+      expect(mocks.prisma.borrower.findFirst).toHaveBeenCalledWith({
+        where: { id: 'borrower-1', deletedAt: { not: null } },
+      });
+      expect(mocks.tx.borrower.update).toHaveBeenCalledWith({
+        where: { id: 'borrower-1' },
+        data: { deletedAt: null },
+      });
+      expect(mocks.tx.activityLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          userId: actor.id,
+          category: 'AUDIT',
+          action: 'BORROWER_RESTORED',
+          targetId: 'borrower-1',
+        }),
+      });
+    });
+
+    it('throws NOT_FOUND when the borrower is missing or not deleted', async () => {
+      await expect(restoreBorrower('borrower-1', actor)).rejects.toMatchObject({
+        code: 'NOT_FOUND',
+        status: 404,
+      });
+      expect(mocks.tx.borrower.update).not.toHaveBeenCalled();
+    });
+
+    it('maps Prisma unique violations to CONFLICT', async () => {
+      mocks.prisma.borrower.findFirst.mockResolvedValueOnce({
+        ...borrower,
+        deletedAt: new Date('2026-05-01T00:00:00.000Z'),
+      });
+      mocks.tx.borrower.update.mockRejectedValueOnce({ code: 'P2002' });
+
+      await expect(restoreBorrower('borrower-1', actor)).rejects.toMatchObject({
+        code: 'CONFLICT',
+        status: 409,
+      });
     });
   });
 });

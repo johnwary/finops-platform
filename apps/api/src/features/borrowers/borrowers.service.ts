@@ -158,7 +158,7 @@ export async function getBorrower(id: string) {
           type: true,
           amount: true,
           status: true,
-          startDate: true,
+          applicationDate: true,
           endDate: true,
           remainingBalance: true,
         },
@@ -174,9 +174,9 @@ export async function getBorrower(id: string) {
   return borrower;
 }
 
-export async function listBorrowers({ cursor, limit, search }: ListBorrowersInput) {
+export async function listBorrowers({ cursor, limit, search, deleted }: ListBorrowersInput) {
   const where = {
-    deletedAt: null,
+    deletedAt: deleted ? { not: null } : null,
     ...(search
       ? {
           OR: [
@@ -339,4 +339,50 @@ export async function softDeleteBorrower(id: string, actor: Actor) {
 
     return deleted;
   });
+}
+
+export async function restoreBorrower(id: string, actor: Actor) {
+  const borrower = await prisma.borrower.findFirst({
+    where: { id, deletedAt: { not: null } },
+  });
+
+  if (!borrower) {
+    throw new AppError('NOT_FOUND', 'Deleted borrower not found.', 404);
+  }
+
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const restored = await tx.borrower.update({
+        where: { id },
+        data: { deletedAt: null },
+      });
+
+      await tx.activityLog.create({
+        data: {
+          userId: actor.id,
+          category: 'AUDIT',
+          action: 'BORROWER_RESTORED',
+          targetId: id,
+          metadata: {
+            name: formatBorrowerName(restored),
+            firstName: restored.firstName,
+            middleName: restored.middleName,
+            lastName: restored.lastName,
+            email: restored.email,
+          },
+        },
+      });
+
+      return restored;
+    });
+  } catch (err) {
+    if (isUniqueViolation(err)) {
+      throw new AppError(
+        'CONFLICT',
+        'Cannot restore borrower because an active borrower with this email or ID number already exists.',
+        409,
+      );
+    }
+    throw err;
+  }
 }

@@ -37,6 +37,7 @@ export const listBorrowersSchema = z.object({
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(25),
   search: z.string().max(100).trim().optional(),
+  deleted: z.enum(['true', 'false']).transform((v) => v === 'true').default(false),
 });
 
 export const borrowerParamsSchema = z.object({

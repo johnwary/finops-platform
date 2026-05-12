@@ -8,6 +8,7 @@ import {
   deleteBorrowerController,
   getBorrowerController,
   listBorrowersController,
+  restoreBorrowerController,
   updateBorrowerController,
 } from './borrowers.controller.js';
 import {
@@ -58,6 +59,14 @@ borrowersRouter.patch(
   validate(borrowerParamsSchema, 'params'),
   validate(updateBorrowerSchema),
   updateBorrowerController,
+);
+
+borrowersRouter.post(
+  '/:id/restore',
+  requireAuth,
+  requireRole('admin'),
+  validate(borrowerParamsSchema, 'params'),
+  restoreBorrowerController,
 );
 
 borrowersRouter.delete(

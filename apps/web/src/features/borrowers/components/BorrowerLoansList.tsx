@@ -44,7 +44,7 @@ export function BorrowerLoansList({ loans }: BorrowerLoansListProps) {
               {format(new Date(loan.applicationDate), 'MMM d, yyyy')}
             </TableCell>
             <TableCell className="text-muted-foreground">
-              {format(new Date(loan.endDate), 'MMM d, yyyy')}
+              {loan.endDate ? format(new Date(loan.endDate), 'MMM d, yyyy') : '—'}
             </TableCell>
             <TableCell className="tabular-nums">{formatPeso(loan.remainingBalance)}</TableCell>
             <TableCell className="text-right">

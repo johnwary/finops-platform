@@ -1,5 +1,16 @@
 import { format } from 'date-fns'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,6 +32,9 @@ interface BorrowerTableProps {
   search: string
   isSearchPending: boolean
   onSearchChange: (search: string) => void
+  restoreAction?: (id: string) => void
+  isRestoring?: boolean
+  restoringId?: string
 }
 
 const SKELETON_ROW_COUNT = 5
@@ -31,6 +45,9 @@ export function BorrowerTable({
   search,
   isSearchPending,
   onSearchChange,
+  restoreAction,
+  isRestoring,
+  restoringId,
 }: BorrowerTableProps) {
   const isRefetching = isSearchPending || (borrowers.isFetching && !borrowers.isPending)
 
@@ -47,7 +64,12 @@ export function BorrowerTable({
         {isRefetching && <Spinner className="text-muted-foreground" />}
       </div>
 
-      <BorrowerTableContent borrowers={borrowers} />
+      <BorrowerTableContent
+        borrowers={borrowers}
+        restoreAction={restoreAction}
+        isRestoring={isRestoring}
+        restoringId={restoringId}
+      />
     </div>
   )
 }
@@ -82,7 +104,17 @@ function BorrowerTableHead() {
   )
 }
 
-function BorrowerTableContent({ borrowers }: { borrowers: ReturnType<typeof useBorrowers> }) {
+interface BorrowerTableContentProps {
+  borrowers: ReturnType<typeof useBorrowers>
+  restoreAction?: (id: string) => void
+  isRestoring?: boolean
+  restoringId?: string
+}
+
+function BorrowerTableContent({ borrowers, restoreAction, isRestoring, restoringId }: BorrowerTableContentProps) {
+  const [pendingRestoreId, setPendingRestoreId] = useState<string | null>(null)
+  const pendingBorrower = borrowers.data?.data.find((b) => b.id === pendingRestoreId)
+
   if (borrowers.isPending) {
     return (
       <Table className="table-fixed">
@@ -116,31 +148,78 @@ function BorrowerTableContent({ borrowers }: { borrowers: ReturnType<typeof useB
   }
 
   return (
-    <Table className="table-fixed">
-      <BorrowerTableColGroup />
-      <BorrowerTableHead />
-      <TableBody>
-        {borrowers.data.data.map((b) => (
-          <TableRow key={b.id}>
-            <TableCell className="font-medium truncate">{formatBorrowerName(b)}</TableCell>
-            <TableCell className="truncate">{b.email}</TableCell>
-            <TableCell className="tabular-nums">{formatPhone(b.phone)}</TableCell>
-            <TableCell className="truncate">
-              <span className="text-muted-foreground text-xs mr-1">{ID_TYPE_LABELS[b.idType]}</span>
-              <span className="tabular-nums">{maskIdNumber(b.idNumber)}</span>
-            </TableCell>
-            <TableCell className="tabular-nums">{b._count.loans}</TableCell>
-            <TableCell className="text-muted-foreground">
-              {format(new Date(b.createdAt), 'MMM d, yyyy')}
-            </TableCell>
-            <TableCell className="text-right">
-              <Button variant="ghost" size="sm" asChild>
-                <Link to={`/dashboard/borrowers/${b.id}`}>View</Link>
-              </Button>
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+    <>
+      <Table className="table-fixed">
+        <BorrowerTableColGroup />
+        <BorrowerTableHead />
+        <TableBody>
+          {borrowers.data.data.map((b) => (
+            <TableRow key={b.id}>
+              <TableCell className="font-medium truncate">{formatBorrowerName(b)}</TableCell>
+              <TableCell className="truncate">{b.email}</TableCell>
+              <TableCell className="tabular-nums">{formatPhone(b.phone)}</TableCell>
+              <TableCell className="truncate">
+                <span className="text-muted-foreground text-xs mr-1">{ID_TYPE_LABELS[b.idType]}</span>
+                <span className="tabular-nums">{maskIdNumber(b.idNumber)}</span>
+              </TableCell>
+              <TableCell className="tabular-nums">{b._count.loans}</TableCell>
+              <TableCell className="text-muted-foreground">
+                {format(new Date(b.createdAt), 'MMM d, yyyy')}
+              </TableCell>
+              <TableCell className="text-right">
+                {restoreAction ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isRestoring}
+                    onClick={() => setPendingRestoreId(b.id)}
+                  >
+                    {isRestoring && restoringId === b.id ? (
+                      <Spinner data-icon="inline-start" />
+                    ) : null}
+                    Restore
+                  </Button>
+                ) : (
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link to={`/dashboard/borrowers/${b.id}`}>View</Link>
+                  </Button>
+                )}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+
+      <AlertDialog
+        open={!!pendingRestoreId}
+        onOpenChange={(open) => { if (!open) setPendingRestoreId(null) }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Restore borrower?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingBorrower
+                ? <>Restore <span className="font-semibold text-foreground">{formatBorrowerName(pendingBorrower)}</span>? They will appear as an active borrower again.</>
+                : 'This borrower will be restored as active.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isRestoring}
+              onClick={() => {
+                if (pendingRestoreId && restoreAction) {
+                  restoreAction(pendingRestoreId)
+                  setPendingRestoreId(null)
+                }
+              }}
+            >
+              {isRestoring ? <Spinner data-icon="inline-start" /> : null}
+              Restore
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }

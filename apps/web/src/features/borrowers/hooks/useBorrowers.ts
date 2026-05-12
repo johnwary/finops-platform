@@ -6,6 +6,7 @@ interface UseBorrowersParams {
   search?: string
   cursor?: string
   limit?: number
+  deleted?: boolean
 }
 
 export function useBorrowers(params?: UseBorrowersParams) {
@@ -13,10 +14,11 @@ export function useBorrowers(params?: UseBorrowersParams) {
   if (params?.search) query.set('search', params.search)
   if (params?.cursor) query.set('cursor', params.cursor)
   if (params?.limit) query.set('limit', String(params.limit))
+  if (params?.deleted) query.set('deleted', 'true')
   const qs = query.toString()
 
   return useQuery({
-    queryKey: ['borrowers', { search: params?.search, cursor: params?.cursor, limit: params?.limit }],
+    queryKey: ['borrowers', { search: params?.search, cursor: params?.cursor, limit: params?.limit, deleted: params?.deleted }],
     queryFn: () => apiFetchList<BorrowerListItem>(`/api/v1/borrowers${qs ? `?${qs}` : ''}`),
     staleTime: 3 * 60 * 1000,
   })
