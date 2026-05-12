@@ -2,6 +2,16 @@ import { z } from 'zod';
 
 const phoneRegex = /^(\+63|0)?[0-9]{10}$/;
 
+function isAtLeast18(dateOfBirth: Date): boolean {
+  const eighteenthBirthday = new Date(dateOfBirth);
+  eighteenthBirthday.setFullYear(eighteenthBirthday.getFullYear() + 18);
+  return eighteenthBirthday <= new Date();
+}
+
+const dateOfBirthSchema = z.coerce
+  .date()
+  .refine(isAtLeast18, { message: 'Borrower must be at least 18 years old' });
+
 export const createBorrowerSchema = z.object({
   firstName: z.string().min(1).max(255).trim(),
   middleName: z.string().max(255).trim().optional(),
@@ -9,7 +19,7 @@ export const createBorrowerSchema = z.object({
   email: z.email().toLowerCase(),
   phone: z.string().trim().regex(phoneRegex, 'Invalid PH phone number'),
   address: z.string().min(1).max(500).trim(),
-  dateOfBirth: z.coerce.date(),
+  dateOfBirth: dateOfBirthSchema,
   gender: z.enum(['MALE', 'FEMALE']),
   idType: z.enum(['NATIONAL_ID', 'PASSPORT', 'DRIVER_LICENSE']),
   idNumber: z.string().min(1).max(100).trim(),
