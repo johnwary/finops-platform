@@ -8,9 +8,10 @@ export function useDeleteBorrower() {
 
   return useMutation({
     mutationFn: (id: string) => apiFetchVoid(`/api/v1/borrowers/${id}`, { method: 'DELETE' }),
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       toast.success('Borrower deleted.')
       queryClient.invalidateQueries({ queryKey: ['borrowers'] })
+      queryClient.invalidateQueries({ queryKey: ['borrower', id] })
     },
     onError: (err) => {
       if (err instanceof ApiError && err.code === 'BORROWER_HAS_LOANS') {

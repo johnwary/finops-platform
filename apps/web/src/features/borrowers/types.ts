@@ -41,6 +41,7 @@ export interface Borrower {
   notes: string | null
   createdAt: string
   updatedAt: string
+  deletedAt: string | null
 }
 
 export interface BorrowerLoanSummary {
@@ -58,4 +59,13 @@ export type LoanStatus = 'PENDING' | 'APPROVED' | 'ACTIVE' | 'PAID' | 'CANCELED'
 
 export interface BorrowerDetail extends Borrower {
   loans: BorrowerLoanSummary[]
+}
+
+export interface BorrowerActivityItem {
+  id: string
+  action: string
+  category: string
+  metadata: Record<string, unknown> | null
+  createdAt: string
+  userId: string
 }

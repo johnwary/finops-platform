@@ -27,8 +27,9 @@ import { formatPeso } from '@/lib/format'
 import { BorrowerLoansList } from '../components/BorrowerLoansList'
 import { EditBorrowerForm } from '../components/EditBorrowerForm'
 import { useBorrower } from '../hooks/useBorrower'
+import { useBorrowerActivity } from '../hooks/useBorrowerActivity'
 import { useDeleteBorrower } from '../hooks/useDeleteBorrower'
-import type { BorrowerDetail } from '../types'
+import type { BorrowerActivityItem, BorrowerDetail } from '../types'
 import {
   GENDER_LABELS,
   ID_TYPE_LABELS,
@@ -37,10 +38,18 @@ import {
   formatPhone,
 } from '../utils'
 
+const ACTIVITY_ACTION_LABELS: Record<string, string> = {
+  BORROWER_CREATED: 'Created',
+  BORROWER_UPDATED: 'Updated',
+  BORROWER_DELETED: 'Deleted',
+  BORROWER_RESTORED: 'Restored',
+}
+
 export function BorrowerDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const borrower = useBorrower(id)
+  const activity = useBorrowerActivity(id)
 
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
@@ -110,7 +119,7 @@ export function BorrowerDetailPage() {
                   Delete
                 </Button>
                 {hasLoans && (
-                  <p className="text-xs text-muted-foreground">Has active loans</p>
+                  <p className="text-xs text-muted-foreground">Has existing loans</p>
                 )}
               </div>
             </RequireRole>
@@ -127,6 +136,14 @@ export function BorrowerDetailPage() {
           Loans ({data.loans.length})
         </h2>
         <BorrowerLoansList loans={data.loans} />
+      </div>
+
+      {/* Activity */}
+      <div>
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-foreground pb-1.5 mb-3 border-b">
+          Activity
+        </h2>
+        <BorrowerActivityLog activity={activity} />
       </div>
 
       {/* Delete confirmation */}
@@ -149,6 +166,47 @@ export function BorrowerDetailPage() {
         </SheetContent>
       </Sheet>
     </div>
+  )
+}
+
+function BorrowerActivityLog({ activity }: { activity: ReturnType<typeof useBorrowerActivity> }) {
+  if (activity.isPending) {
+    return (
+      <div className="flex flex-col gap-2">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-10 w-full" />
+        ))}
+      </div>
+    )
+  }
+
+  if (activity.isError) {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>Failed to load activity.</AlertDescription>
+      </Alert>
+    )
+  }
+
+  const items = activity.data?.data ?? []
+
+  if (!items.length) {
+    return <p className="text-sm text-muted-foreground">No activity on record.</p>
+  }
+
+  return (
+    <ol className="flex flex-col gap-2">
+      {items.map((item: BorrowerActivityItem) => (
+        <li key={item.id} className="flex items-start justify-between gap-4 text-sm">
+          <span className="font-medium">
+            {ACTIVITY_ACTION_LABELS[item.action] ?? item.action}
+          </span>
+          <span className="text-muted-foreground tabular-nums shrink-0">
+            {format(parseISO(item.createdAt), 'MMM d, yyyy h:mm a')}
+          </span>
+        </li>
+      ))}
+    </ol>
   )
 }
 

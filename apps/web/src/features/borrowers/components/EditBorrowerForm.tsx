@@ -6,7 +6,7 @@ import { SheetClose, SheetFooter } from '@/components/ui/sheet'
 import { Spinner } from '@/components/ui/spinner'
 import { isConflictError } from '@/lib/api'
 import { useUpdateBorrower } from '../hooks/useUpdateBorrower'
-import { createBorrowerSchema, type CreateBorrowerInput } from '../schemas'
+import { createBorrowerSchema, updateBorrowerSchema, type CreateBorrowerInput, type UpdateBorrowerInput } from '../schemas'
 import type { BorrowerDetail } from '../types'
 import { applyBorrowerConflictErrors } from '../utils'
 import { BorrowerFormFields } from './BorrowerFormFields'
@@ -37,8 +37,20 @@ function toFormValues(b: BorrowerDetail): CreateBorrowerInput {
   }
 }
 
+function diffValues(original: CreateBorrowerInput, updated: CreateBorrowerInput): UpdateBorrowerInput {
+  const diff: UpdateBorrowerInput = {}
+  const keys = Object.keys(updated) as (keyof CreateBorrowerInput)[]
+  for (const key of keys) {
+    const a = original[key]
+    const b = updated[key]
+    if (a !== b) (diff as Record<string, unknown>)[key] = b
+  }
+  return diff
+}
+
 export function EditBorrowerForm({ borrower, onSuccess }: EditBorrowerFormProps) {
   const updateBorrower = useUpdateBorrower()
+  const defaults = toFormValues(borrower)
 
   const {
     register,
@@ -49,12 +61,13 @@ export function EditBorrowerForm({ borrower, onSuccess }: EditBorrowerFormProps)
     formState: { errors },
   } = useForm<CreateBorrowerInput>({
     resolver: zodResolver(createBorrowerSchema) as Resolver<CreateBorrowerInput>,
-    defaultValues: toFormValues(borrower),
+    defaultValues: defaults,
   })
 
   function handleUpdate(values: CreateBorrowerInput) {
+    const input = updateBorrowerSchema.parse(diffValues(defaults, values))
     updateBorrower.mutate(
-      { id: borrower.id, input: values },
+      { id: borrower.id, input },
       {
         onSuccess: () => onSuccess(),
         onError: (err) => applyBorrowerConflictErrors(err, setError),
