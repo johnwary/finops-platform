@@ -42,6 +42,7 @@ async function getCounts(): Promise<CountMap> {
     businessFunds,
     users,
     accounts,
+    sessions,
     verifications,
   ] = await Promise.all([
     prisma.invitation.count(),
@@ -59,6 +60,7 @@ async function getCounts(): Promise<CountMap> {
     prisma.businessFund.count(),
     prisma.user.count(),
     prisma.account.count(),
+    prisma.session.count(),
     prisma.verification.count(),
   ]);
 
@@ -78,6 +80,7 @@ async function getCounts(): Promise<CountMap> {
     BusinessFund: businessFunds,
     User: users,
     Account: accounts,
+    Session: sessions,
     Verification: verifications,
   };
 }
