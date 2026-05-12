@@ -44,7 +44,13 @@ export const borrowerParamsSchema = z.object({
   id: z.uuid(),
 });
 
+export const listBorrowerActivitySchema = z.object({
+  cursor: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+});
+
 export type CreateBorrowerInput = z.infer<typeof createBorrowerSchema>;
 export type UpdateBorrowerInput = z.infer<typeof updateBorrowerSchema>;
 export type ListBorrowersInput = z.infer<typeof listBorrowersSchema>;
 export type BorrowerParamsInput = z.infer<typeof borrowerParamsSchema>;
+export type ListBorrowerActivityInput = z.infer<typeof listBorrowerActivitySchema>;

@@ -18,6 +18,9 @@ const mocks = vi.hoisted(() => {
         findFirst: vi.fn(),
         findMany: vi.fn(),
       },
+      activityLog: {
+        findMany: vi.fn(),
+      },
       loan: {
         count: vi.fn(),
       },
@@ -31,6 +34,7 @@ vi.mock('../../lib/prisma', () => ({ prisma: mocks.prisma }));
 import {
   createBorrower,
   getBorrower,
+  listBorrowerActivity,
   listBorrowers,
   restoreBorrower,
   softDeleteBorrower,
@@ -72,6 +76,7 @@ describe('borrowers.service', () => {
     vi.clearAllMocks();
     mocks.prisma.borrower.findFirst.mockResolvedValue(null);
     mocks.prisma.borrower.findMany.mockResolvedValue([]);
+    mocks.prisma.activityLog.findMany.mockResolvedValue([]);
     mocks.prisma.loan.count.mockResolvedValue(0);
     mocks.tx.borrower.create.mockResolvedValue(borrower);
     mocks.tx.borrower.update.mockResolvedValue(borrower);
@@ -296,6 +301,87 @@ describe('borrowers.service', () => {
         status: 409,
       });
       expect(mocks.tx.borrower.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('listBorrowerActivity', () => {
+    const log = (id: string) => ({
+      id,
+      action: 'BORROWER_UPDATED',
+      category: 'AUDIT',
+      metadata: {},
+      createdAt: new Date('2026-05-01T00:00:00.000Z'),
+      userId: 'user-1',
+    });
+
+    it('returns logs with cursor metadata', async () => {
+      mocks.prisma.borrower.findFirst.mockResolvedValueOnce(borrower);
+      mocks.prisma.activityLog.findMany.mockResolvedValueOnce([log('log-1'), log('log-2'), log('log-3')]);
+
+      const result = await listBorrowerActivity('borrower-1', { limit: 2 }, { role: 'manager' });
+
+      expect(result).toEqual({
+        data: [log('log-1'), log('log-2')],
+        meta: { nextCursor: 'log-2', hasMore: true, limit: 2 },
+      });
+      expect(mocks.prisma.activityLog.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { targetId: 'borrower-1' },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: 3,
+        }),
+      );
+    });
+
+    it('returns hasMore false when results fit within limit', async () => {
+      mocks.prisma.borrower.findFirst.mockResolvedValueOnce(borrower);
+      mocks.prisma.activityLog.findMany.mockResolvedValueOnce([log('log-1')]);
+
+      const result = await listBorrowerActivity('borrower-1', { limit: 25 }, { role: 'user' });
+
+      expect(result.meta).toEqual({ nextCursor: null, hasMore: false, limit: 25 });
+    });
+
+    it('passes cursor and skip when cursor provided', async () => {
+      mocks.prisma.borrower.findFirst.mockResolvedValueOnce(borrower);
+      mocks.prisma.activityLog.findMany.mockResolvedValueOnce([]);
+
+      await listBorrowerActivity('borrower-1', { cursor: 'log-5', limit: 25 }, { role: 'user' });
+
+      expect(mocks.prisma.activityLog.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cursor: { id: 'log-5' },
+          skip: 1,
+        }),
+      );
+    });
+
+    it('throws NOT_FOUND when borrower missing for non-admin', async () => {
+      await expect(
+        listBorrowerActivity('missing', { limit: 25 }, { role: 'manager' }),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND', status: 404 });
+      expect(mocks.prisma.borrower.findFirst).toHaveBeenCalledWith({
+        where: { id: 'missing', deletedAt: null },
+      });
+    });
+
+    it('allows admin to access soft-deleted borrower activity', async () => {
+      const deletedBorrower = { ...borrower, deletedAt: new Date('2026-05-01T00:00:00.000Z') };
+      mocks.prisma.borrower.findFirst.mockResolvedValueOnce(deletedBorrower);
+      mocks.prisma.activityLog.findMany.mockResolvedValueOnce([log('log-1')]);
+
+      const result = await listBorrowerActivity('borrower-1', { limit: 25 }, { role: 'admin' });
+
+      expect(result.data).toHaveLength(1);
+      expect(mocks.prisma.borrower.findFirst).toHaveBeenCalledWith({
+        where: { id: 'borrower-1' },
+      });
+    });
+
+    it('throws NOT_FOUND for admin when borrower does not exist at all', async () => {
+      await expect(
+        listBorrowerActivity('ghost', { limit: 25 }, { role: 'admin' }),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND', status: 404 });
     });
   });
 

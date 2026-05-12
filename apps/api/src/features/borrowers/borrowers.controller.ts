@@ -3,12 +3,14 @@ import { AppError, success, successList } from '../../lib/response.js';
 import type {
   BorrowerParamsInput,
   CreateBorrowerInput,
+  ListBorrowerActivityInput,
   ListBorrowersInput,
   UpdateBorrowerInput,
 } from './borrowers.schema.js';
 import {
   createBorrower,
   getBorrower,
+  listBorrowerActivity,
   listBorrowers,
   restoreBorrower,
   softDeleteBorrower,
@@ -64,6 +66,17 @@ export async function deleteBorrowerController(req: Request, res: Response, next
     const params = req.validatedParams as BorrowerParamsInput;
     await softDeleteBorrower(params.id, { id: req.user!.id });
     res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function listBorrowerActivityController(req: Request, res: Response, next: NextFunction) {
+  try {
+    const params = req.validatedParams as BorrowerParamsInput;
+    const query = req.validatedQuery as ListBorrowerActivityInput;
+    const { data, meta } = await listBorrowerActivity(params.id, query, { role: req.user!.role });
+    res.json(successList(data, meta));
   } catch (err) {
     next(err);
   }

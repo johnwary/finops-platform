@@ -7,6 +7,7 @@ import {
   createBorrowerController,
   deleteBorrowerController,
   getBorrowerController,
+  listBorrowerActivityController,
   listBorrowersController,
   restoreBorrowerController,
   updateBorrowerController,
@@ -14,6 +15,7 @@ import {
 import {
   borrowerParamsSchema,
   createBorrowerSchema,
+  listBorrowerActivitySchema,
   listBorrowersSchema,
   updateBorrowerSchema,
 } from './borrowers.schema.js';
@@ -59,6 +61,15 @@ borrowersRouter.patch(
   validate(borrowerParamsSchema, 'params'),
   validate(updateBorrowerSchema),
   updateBorrowerController,
+);
+
+borrowersRouter.get(
+  '/:id/activity',
+  requireAuth,
+  requireRole(['admin', 'manager', 'user']),
+  validate(borrowerParamsSchema, 'params'),
+  validate(listBorrowerActivitySchema, 'query'),
+  listBorrowerActivityController,
 );
 
 borrowersRouter.post(

@@ -3,6 +3,7 @@ import { prisma } from '../../lib/prisma.js';
 import { AppError } from '../../lib/response.js';
 import type {
   CreateBorrowerInput,
+  ListBorrowerActivityInput,
   ListBorrowersInput,
   UpdateBorrowerInput,
 } from './borrowers.schema.js';
@@ -339,6 +340,42 @@ export async function softDeleteBorrower(id: string, actor: Actor) {
 
     return deleted;
   });
+}
+
+export async function listBorrowerActivity(
+  id: string,
+  { cursor, limit }: ListBorrowerActivityInput,
+  actor: { role?: string | null },
+) {
+  const borrowerWhere =
+    actor.role === 'admin' ? { id } : { id, deletedAt: null };
+
+  const borrower = await prisma.borrower.findFirst({ where: borrowerWhere });
+  if (!borrower) {
+    throw new AppError('NOT_FOUND', 'Borrower not found.', 404);
+  }
+
+  const logs = await prisma.activityLog.findMany({
+    where: { targetId: id },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    cursor: cursor ? { id: cursor } : undefined,
+    skip: cursor ? 1 : 0,
+    take: limit + 1,
+    select: {
+      id: true,
+      action: true,
+      category: true,
+      metadata: true,
+      createdAt: true,
+      userId: true,
+    },
+  });
+
+  const hasMore = logs.length > limit;
+  const data = hasMore ? logs.slice(0, limit) : logs;
+  const nextCursor = hasMore ? (data[data.length - 1]?.id ?? null) : null;
+
+  return { data, meta: { nextCursor, hasMore, limit } };
 }
 
 export async function restoreBorrower(id: string, actor: Actor) {

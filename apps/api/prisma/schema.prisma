@@ -405,6 +405,7 @@ model ActivityLog {
   @@index([userId, createdAt(sort: Desc)])
   @@index([actorType, createdAt(sort: Desc)])
   @@index([category, createdAt(sort: Desc)])
+  @@index([targetId, createdAt(sort: Desc)])
   @@index([action])
 }
 
