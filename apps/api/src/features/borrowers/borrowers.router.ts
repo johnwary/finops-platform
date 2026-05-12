@@ -1,6 +1,6 @@
-import type { NextFunction, Request, Response } from 'express';
 import { Router } from 'express';
 import { requireAuth } from '../../middleware/auth.middleware.js';
+import { devDelay } from '../../middleware/dev-delay.middleware.js';
 import { requireRole } from '../../middleware/rbac.middleware.js';
 import { validate } from '../../middleware/validate.middleware.js';
 import {
@@ -19,13 +19,6 @@ import {
   listBorrowersSchema,
   updateBorrowerSchema,
 } from './borrowers.schema.js';
-
-function devDelay(ms: number) {
-  return (_req: Request, _res: Response, next: NextFunction) => {
-    if (process.env.NODE_ENV !== 'development') return next();
-    setTimeout(() => next(), ms);
-  };
-}
 
 export const borrowersRouter = Router();
 
