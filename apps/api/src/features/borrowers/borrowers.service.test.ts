@@ -124,6 +124,18 @@ describe('borrowers.service', () => {
       expect(mocks.tx.borrower.create).not.toHaveBeenCalled();
     });
 
+    it('throws CONFLICT when an active borrower has the same idNumber', async () => {
+      mocks.prisma.borrower.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 'existing-borrower' });
+
+      await expect(createBorrower(createInput, actor)).rejects.toMatchObject({
+        code: 'CONFLICT',
+        status: 409,
+      });
+      expect(mocks.tx.borrower.create).not.toHaveBeenCalled();
+    });
+
     it('maps Prisma unique violations to CONFLICT', async () => {
       mocks.tx.borrower.create.mockRejectedValue({ code: 'P2002' });
 
@@ -187,6 +199,15 @@ describe('borrowers.service', () => {
           take: 3,
         }),
       );
+    });
+
+    it('returns empty data with hasMore false when no borrowers match', async () => {
+      const result = await listBorrowers({ limit: 20 });
+
+      expect(result).toEqual({
+        data: [],
+        meta: { nextCursor: null, hasMore: false, limit: 20 },
+      });
     });
 
     it('matches comma-form full names across last, first, and middle name fields', async () => {
@@ -261,6 +282,20 @@ describe('borrowers.service', () => {
       });
     });
 
+    it('throws CONFLICT when an active borrower has the same idNumber', async () => {
+      mocks.prisma.borrower.findFirst
+        .mockResolvedValueOnce(borrower)
+        .mockResolvedValueOnce({ id: 'borrower-2' });
+
+      await expect(
+        updateBorrower('borrower-1', { idNumber: 'PH-99999' }, actor),
+      ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 });
+      expect(mocks.prisma.borrower.findFirst).toHaveBeenNthCalledWith(2, {
+        where: { idNumber: 'PH-99999', deletedAt: null, NOT: { id: 'borrower-1' } },
+      });
+      expect(mocks.tx.borrower.update).not.toHaveBeenCalled();
+    });
+
     it('maps Prisma unique violations to CONFLICT', async () => {
       mocks.prisma.borrower.findFirst.mockResolvedValueOnce(borrower);
       mocks.tx.borrower.update.mockRejectedValue({ code: 'P2002' });
@@ -290,6 +325,14 @@ describe('borrowers.service', () => {
           targetId: 'borrower-1',
         }),
       });
+    });
+
+    it('throws NOT_FOUND when the borrower is already soft deleted', async () => {
+      await expect(softDeleteBorrower('borrower-1', actor)).rejects.toMatchObject({
+        code: 'NOT_FOUND',
+        status: 404,
+      });
+      expect(mocks.tx.borrower.update).not.toHaveBeenCalled();
     });
 
     it('throws CONFLICT when the borrower has active loans', async () => {
