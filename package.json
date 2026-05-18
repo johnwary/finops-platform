@@ -20,9 +20,10 @@
     "web:lint": "pnpm --filter web lint",
     "web:preview": "pnpm --filter web preview"
   },
+  "packageManager": "pnpm@11.1.2",
   "engines": {
     "node": ">=20",
-    "pnpm": ">=9"
+    "pnpm": ">=11"
   },
   "pnpm": {
     "overrides": {
