@@ -48,7 +48,7 @@ export const listLoansSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(25),
   borrowerId: z.uuid().optional(),
   status: z
-    .enum(['PENDING', 'APPROVED', 'ACTIVE', 'PAID', 'CANCELED', 'DEFAULTED'])
+    .enum(['PENDING', 'APPROVED', 'ACTIVE', 'IN_ARREARS', 'PAID', 'CANCELED', 'DEFAULTED', 'WRITTEN_OFF'])
     .optional(),
   search: z.string().max(100).trim().optional(),
   type: z
@@ -61,6 +61,23 @@ export const defaultLoanSchema = z.object({
   reason: z.string().max(500).trim().optional(),
 });
 
+export const markArrearsSchema = z.object({
+  reason: z.string().max(500).trim().optional(),
+});
+
+export const markCurrentSchema = z.object({
+  reason: z.string().max(500).trim().optional(),
+});
+
+export const writeOffLoanSchema = z.object({
+  reason: z.string().min(1).max(500).trim(),
+});
+
+export const listLoanActivitySchema = z.object({
+  cursor: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+});
+
 export const loanParamsSchema = z.object({ id: z.uuid() });
 
 export type CreateLoanInput = z.infer<typeof createLoanSchema>;
@@ -69,4 +86,8 @@ export type DisburseLoanInput = z.infer<typeof disburseLoanSchema>;
 export type CancelLoanInput = z.infer<typeof cancelLoanSchema>;
 export type RecordPaymentInput = z.infer<typeof recordPaymentSchema>;
 export type DefaultLoanInput = z.infer<typeof defaultLoanSchema>;
+export type MarkArrearsInput = z.infer<typeof markArrearsSchema>;
+export type MarkCurrentInput = z.infer<typeof markCurrentSchema>;
+export type WriteOffLoanInput = z.infer<typeof writeOffLoanSchema>;
 export type ListLoansInput = z.infer<typeof listLoansSchema>;
+export type ListLoanActivityInput = z.infer<typeof listLoanActivitySchema>;

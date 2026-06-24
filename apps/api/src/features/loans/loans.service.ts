@@ -10,7 +10,11 @@ import type {
   CancelLoanInput,
   RecordPaymentInput,
   DefaultLoanInput,
+  MarkArrearsInput,
+  MarkCurrentInput,
+  WriteOffLoanInput,
   ListLoansInput,
+  ListLoanActivityInput,
 } from './loans.schema.js';
 
 interface Actor {
@@ -482,7 +486,7 @@ export async function recordPayment(id: string, data: RecordPaymentInput, actor:
   const loan = await prisma.loan.findFirst({ where: { id, deletedAt: null } });
   if (!loan) throw new AppError('NOT_FOUND', 'Loan not found.', 404);
 
-  if (loan.status !== 'ACTIVE') {
+  if (loan.status !== 'ACTIVE' && loan.status !== 'IN_ARREARS') {
     throw new AppError('LOAN_INVALID_STATE', `Cannot record payment on a loan with status ${loan.status}.`, 409);
   }
 
@@ -491,6 +495,27 @@ export async function recordPayment(id: string, data: RecordPaymentInput, actor:
   }
 
   const paymentAmount = new Decimal(data.amount);
+
+  const oldestUnpaid = await prisma.loanInstallment.findFirst({
+    where: { loanId: id, status: { not: 'PAID' } },
+    orderBy: [{ dueDate: 'asc' }, { sequence: 'asc' }],
+    include: { allocations: { select: { interestApplied: true } } },
+  });
+
+  if (oldestUnpaid) {
+    const alreadyApplied = oldestUnpaid.allocations.reduce(
+      (sum, a) => sum.plus(a.interestApplied),
+      new Decimal(0),
+    );
+    const interestOutstanding = new Decimal(oldestUnpaid.interest).minus(alreadyApplied);
+    if (interestOutstanding.greaterThan(0) && paymentAmount.lessThan(interestOutstanding)) {
+      throw new AppError(
+        'PAYMENT_BELOW_MINIMUM',
+        `Payment must be at least the outstanding interest on the oldest unpaid installment (${interestOutstanding.toFixed(2)}).`,
+        409,
+      );
+    }
+  }
 
   return prisma.$transaction(async (tx) => {
     const installments = await tx.loanInstallment.findMany({
@@ -624,11 +649,7 @@ export async function defaultLoan(id: string, data: DefaultLoanInput, actor: Act
   const loan = await prisma.loan.findFirst({ where: { id, deletedAt: null } });
   if (!loan) throw new AppError('NOT_FOUND', 'Loan not found.', 404);
 
-  if (loan.status !== 'ACTIVE') {
-    throw new AppError('LOAN_INVALID_STATE', `Cannot default a loan with status ${loan.status}.`, 409);
-  }
-
-  // Compute DPD from earliest overdue installment, or use caller-supplied override
+  // Compute DPD outside transaction (read-only, safe to do before)
   let dpd = data.daysPastDue ?? 0;
 
   if (!data.daysPastDue) {
@@ -642,11 +663,19 @@ export async function defaultLoan(id: string, data: DefaultLoanInput, actor: Act
     }
   }
 
-  const { bucket, rate } = resolveProvisionBucket(dpd);
-  const basisAmount = new Decimal(loan.remainingBalance);
-  const provisionAmount = basisAmount.times(rate).toDecimalPlaces(2);
-
   return prisma.$transaction(async (tx) => {
+    // Re-read inside transaction so concurrent calls serialize on the status check
+    const lockedLoan = await tx.loan.findFirst({ where: { id, deletedAt: null } });
+    if (!lockedLoan) throw new AppError('NOT_FOUND', 'Loan not found.', 404);
+
+    if (lockedLoan.status !== 'ACTIVE' && lockedLoan.status !== 'IN_ARREARS') {
+      throw new AppError('LOAN_INVALID_STATE', `Cannot default a loan with status ${lockedLoan.status}.`, 409);
+    }
+
+    const { bucket, rate } = resolveProvisionBucket(dpd);
+    const basisAmount = new Decimal(lockedLoan.remainingBalance);
+    const provisionAmount = basisAmount.times(rate).toDecimalPlaces(2);
+
     const updated = await tx.loan.update({
       where: { id },
       data: { status: 'DEFAULTED', defaultedAt: new Date() },
@@ -676,7 +705,7 @@ export async function defaultLoan(id: string, data: DefaultLoanInput, actor: Act
           bucket,
           provisionRate: rate,
           provisionAmount,
-          remainingBalance: loan.remainingBalance,
+          remainingBalance: lockedLoan.remainingBalance,
         },
       },
     });
@@ -689,7 +718,7 @@ export async function softDeleteLoan(id: string, actor: Actor) {
   const loan = await prisma.loan.findFirst({ where: { id, deletedAt: null } });
   if (!loan) throw new AppError('NOT_FOUND', 'Loan not found.', 404);
 
-  if (loan.status === 'ACTIVE') {
+  if (loan.status === 'ACTIVE' || loan.status === 'IN_ARREARS') {
     throw new AppError('LOAN_INVALID_STATE', 'Cannot delete an active loan.', 409);
   }
 
@@ -711,4 +740,145 @@ export async function softDeleteLoan(id: string, actor: Actor) {
 
     return deleted;
   });
+}
+
+export async function restoreLoan(id: string, actor: Actor) {
+  const loan = await prisma.loan.findFirst({ where: { id, deletedAt: { not: null } } });
+  if (!loan) throw new AppError('NOT_FOUND', 'Deleted loan not found.', 404);
+
+  return prisma.$transaction(async (tx) => {
+    const restored = await tx.loan.update({
+      where: { id },
+      data: { deletedAt: null },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        userId: actor.id,
+        category: 'AUDIT',
+        action: 'LOAN_RESTORED',
+        targetId: id,
+        metadata: { status: loan.status },
+      },
+    });
+
+    return restored;
+  });
+}
+
+export async function markLoanArrears(id: string, data: MarkArrearsInput, actor: Actor) {
+  const loan = await prisma.loan.findFirst({ where: { id, deletedAt: null } });
+  if (!loan) throw new AppError('NOT_FOUND', 'Loan not found.', 404);
+
+  if (loan.status !== 'ACTIVE') {
+    throw new AppError('LOAN_INVALID_STATE', `Cannot mark a loan with status ${loan.status} as in arrears.`, 409);
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.loan.update({
+      where: { id },
+      data: { status: 'IN_ARREARS' },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        userId: actor.id,
+        category: 'AUDIT',
+        action: 'LOAN_MARKED_IN_ARREARS',
+        targetId: id,
+        metadata: { reason: data.reason ?? null },
+      },
+    });
+
+    return updated;
+  });
+}
+
+export async function markLoanCurrent(id: string, data: MarkCurrentInput, actor: Actor) {
+  const loan = await prisma.loan.findFirst({ where: { id, deletedAt: null } });
+  if (!loan) throw new AppError('NOT_FOUND', 'Loan not found.', 404);
+
+  if (loan.status !== 'IN_ARREARS') {
+    throw new AppError('LOAN_INVALID_STATE', `Cannot mark a loan with status ${loan.status} as current.`, 409);
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.loan.update({
+      where: { id },
+      data: { status: 'ACTIVE' },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        userId: actor.id,
+        category: 'AUDIT',
+        action: 'LOAN_MARKED_CURRENT',
+        targetId: id,
+        metadata: { reason: data.reason ?? null },
+      },
+    });
+
+    return updated;
+  });
+}
+
+export async function writeOffLoan(id: string, data: WriteOffLoanInput, actor: Actor) {
+  const loan = await prisma.loan.findFirst({ where: { id, deletedAt: null } });
+  if (!loan) throw new AppError('NOT_FOUND', 'Loan not found.', 404);
+
+  if (loan.status !== 'DEFAULTED') {
+    throw new AppError('LOAN_INVALID_STATE', `Cannot write off a loan with status ${loan.status}.`, 409);
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.loan.update({
+      where: { id },
+      data: { status: 'WRITTEN_OFF' },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        userId: actor.id,
+        category: 'AUDIT',
+        action: 'LOAN_WRITTEN_OFF',
+        targetId: id,
+        metadata: { reason: data.reason, remainingBalance: loan.remainingBalance },
+      },
+    });
+
+    return updated;
+  });
+}
+
+export async function listLoanActivity(
+  id: string,
+  { cursor, limit }: ListLoanActivityInput,
+  actor: { role?: string | null },
+) {
+  const loanWhere = actor.role === 'admin' ? { id } : { id, deletedAt: null };
+
+  const loan = await prisma.loan.findFirst({ where: loanWhere });
+  if (!loan) throw new AppError('NOT_FOUND', 'Loan not found.', 404);
+
+  const logs = await prisma.activityLog.findMany({
+    where: { targetId: id },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    cursor: cursor ? { id: cursor } : undefined,
+    skip: cursor ? 1 : 0,
+    take: limit + 1,
+    select: {
+      id: true,
+      action: true,
+      category: true,
+      metadata: true,
+      createdAt: true,
+      userId: true,
+    },
+  });
+
+  const hasMore = logs.length > limit;
+  const data = hasMore ? logs.slice(0, limit) : logs;
+  const nextCursor = hasMore ? (data[data.length - 1]?.id ?? null) : null;
+
+  return { data, meta: { nextCursor, hasMore, limit } };
 }

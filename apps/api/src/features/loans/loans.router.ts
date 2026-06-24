@@ -12,6 +12,11 @@ import {
   recordPaymentController,
   defaultLoanController,
   deleteLoanController,
+  restoreLoanController,
+  markLoanArrearsController,
+  markLoanCurrentController,
+  writeOffLoanController,
+  listLoanActivityController,
 } from './loans.controller.js';
 import {
   createLoanSchema,
@@ -20,6 +25,10 @@ import {
   cancelLoanSchema,
   recordPaymentSchema,
   defaultLoanSchema,
+  markArrearsSchema,
+  markCurrentSchema,
+  writeOffLoanSchema,
+  listLoanActivitySchema,
   listLoansSchema,
   loanParamsSchema,
 } from './loans.schema.js';
@@ -94,4 +103,43 @@ loansRouter.delete(
   requireRole('admin'),
   validate(loanParamsSchema, 'params'),
   deleteLoanController,
+);
+
+loansRouter.post(
+  '/:id/restore',
+  requireRole('admin'),
+  validate(loanParamsSchema, 'params'),
+  restoreLoanController,
+);
+
+loansRouter.post(
+  '/:id/mark-arrears',
+  requireRole(['admin', 'manager']),
+  validate(loanParamsSchema, 'params'),
+  validate(markArrearsSchema),
+  markLoanArrearsController,
+);
+
+loansRouter.post(
+  '/:id/mark-current',
+  requireRole(['admin', 'manager']),
+  validate(loanParamsSchema, 'params'),
+  validate(markCurrentSchema),
+  markLoanCurrentController,
+);
+
+loansRouter.post(
+  '/:id/write-off',
+  requireRole('admin'),
+  validate(loanParamsSchema, 'params'),
+  validate(writeOffLoanSchema),
+  writeOffLoanController,
+);
+
+loansRouter.get(
+  '/:id/activity',
+  requireRole(['admin', 'manager', 'user']),
+  validate(loanParamsSchema, 'params'),
+  validate(listLoanActivitySchema, 'query'),
+  listLoanActivityController,
 );

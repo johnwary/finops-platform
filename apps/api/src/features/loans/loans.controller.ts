@@ -8,7 +8,11 @@ import type {
   CancelLoanInput,
   RecordPaymentInput,
   DefaultLoanInput,
+  MarkArrearsInput,
+  MarkCurrentInput,
+  WriteOffLoanInput,
   ListLoansInput,
+  ListLoanActivityInput,
 } from './loans.schema.js';
 
 export async function createLoanController(req: Request, res: Response, next: NextFunction) {
@@ -113,6 +117,60 @@ export async function deleteLoanController(req: Request, res: Response, next: Ne
     const { id } = req.validatedParams as { id: string };
     await loansService.softDeleteLoan(id, { id: req.user!.id });
     res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function restoreLoanController(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.validatedParams as { id: string };
+    const loan = await loansService.restoreLoan(id, { id: req.user!.id });
+    res.json(success(loan));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function markLoanArrearsController(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.validatedParams as { id: string };
+    const loan = await loansService.markLoanArrears(id, req.validatedBody as MarkArrearsInput, { id: req.user!.id });
+    res.json(success(loan));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function markLoanCurrentController(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.validatedParams as { id: string };
+    const loan = await loansService.markLoanCurrent(id, req.validatedBody as MarkCurrentInput, { id: req.user!.id });
+    res.json(success(loan));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function writeOffLoanController(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.validatedParams as { id: string };
+    const loan = await loansService.writeOffLoan(id, req.validatedBody as WriteOffLoanInput, { id: req.user!.id });
+    res.json(success(loan));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function listLoanActivityController(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.validatedParams as { id: string };
+    const { data, meta } = await loansService.listLoanActivity(
+      id,
+      req.validatedQuery as ListLoanActivityInput,
+      { role: req.user!.role },
+    );
+    res.json(successList(data, meta));
   } catch (err) {
     next(err);
   }

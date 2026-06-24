@@ -99,6 +99,7 @@ describe('borrowers.service', () => {
           email: createInput.email,
           phone: createInput.phone,
           phoneNormalized: '09171234567',
+          emergencyContactPhone: '09171234568',
           monthlyIncome: expect.any(Object),
         }),
       });
@@ -177,15 +178,18 @@ describe('borrowers.service', () => {
   describe('listBorrowers', () => {
     it('lists active borrowers and returns cursor metadata', async () => {
       mocks.prisma.borrower.findMany.mockResolvedValue([
-        { id: 'borrower-1' },
-        { id: 'borrower-2' },
-        { id: 'borrower-3' },
+        { id: 'borrower-1', loans: [] },
+        { id: 'borrower-2', loans: [] },
+        { id: 'borrower-3', loans: [] },
       ]);
 
       const result = await listBorrowers({ limit: 2, search: '9171234567' });
 
       expect(result).toEqual({
-        data: [{ id: 'borrower-1' }, { id: 'borrower-2' }],
+        data: [
+          { id: 'borrower-1', loanCount: 0, activeLoanCount: 0 },
+          { id: 'borrower-2', loanCount: 0, activeLoanCount: 0 },
+        ],
         meta: { nextCursor: 'borrower-2', hasMore: true, limit: 2 },
       });
       expect(mocks.prisma.borrower.findMany).toHaveBeenCalledWith(
@@ -208,6 +212,23 @@ describe('borrowers.service', () => {
         data: [],
         meta: { nextCursor: null, hasMore: false, limit: 20 },
       });
+    });
+
+    it('returns loanCount and activeLoanCount computed from loan statuses', async () => {
+      mocks.prisma.borrower.findMany.mockResolvedValue([
+        {
+          id: 'borrower-1',
+          loans: [
+            { status: 'ACTIVE' },
+            { status: 'ACTIVE' },
+            { status: 'PAID' },
+          ],
+        },
+      ]);
+
+      const result = await listBorrowers({ limit: 25 });
+
+      expect(result.data[0]).toMatchObject({ loanCount: 3, activeLoanCount: 2 });
     });
 
     it('matches comma-form full names across last, first, and middle name fields', async () => {
@@ -264,7 +285,11 @@ describe('borrowers.service', () => {
         data: expect.objectContaining({
           action: 'BORROWER_UPDATED',
           targetId: 'borrower-1',
-          metadata: expect.objectContaining({ fields: ['phone', 'monthlyIncome'] }),
+          metadata: expect.objectContaining({
+            fields: ['phone', 'monthlyIncome'],
+            before: expect.objectContaining({ phone: borrower.phone }),
+            after: expect.any(Object),
+          }),
         }),
       });
     });
@@ -290,9 +315,21 @@ describe('borrowers.service', () => {
       await expect(
         updateBorrower('borrower-1', { idNumber: 'PH-99999' }, actor),
       ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 });
-      expect(mocks.prisma.borrower.findFirst).toHaveBeenNthCalledWith(2, {
-        where: { idNumber: 'PH-99999', deletedAt: null, NOT: { id: 'borrower-1' } },
-      });
+      expect(mocks.prisma.borrower.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ idNumber: 'PH-99999' }) }),
+      );
+      expect(mocks.tx.borrower.update).not.toHaveBeenCalled();
+    });
+
+    it('throws CONFLICT when idNumber changed and borrower has active loans', async () => {
+      mocks.prisma.borrower.findFirst
+        .mockResolvedValueOnce(borrower)
+        .mockResolvedValueOnce(null);
+      mocks.prisma.loan.count.mockResolvedValueOnce(2);
+
+      await expect(
+        updateBorrower('borrower-1', { idNumber: 'PH-99999' }, actor),
+      ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 });
       expect(mocks.tx.borrower.update).not.toHaveBeenCalled();
     });
 

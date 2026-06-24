@@ -4,10 +4,10 @@
 
 | # | Gap | Severity |
 |---|-----|----------|
-| B1 | `emergencyContactPhone` not normalized | Low |
-| B2 | No before/after values in audit log | Medium |
-| B3 | `idNumber` editable with active loans | Medium |
-| B4 | No active vs total loan count breakdown in list | Low |
+| B1 | `emergencyContactPhone` not normalized | ~~Low~~ Fixed |
+| B2 | No before/after values in audit log | ~~Medium~~ Fixed |
+| B3 | `idNumber` editable with active loans | ~~Medium~~ Fixed |
+| B4 | No active vs total loan count breakdown in list | ~~Low~~ Fixed |
 | B5 | `BorrowerStatus` enum/field | Deferred → `docs/backlog/borrower-status.md` |
 
 ## Loans

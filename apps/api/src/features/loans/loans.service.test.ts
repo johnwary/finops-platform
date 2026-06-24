@@ -5,6 +5,8 @@ const mocks = vi.hoisted(() => {
   const tx = {
     loanInstallment: {
       findMany: vi.fn(),
+      findFirst: vi.fn(),
+      updateMany: vi.fn(),
     },
     loanPayment: {
       create: vi.fn(),
@@ -27,6 +29,9 @@ const mocks = vi.hoisted(() => {
     tx,
     prisma: {
       loan: {
+        findFirst: vi.fn(),
+      },
+      loanInstallment: {
         findFirst: vi.fn(),
       },
       $transaction: vi.fn((callback) => callback(tx)),
@@ -52,7 +57,10 @@ describe('loans.service recordPayment', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.prisma.loan.findFirst.mockResolvedValue(activeLoan);
+    mocks.prisma.loanInstallment.findFirst.mockResolvedValue(null);
     mocks.tx.loanPayment.create.mockResolvedValue({ id: 'payment-1' });
+    mocks.tx.loanInstallment.findFirst.mockResolvedValue(null);
+    mocks.tx.loanInstallment.updateMany.mockResolvedValue({ count: 0 });
     mocks.tx.loan.update.mockResolvedValue({});
     mocks.tx.capitalEntry.create.mockResolvedValue({});
     mocks.tx.activityLog.create.mockResolvedValue({});

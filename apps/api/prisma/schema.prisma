@@ -445,9 +445,11 @@ enum LoanStatus {
   PENDING
   APPROVED
   ACTIVE
+  IN_ARREARS
   PAID
   CANCELED
   DEFAULTED
+  WRITTEN_OFF
 }
 
 enum InstallmentStatus {

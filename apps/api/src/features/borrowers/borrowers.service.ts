@@ -97,6 +97,9 @@ export async function createBorrower(data: CreateBorrowerInput, actor: Actor) {
   }
 
   const phoneNormalized = normalizePhone(data.phone);
+  const emergencyContactPhone = data.emergencyContactPhone
+    ? normalizePhone(data.emergencyContactPhone)
+    : data.emergencyContactPhone;
 
   try {
     return await prisma.$transaction(async (tx) => {
@@ -117,7 +120,7 @@ export async function createBorrower(data: CreateBorrowerInput, actor: Actor) {
           incomeSource: data.incomeSource,
           monthlyIncome: data.monthlyIncome != null ? new Decimal(data.monthlyIncome) : undefined,
           emergencyContactName: data.emergencyContactName,
-          emergencyContactPhone: data.emergencyContactPhone,
+          emergencyContactPhone,
           notes: data.notes,
         },
       });
@@ -210,13 +213,24 @@ export async function listBorrowers({ cursor, limit, search, deleted }: ListBorr
       idNumber: true,
       incomeSource: true,
       createdAt: true,
-      _count: { select: { loans: { where: { deletedAt: null } } } },
+      loans: {
+        where: { deletedAt: null },
+        select: { status: true },
+      },
     },
   });
 
+  const ACTIVE_LOAN_STATUSES = ['PENDING', 'APPROVED', 'ACTIVE'] as const;
+
   const hasMore = borrowers.length > limit;
-  const data = hasMore ? borrowers.slice(0, limit) : borrowers;
-  const nextCursor = hasMore ? (data[data.length - 1]?.id ?? null) : null;
+  const rawData = hasMore ? borrowers.slice(0, limit) : borrowers;
+  const nextCursor = hasMore ? (rawData[rawData.length - 1]?.id ?? null) : null;
+
+  const data = rawData.map(({ loans, ...b }) => ({
+    ...b,
+    loanCount: loans.length,
+    activeLoanCount: loans.filter((l) => ACTIVE_LOAN_STATUSES.includes(l.status as typeof ACTIVE_LOAN_STATUSES[number])).length,
+  }));
 
   return { data, meta: { nextCursor, hasMore, limit } };
 }
@@ -236,13 +250,22 @@ export async function updateBorrower(id: string, data: UpdateBorrowerInput, acto
   }
 
   if (data.idNumber && data.idNumber !== borrower.idNumber) {
-    const conflict = await prisma.borrower.findFirst({
-      where: { idNumber: data.idNumber, deletedAt: null, NOT: { id } },
-    });
+    const [conflict, activeLoans] = await Promise.all([
+      prisma.borrower.findFirst({
+        where: { idNumber: data.idNumber, deletedAt: null, NOT: { id } },
+      }),
+      prisma.loan.count({
+        where: { borrowerId: id, deletedAt: null, status: { in: ['PENDING', 'APPROVED', 'ACTIVE'] } },
+      }),
+    ]);
     if (conflict) throw new AppError('CONFLICT', 'A borrower with this ID number already exists.', 409);
+    if (activeLoans > 0) throw new AppError('CONFLICT', 'Cannot change ID number while borrower has active loans.', 409);
   }
 
   const phoneNormalized = data.phone ? normalizePhone(data.phone) : undefined;
+  const emergencyContactPhone = data.emergencyContactPhone
+    ? normalizePhone(data.emergencyContactPhone)
+    : data.emergencyContactPhone;
 
   try {
     return await prisma.$transaction(async (tx) => {
@@ -265,10 +288,14 @@ export async function updateBorrower(id: string, data: UpdateBorrowerInput, acto
           monthlyIncome:
             data.monthlyIncome != null ? new Decimal(data.monthlyIncome) : undefined,
           emergencyContactName: data.emergencyContactName,
-          emergencyContactPhone: data.emergencyContactPhone,
+          emergencyContactPhone,
           notes: data.notes,
         },
       });
+
+      const auditableFields = Object.keys(data) as (keyof UpdateBorrowerInput)[];
+      const before = Object.fromEntries(auditableFields.map((k) => [k, borrower[k as keyof typeof borrower]]));
+      const after = Object.fromEntries(auditableFields.map((k) => [k, updated[k as keyof typeof updated]]));
 
       await tx.activityLog.create({
         data: {
@@ -278,11 +305,9 @@ export async function updateBorrower(id: string, data: UpdateBorrowerInput, acto
           targetId: id,
           metadata: {
             name: formatBorrowerName(updated),
-            firstName: updated.firstName,
-            middleName: updated.middleName,
-            lastName: updated.lastName,
-            email: updated.email,
-            fields: Object.keys(data),
+            fields: auditableFields,
+            before,
+            after,
           },
         },
       });
