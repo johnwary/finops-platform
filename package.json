@@ -20,15 +20,9 @@
     "web:lint": "pnpm --filter web lint",
     "web:preview": "pnpm --filter web preview"
   },
-  "packageManager": "pnpm@11.1.2",
+  "packageManager": "pnpm@11.8.0",
   "engines": {
     "node": ">=20",
     "pnpm": ">=11"
-  },
-  "pnpm": {
-    "overrides": {
-      "@hono/node-server": "1.19.14",
-      "uuid": ">=14.0.0"
-    }
   }
 }

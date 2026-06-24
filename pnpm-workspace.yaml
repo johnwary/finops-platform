@@ -6,3 +6,6 @@ allowBuilds:
   esbuild: true
   msw: true
   prisma: true
+overrides:
+  '@hono/node-server': 1.19.14
+  uuid: '>=14.0.0'
