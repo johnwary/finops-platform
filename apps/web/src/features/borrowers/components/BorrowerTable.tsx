@@ -162,7 +162,7 @@ function BorrowerTableContent({ borrowers, restoreAction, isRestoring, restoring
                 <span className="text-muted-foreground text-xs mr-1">{ID_TYPE_LABELS[b.idType]}</span>
                 <span className="tabular-nums">{maskIdNumber(b.idNumber)}</span>
               </TableCell>
-              <TableCell className="tabular-nums">{b._count.loans}</TableCell>
+              <TableCell className="tabular-nums">{b.loanCount}</TableCell>
               <TableCell className="text-muted-foreground">
                 {format(new Date(b.createdAt), 'MMM d, yyyy')}
               </TableCell>

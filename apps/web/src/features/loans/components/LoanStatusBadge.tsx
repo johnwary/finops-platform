@@ -12,6 +12,8 @@ const STATUS_VARIANTS: Record<LoanStatus, 'outline' | 'secondary' | 'default' | 
   PAID: 'secondary',
   CANCELED: 'outline',
   DEFAULTED: 'destructive',
+  IN_ARREARS: 'destructive',
+  WRITTEN_OFF: 'destructive',
 }
 
 const STATUS_LABELS: Record<LoanStatus, string> = {
@@ -21,6 +23,8 @@ const STATUS_LABELS: Record<LoanStatus, string> = {
   PAID: 'Paid',
   CANCELED: 'Canceled',
   DEFAULTED: 'Defaulted',
+  IN_ARREARS: 'In Arrears',
+  WRITTEN_OFF: 'Written Off',
 }
 
 export function LoanStatusBadge({ status }: LoanStatusBadgeProps) {

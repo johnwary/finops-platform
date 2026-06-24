@@ -17,7 +17,7 @@ export interface BorrowerListItem {
   idNumber: string
   incomeSource: IncomeSource
   createdAt: string
-  _count: { loans: number }
+  loanCount: number
 }
 
 export interface Borrower {
@@ -55,7 +55,7 @@ export interface BorrowerLoanSummary {
 }
 
 export type LoanType = 'SALARY' | 'BUSINESS' | 'PERSONAL' | 'PURCHASE_ORDER' | 'PENSION' | 'INVESTMENT'
-export type LoanStatus = 'PENDING' | 'APPROVED' | 'ACTIVE' | 'PAID' | 'CANCELED' | 'DEFAULTED'
+export type LoanStatus = 'PENDING' | 'APPROVED' | 'ACTIVE' | 'PAID' | 'CANCELED' | 'DEFAULTED' | 'IN_ARREARS' | 'WRITTEN_OFF'
 
 export interface BorrowerDetail extends Borrower {
   loans: BorrowerLoanSummary[]

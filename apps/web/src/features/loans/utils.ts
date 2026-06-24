@@ -25,6 +25,8 @@ export const LOAN_STATUS_LABELS: Record<LoanStatus, string> = {
   PAID: 'Paid',
   CANCELED: 'Canceled',
   DEFAULTED: 'Defaulted',
+  IN_ARREARS: 'In Arrears',
+  WRITTEN_OFF: 'Written Off',
 }
 
 export const PAYMENT_FREQUENCY_LABELS: Record<PaymentFrequency, string> = {

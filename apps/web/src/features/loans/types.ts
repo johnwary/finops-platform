@@ -13,6 +13,8 @@ export type LoanStatus =
   | 'PAID'
   | 'CANCELED'
   | 'DEFAULTED'
+  | 'IN_ARREARS'
+  | 'WRITTEN_OFF'
 
 export type InstallmentStatus = 'SCHEDULED' | 'PAID' | 'OVERDUE'
 
