@@ -664,9 +664,16 @@ export async function defaultLoan(id: string, data: DefaultLoanInput, actor: Act
   }
 
   return prisma.$transaction(async (tx) => {
-    // Re-read inside transaction so concurrent calls serialize on the status check
-    const lockedLoan = await tx.loan.findFirst({ where: { id, deletedAt: null } });
-    if (!lockedLoan) throw new AppError('NOT_FOUND', 'Loan not found.', 404);
+    // SELECT FOR UPDATE acquires a row-level lock — concurrent calls block here until
+    // the first transaction commits, preventing duplicate provision events.
+    const rows = await tx.$queryRaw<{ id: string; status: string; remainingBalance: string; deletedAt: Date | null }[]>`
+      SELECT id, status, "remainingBalance", "deletedAt"
+      FROM "Loan"
+      WHERE id = ${id}
+      FOR UPDATE
+    `;
+    const lockedLoan = rows[0];
+    if (!lockedLoan || lockedLoan.deletedAt != null) throw new AppError('NOT_FOUND', 'Loan not found.', 404);
 
     if (lockedLoan.status !== 'ACTIVE' && lockedLoan.status !== 'IN_ARREARS') {
       throw new AppError('LOAN_INVALID_STATE', `Cannot default a loan with status ${lockedLoan.status}.`, 409);

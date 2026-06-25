@@ -14,10 +14,10 @@
 
 | # | Gap | Severity |
 |---|-----|----------|
-| L1 | Service layer nearly untested — only `recordPayment` covered | High |
-| L2 | No `IN_ARREARS` loan status — overdue only computable from installments | Medium |
-| L3 | No `GET /:id/activity` endpoint — inconsistent with borrowers domain | Medium |
-| L4 | `defaultLoan` race condition — concurrent calls both read `ACTIVE` before transaction commits, creating duplicate provision events | Medium |
-| L5 | No loan restore endpoint — inconsistent with borrowers domain | Low |
-| L6 | No underpay minimum validation on payment | Low |
-| L7 | No `WRITTEN_OFF` status distinct from `DEFAULTED` | Low/Backlog |
+| L1 | Service layer nearly untested — only `recordPayment` covered | ~~High~~ Fixed |
+| L2 | No `IN_ARREARS` loan status — overdue only computable from installments | ~~Medium~~ Fixed |
+| L3 | No `GET /:id/activity` endpoint — inconsistent with borrowers domain | ~~Medium~~ Fixed |
+| L4 | `defaultLoan` race condition — concurrent calls both read `ACTIVE` before transaction commits, creating duplicate provision events | ~~Medium~~ Fixed |
+| L5 | No loan restore endpoint — inconsistent with borrowers domain | ~~Low~~ Fixed |
+| L6 | No underpay minimum validation on payment | ~~Low~~ Fixed |
+| L7 | No `WRITTEN_OFF` status distinct from `DEFAULTED` | ~~Low/Backlog~~ Fixed |
