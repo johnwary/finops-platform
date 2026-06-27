@@ -34,10 +34,10 @@ These stay out of the product surface until paying customers ask for them.
 
 ## Next Priorities
 
-1. Add lending-focused reports only when the dashboard proves the need.
-2. Add deposit/investor modules only as a paid expansion.
+1. Add deposit/investor modules only as a paid expansion.
 
 ## Completed
 
 - Hardened loan schedule generation so rounded installment principal totals equal the loan principal.
 - Added a Collections page for the overdue loan worklist using the existing reports endpoint.
+- Added a Portfolio Report page using existing lending report endpoints.

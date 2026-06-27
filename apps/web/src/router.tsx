@@ -11,6 +11,7 @@ import { CollectionsPage } from '@/features/collections/components/CollectionsPa
 import { DashboardPage } from '@/features/dashboard/components/DashboardPage'
 import { LoanDetailPage } from '@/features/loans/components/LoanDetailPage'
 import { LoansListPage } from '@/features/loans/components/LoansListPage'
+import { ReportsPage } from '@/features/reports/components/ReportsPage'
 import { SettingsPage } from '@/features/settings/components/SettingsPage'
 
 export const router = createBrowserRouter([
@@ -68,6 +69,10 @@ export const router = createBrowserRouter([
           {
             path: 'collections',
             element: <CollectionsPage />,
+          },
+          {
+            path: 'reports',
+            element: <ReportsPage />,
           },
         ],
       },
