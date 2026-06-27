@@ -195,6 +195,7 @@ model LoanPayment {
   penalties        Decimal       @default(0) @db.Decimal(12, 2)
   paidAt           DateTime      @default(now())
   method           PaymentMethod
+  receiptNumber    String        @unique
   reference        String?
   notes            String?
   createdAt        DateTime      @default(now())

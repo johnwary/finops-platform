@@ -1,4 +1,5 @@
 import { Decimal } from '@prisma/client/runtime/client';
+import { randomUUID } from 'node:crypto';
 import { addMonths, addWeeks, addDays, differenceInDays } from 'date-fns';
 import { prisma } from '../../lib/prisma.js';
 import { AppError } from '../../lib/response.js';
@@ -34,6 +35,11 @@ function isUniqueViolation(err: unknown): boolean {
 
 function toDecimal(value: number | null | undefined): Decimal | undefined {
   return value != null ? new Decimal(value) : undefined;
+}
+
+function receiptNumber(date = new Date()): string {
+  const day = date.toISOString().slice(0, 10).replaceAll('-', '');
+  return `RCPT-${day}-${randomUUID().slice(0, 8).toUpperCase()}`;
 }
 
 function installmentDueDate(start: Date, frequency: string, seq: number): Date {
@@ -568,6 +574,7 @@ export async function recordPayment(id: string, data: RecordPaymentInput, actor:
         penalties: allocationPlan.penalties,
         paidAt: data.paidAt ?? new Date(),
         method: data.method,
+        receiptNumber: receiptNumber(data.paidAt),
         reference: data.reference,
         notes: data.notes,
       },

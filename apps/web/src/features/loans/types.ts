@@ -71,6 +71,7 @@ export interface LoanPayment {
   penalties: string
   paidAt: string
   method: PaymentMethod
+  receiptNumber: string
   reference: string | null
   notes: string | null
   createdAt: string

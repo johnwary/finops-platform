@@ -378,6 +378,7 @@ describe('loans.service recordPayment', () => {
         interestPortion: expect.any(Decimal),
         penalties: expect.any(Decimal),
         method: 'CASH',
+        receiptNumber: expect.stringMatching(/^RCPT-\d{8}-[0-9A-F]{8}$/),
         reference: 'OR-1',
       }),
     });

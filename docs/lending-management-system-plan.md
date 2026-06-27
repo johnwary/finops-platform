@@ -51,6 +51,7 @@ These stay out of the product surface until paying customers ask for them.
 - Browser-tested borrower creation, loan creation, approval, disbursement, and payment recording; fixed select-control warnings in the loan write forms.
 - Aligned staff navigation and routes with existing API permissions by hiding manager/admin-only Collections and Reports from user accounts.
 - Redirected staff from the manager/admin dashboard to Loans to avoid forbidden report API calls.
+- Added server-generated loan payment receipt numbers and showed them in the loan payment table.
 
 ## Demo Flow
 

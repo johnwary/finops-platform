@@ -488,6 +488,7 @@ function PaymentTable({ loan }: { loan: LoanDetail }) {
       <TableHeader>
         <TableRow>
           <TableHead>Date Paid</TableHead>
+          <TableHead>Receipt</TableHead>
           <TableHead>Amount</TableHead>
           <TableHead>Principal</TableHead>
           <TableHead>Interest</TableHead>
@@ -500,6 +501,7 @@ function PaymentTable({ loan }: { loan: LoanDetail }) {
         {loan.loanPayments.map((payment) => (
           <TableRow key={payment.id}>
             <TableCell>{format(new Date(payment.paidAt), 'MMM d, yyyy')}</TableCell>
+            <TableCell className="font-medium tabular-nums">{payment.receiptNumber}</TableCell>
             <TableCell className="tabular-nums">{formatPeso(payment.amount)}</TableCell>
             <TableCell className="tabular-nums">{formatPeso(payment.principalPortion)}</TableCell>
             <TableCell className="tabular-nums">{formatPeso(payment.interestPortion)}</TableCell>
