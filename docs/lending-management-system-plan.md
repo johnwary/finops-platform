@@ -53,6 +53,7 @@ These stay out of the product surface until paying customers ask for them.
 - Aligned staff navigation and routes with existing API permissions by hiding manager/admin-only Collections and Reports from user accounts.
 - Redirected staff from the manager/admin dashboard to Loans to avoid forbidden report API calls.
 - Added server-generated loan payment receipt numbers and showed them in the loan payment table.
+- Added committed Playwright e2e coverage for borrower creation, loan creation, approval, disbursement, payment, and receipt visibility.
 
 ## Demo Flow
 

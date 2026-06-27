@@ -5,6 +5,7 @@
     "dev": "pnpm --filter api dev & pnpm --filter web dev",
     "build": "pnpm --filter '*' build",
     "lint": "pnpm --filter '*' lint",
+    "e2e": "pnpm api:prisma:seed && playwright test",
     "api:dev": "pnpm --filter api dev",
     "api:build": "pnpm --filter api build",
     "api:typecheck": "pnpm --filter api typecheck",
@@ -24,5 +25,8 @@
   "engines": {
     "node": ">=20",
     "pnpm": ">=11"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1"
   }
 }
