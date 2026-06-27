@@ -70,7 +70,7 @@ export function AppShell({ children }: AppShellProps) {
                 <BreadcrumbList>
                   <BreadcrumbItem className="hidden md:block">
                     <BreadcrumbLink asChild>
-                      <Link to="/dashboard">FinOps Platform</Link>
+                      <Link to="/dashboard">Lending Management System</Link>
                     </BreadcrumbLink>
                   </BreadcrumbItem>
                   {breadcrumbTrail.map((item, index) => {

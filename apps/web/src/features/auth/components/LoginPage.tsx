@@ -43,7 +43,7 @@ export function LoginPage() {
           </CardContent>
         </Card>
         <FieldDescription className="px-6 text-center">
-          By continuing, you agree to use FinOps Platform according to your
+          By continuing, you agree to use Lending Management System according to your
           organization&apos;s access policies.
         </FieldDescription>
       </div>

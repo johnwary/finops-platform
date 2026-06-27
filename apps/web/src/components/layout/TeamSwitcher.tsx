@@ -9,7 +9,7 @@ export function TeamSwitcher() {
             <span className="text-[11px] font-bold tracking-tight">FO</span>
           </div>
           <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
-            <span className="truncate font-semibold">FinOps</span>
+            <span className="truncate font-semibold">Lending</span>
             <span className="truncate text-xs text-sidebar-foreground/60">Platform</span>
           </div>
         </SidebarMenuButton>

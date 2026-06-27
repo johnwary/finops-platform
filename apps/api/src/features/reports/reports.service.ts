@@ -42,13 +42,6 @@ export async function getSummary(input: PeriodInput) {
     // Collections in period
     periodCollections,
 
-    // Deposits by status
-    depositCounts,
-    depositAmounts,
-
-    // Active deposits total
-    activeDeposits,
-
     // Capital: inflows/outflows all-time
     capitalInflow,
     capitalOutflow,
@@ -59,9 +52,6 @@ export async function getSummary(input: PeriodInput) {
 
     // New loans disbursed in period
     periodDisbursements,
-
-    // Deposits maturing this month (endDate within current month)
-    maturingDeposits,
   ] = await Promise.all([
     // Active borrowers
     prisma.borrower.count({ where: { deletedAt: null } }),
@@ -97,27 +87,6 @@ export async function getSummary(input: PeriodInput) {
       _count: true,
     }),
 
-    // Deposit counts by status
-    prisma.deposit.groupBy({
-      by: ['status'],
-      where: { deletedAt: null },
-      _count: true,
-    }),
-
-    // Deposit amounts by status
-    prisma.deposit.groupBy({
-      by: ['status'],
-      where: { deletedAt: null },
-      _sum: { amount: true, totalPayoutPaid: true },
-    }),
-
-    // Active deposits total
-    prisma.deposit.aggregate({
-      where: { status: 'ACTIVE', deletedAt: null },
-      _sum: { amount: true, totalPayoutPaid: true },
-      _count: true,
-    }),
-
     // All-time capital inflow
     prisma.capitalEntry.aggregate({
       where: { flowType: 'INFLOW', reversedAt: null },
@@ -148,15 +117,6 @@ export async function getSummary(input: PeriodInput) {
       _sum: { amount: true },
       _count: true,
     }),
-
-    // Deposits maturing in current month
-    prisma.deposit.count({
-      where: {
-        status: 'ACTIVE',
-        deletedAt: null,
-        endDate: { gte: startOfMonth(new Date()), lte: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0) },
-      },
-    }),
   ]);
 
   // Build loan summary map
@@ -168,17 +128,6 @@ export async function getSummary(input: PeriodInput) {
         amount: (r._sum.amount ?? new Decimal(0)).toFixed(2),
         remainingBalance: (r._sum.remainingBalance ?? new Decimal(0)).toFixed(2),
         totalPaid: (r._sum.totalPaid ?? new Decimal(0)).toFixed(2),
-      },
-    ]),
-  );
-
-  const depositCountMap = Object.fromEntries(depositCounts.map((r) => [r.status, r._count]));
-  const depositAmountMap = Object.fromEntries(
-    depositAmounts.map((r) => [
-      r.status,
-      {
-        amount: (r._sum.amount ?? new Decimal(0)).toFixed(2),
-        totalPayoutPaid: (r._sum.totalPayoutPaid ?? new Decimal(0)).toFixed(2),
       },
     ]),
   );
@@ -224,20 +173,6 @@ export async function getSummary(input: PeriodInput) {
         principalPortion: (periodCollections._sum.principalPortion ?? new Decimal(0)).toFixed(2),
         interestPortion: (periodCollections._sum.interestPortion ?? new Decimal(0)).toFixed(2),
       },
-    },
-
-    deposits: {
-      byStatus: {
-        active:    { count: depositCountMap['ACTIVE']    ?? 0, ...depositAmountMap['ACTIVE']    ?? { amount: '0.00', totalPayoutPaid: '0.00' } },
-        withdrawn: { count: depositCountMap['WITHDRAWN'] ?? 0, ...depositAmountMap['WITHDRAWN'] ?? { amount: '0.00', totalPayoutPaid: '0.00' } },
-        closed:    { count: depositCountMap['CLOSED']    ?? 0, ...depositAmountMap['CLOSED']    ?? { amount: '0.00', totalPayoutPaid: '0.00' } },
-      },
-      activePortfolio: {
-        count: activeDeposits._count,
-        totalAmount: (activeDeposits._sum.amount ?? new Decimal(0)).toFixed(2),
-        totalPayoutPaid: (activeDeposits._sum.totalPayoutPaid ?? new Decimal(0)).toFixed(2),
-      },
-      maturingThisMonth: maturingDeposits,
     },
 
     capital: {

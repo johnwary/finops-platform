@@ -11,8 +11,6 @@ import { auth } from './lib/auth.js';
 import { AppError, error } from './lib/response.js';
 import { borrowersRouter } from './features/borrowers/borrowers.router.js';
 import { loansRouter } from './features/loans/loans.router.js';
-import { depositorsRouter } from './features/depositors/depositors.router.js';
-import { depositsRouter } from './features/deposits/deposits.router.js';
 import { reportsRouter } from './features/reports/reports.router.js';
 import { invitationsRouter } from './features/invitations/invitations.router.js';
 import { startAutoDefaultScheduler } from './jobs/autoDefault.job.js';
@@ -65,8 +63,6 @@ app.get('/health', (_req, res) => {
 
 app.use('/api/v1/borrowers', borrowersRouter);
 app.use('/api/v1/loans', loansRouter);
-app.use('/api/v1/depositors', depositorsRouter);
-app.use('/api/v1/deposits', depositsRouter);
 app.use('/api/v1/reports', reportsRouter);
 app.use('/api/v1/invitations', invitationsRouter);
 

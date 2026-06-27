@@ -40,7 +40,7 @@ export function LoginForm() {
           <div className="flex flex-col items-center gap-2 text-center">
             <h1 className="text-2xl font-bold">Welcome back</h1>
             <p className="text-balance text-muted-foreground">
-              Sign in to your FinOps Platform account.
+              Sign in to your Lending Management System account.
             </p>
           </div>
           <Field data-invalid={!!errors.email}>

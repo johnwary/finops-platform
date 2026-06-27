@@ -17,13 +17,13 @@ export async function sendInviteEmail(
     await resend.emails.send({
       from: fromEmail,
       to,
-      subject: 'You have been invited to FinOps',
+      subject: 'You have been invited to Lending Management System',
       html: `
-        <p>${inviterName} invited you to FinOps as ${role}.</p>
+        <p>${inviterName} invited you to Lending Management System as ${role}.</p>
         <p><a href="${inviteUrl}">Accept your invitation</a></p>
         <p>This invitation expires on ${expiresAt.toISOString()}.</p>
       `,
-      text: `${inviterName} invited you to FinOps as ${role}. Accept your invitation: ${inviteUrl}`,
+      text: `${inviterName} invited you to Lending Management System as ${role}. Accept your invitation: ${inviteUrl}`,
     });
   } catch (err) {
     logger.error({ err, to }, 'Failed to send invite email');
@@ -36,9 +36,9 @@ export async function sendWelcomeEmail(to: string, name: string): Promise<void> 
     await resend.emails.send({
       from: fromEmail,
       to,
-      subject: 'Welcome to FinOps',
-      html: `<p>Welcome to FinOps, ${name}.</p>`,
-      text: `Welcome to FinOps, ${name}.`,
+      subject: 'Welcome to Lending Management System',
+      html: `<p>Welcome to Lending Management System, ${name}.</p>`,
+      text: `Welcome to Lending Management System, ${name}.`,
     });
   } catch (err) {
     logger.error({ err, to }, 'Failed to send welcome email');

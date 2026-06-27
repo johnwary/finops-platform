@@ -146,23 +146,12 @@ export function DashboardPage() {
         </div>
       </div>
 
-      {/* Borrowers + deposits + capital */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Borrowers + capital */}
+      <div className="grid gap-3 sm:grid-cols-2">
         <StatCard
           label="Active borrowers"
           value={formatNumber(summary?.borrowers.total ?? 0)}
           sub={`+${formatNumber(summary?.borrowers.newInPeriod ?? 0)} this period`}
-          isLoading={summaryLoading}
-        />
-        <StatCard
-          label="Active deposits"
-          value={formatPeso(summary?.deposits.activePortfolio.totalAmount ?? 0)}
-          sub={`${formatNumber(summary?.deposits.activePortfolio.count ?? 0)} placements`}
-          isLoading={summaryLoading}
-        />
-        <StatCard
-          label="Deposits maturing this month"
-          value={formatNumber(summary?.deposits.maturingThisMonth ?? 0)}
           isLoading={summaryLoading}
         />
         <StatCard

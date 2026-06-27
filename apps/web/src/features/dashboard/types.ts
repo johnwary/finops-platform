@@ -7,12 +7,6 @@ interface LoanStatusEntry {
   totalPaid: string
 }
 
-interface DepositStatusEntry {
-  count: number
-  amount: string
-  totalPayoutPaid: string
-}
-
 export interface DashboardSummary {
   period: ReportPeriod
   periodSince: string
@@ -50,20 +44,6 @@ export interface DashboardSummary {
       principalPortion: string
       interestPortion: string
     }
-  }
-
-  deposits: {
-    byStatus: {
-      active: DepositStatusEntry
-      withdrawn: DepositStatusEntry
-      closed: DepositStatusEntry
-    }
-    activePortfolio: {
-      count: number
-      totalAmount: string
-      totalPayoutPaid: string
-    }
-    maturingThisMonth: number
   }
 
   capital: {

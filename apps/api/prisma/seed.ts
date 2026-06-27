@@ -64,6 +64,7 @@ const BUSINESS_FUND_IDS = {
 } as const;
 
 const loanIds = Object.values(LOAN_IDS);
+const depositorIds = Object.values(DEPOSITOR_IDS);
 const depositIds = Object.values(DEPOSIT_IDS);
 const businessFundIds = Object.values(BUSINESS_FUND_IDS);
 
@@ -178,6 +179,8 @@ async function resetSeedOwnedRows() {
     await tx.loanInstallment.deleteMany({ where: { loanId: { in: loanIds } } });
     await tx.loanProvisionEvent.deleteMany({ where: { loanId: { in: loanIds } } });
     await tx.depositPayout.deleteMany({ where: { depositId: { in: depositIds } } });
+    await tx.deposit.deleteMany({ where: { id: { in: depositIds } } });
+    await tx.depositor.deleteMany({ where: { id: { in: depositorIds } } });
     await tx.capitalEntry.deleteMany({
       where: {
         OR: [
@@ -983,18 +986,6 @@ async function seedWorkflowActivity(adminId: string) {
       targetId: LOAN_IDS.defaulted,
       metadata: { scenario: 'Defaulted loan with provision event' },
     },
-    {
-      id: 'seed-activity-deposit-payout-recorded',
-      action: 'DEPOSIT_PAYOUT_RECORDED',
-      targetId: DEPOSIT_IDS.payout,
-      metadata: { scenario: 'Deposit with monthly payout history' },
-    },
-    {
-      id: 'seed-activity-deposit-closed',
-      action: 'DEPOSIT_CLOSED',
-      targetId: DEPOSIT_IDS.closed,
-      metadata: { scenario: 'Closed deposit with principal returned' },
-    },
   ];
 
   await prisma.activityLog.createMany({
@@ -1017,7 +1008,6 @@ async function main() {
   await resetSeedOwnedRows();
   await seedBusinessFunds(admin.id);
   await seedBorrowersAndLoans(admin.id);
-  await seedDepositorsAndDeposits(admin.id);
   await seedWorkflowActivity(admin.id);
 
   console.log('\nSeed login credentials');
