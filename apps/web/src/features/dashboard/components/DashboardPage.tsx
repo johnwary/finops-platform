@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
+import { Navigate } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatPeso } from '@/lib/format'
+import { useSession } from '@/features/auth/hooks/useSession'
 import { useDashboardSummary, useOverdue, usePortfolioAtRisk } from '../hooks/useDashboard'
 import type { ReportPeriod } from '../types'
 
@@ -54,6 +56,16 @@ function SectionHeader({ title }: { title: string }) {
 }
 
 export function DashboardPage() {
+  const session = useSession()
+  const role = session.data?.user.role
+
+  if (session.isPending) return null
+  if (role === 'user') return <Navigate to="/dashboard/loans" replace />
+
+  return <ManagerDashboard />
+}
+
+function ManagerDashboard() {
   const [period, setPeriod] = useState<ReportPeriod>('month')
 
   const { data: summary, isLoading: summaryLoading } = useDashboardSummary(period)

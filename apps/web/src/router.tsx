@@ -68,11 +68,19 @@ export const router = createBrowserRouter([
           },
           {
             path: 'collections',
-            element: <CollectionsPage />,
+            element: (
+              <RequireRole role={['admin', 'manager']}>
+                <CollectionsPage />
+              </RequireRole>
+            ),
           },
           {
             path: 'reports',
-            element: <ReportsPage />,
+            element: (
+              <RequireRole role={['admin', 'manager']}>
+                <ReportsPage />
+              </RequireRole>
+            ),
           },
         ],
       },

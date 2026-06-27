@@ -49,6 +49,8 @@ These stay out of the product surface until paying customers ask for them.
 - Added a Dashboard page heading for clearer route identity in browser QA.
 - Ran browser QA across login, dashboard, borrowers, loans, collections, reports, settings, detail pages, and mobile dashboard.
 - Browser-tested borrower creation, loan creation, approval, disbursement, and payment recording; fixed select-control warnings in the loan write forms.
+- Aligned staff navigation and routes with existing API permissions by hiding manager/admin-only Collections and Reports from user accounts.
+- Redirected staff from the manager/admin dashboard to Loans to avoid forbidden report API calls.
 
 ## Demo Flow
 
