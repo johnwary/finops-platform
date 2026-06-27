@@ -79,7 +79,7 @@ export function CreateLoanForm({ onSuccess }: CreateLoanFormProps) {
           <Field data-invalid={!!errors.type}>
             <FieldLabel htmlFor="type">Loan Type</FieldLabel>
             <Select
-              value={type}
+              value={type ?? ''}
               onValueChange={(val) =>
                 setValue('type', val as CreateLoanInput['type'], { shouldValidate: true })
               }
@@ -137,7 +137,7 @@ export function CreateLoanForm({ onSuccess }: CreateLoanFormProps) {
           <Field data-invalid={!!errors.paymentFrequency}>
             <FieldLabel htmlFor="paymentFrequency">Payment Frequency</FieldLabel>
             <Select
-              value={paymentFrequency}
+              value={paymentFrequency ?? ''}
               onValueChange={(val) =>
                 setValue('paymentFrequency', val as CreateLoanInput['paymentFrequency'], { shouldValidate: true })
               }
@@ -157,7 +157,7 @@ export function CreateLoanForm({ onSuccess }: CreateLoanFormProps) {
           <Field data-invalid={!!errors.repaymentStructure}>
             <FieldLabel htmlFor="repaymentStructure">Repayment Structure</FieldLabel>
             <Select
-              value={repaymentStructure}
+              value={repaymentStructure ?? ''}
               onValueChange={(val) =>
                 setValue('repaymentStructure', val as CreateLoanInput['repaymentStructure'], { shouldValidate: true })
               }

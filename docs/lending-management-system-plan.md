@@ -43,6 +43,12 @@ These stay out of the product surface until paying customers ask for them.
 - Added a Portfolio Report page using existing lending report endpoints.
 - Improved borrower detail with loan summary cards and status-badged loan history.
 - Fixed borrower detail breadcrumbs for cleaner demo navigation.
+- Fixed loan seed data to use the current application date field.
+- Changed borrower and loan seed IDs to UUIDs so seeded detail pages pass route validation.
+- Seeded an active overdue loan so Collections and PAR demos show meaningful data.
+- Added a Dashboard page heading for clearer route identity in browser QA.
+- Ran browser QA across login, dashboard, borrowers, loans, collections, reports, settings, detail pages, and mobile dashboard.
+- Browser-tested borrower creation, loan creation, approval, disbursement, and payment recording; fixed select-control warnings in the loan write forms.
 
 ## Demo Flow
 

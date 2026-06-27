@@ -66,6 +66,10 @@ export function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="text-xl font-semibold">Dashboard</h1>
+        <p className="text-sm text-muted-foreground">Portfolio health snapshot</p>
+      </div>
 
       {/* Period selector */}
       <div className="flex items-center gap-2 flex-wrap">

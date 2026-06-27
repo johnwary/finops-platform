@@ -29,20 +29,20 @@ const STAFF_PASSWORD = process.env.SEED_STAFF_PASSWORD ?? 'changeme123';
 const STAFF_NAME = process.env.SEED_STAFF_NAME ?? 'Operations Staff';
 
 const BORROWER_IDS = {
-  clean: 'seed-borrower-clean',
-  pending: 'seed-borrower-pending',
-  approved: 'seed-borrower-approved',
-  activeFresh: 'seed-borrower-active-fresh',
-  activePartial: 'seed-borrower-active-partial',
-  defaulted: 'seed-borrower-defaulted',
+  clean: '00000000-0000-4000-8000-000000000101',
+  pending: '00000000-0000-4000-8000-000000000102',
+  approved: '00000000-0000-4000-8000-000000000103',
+  activeFresh: '00000000-0000-4000-8000-000000000104',
+  activePartial: '00000000-0000-4000-8000-000000000105',
+  defaulted: '00000000-0000-4000-8000-000000000106',
 } as const;
 
 const LOAN_IDS = {
-  pending: 'seed-loan-pending',
-  approved: 'seed-loan-approved',
-  activeFresh: 'seed-loan-active-fresh',
-  activePartial: 'seed-loan-active-partial',
-  defaulted: 'seed-loan-defaulted',
+  pending: '00000000-0000-4000-8000-000000000201',
+  approved: '00000000-0000-4000-8000-000000000202',
+  activeFresh: '00000000-0000-4000-8000-000000000203',
+  activePartial: '00000000-0000-4000-8000-000000000204',
+  defaulted: '00000000-0000-4000-8000-000000000205',
 } as const;
 
 const DEPOSITOR_IDS = {
@@ -64,6 +64,7 @@ const BUSINESS_FUND_IDS = {
 } as const;
 
 const loanIds = Object.values(LOAN_IDS);
+const borrowerIds = Object.values(BORROWER_IDS);
 const depositorIds = Object.values(DEPOSITOR_IDS);
 const depositIds = Object.values(DEPOSIT_IDS);
 const businessFundIds = Object.values(BUSINESS_FUND_IDS);
@@ -162,7 +163,7 @@ async function upsertCredentialAccount({
 async function resetSeedOwnedRows() {
   await prisma.$transaction(async (tx) => {
     const existingSeedPayments = await tx.loanPayment.findMany({
-      where: { loanId: { in: loanIds } },
+      where: { OR: [{ loanId: { in: loanIds } }, { loanId: { startsWith: 'seed-loan-' } }] },
       select: { id: true },
     });
     const existingSeedPayouts = await tx.depositPayout.findMany({
@@ -173,11 +174,17 @@ async function resetSeedOwnedRows() {
     const payoutIds = existingSeedPayouts.map((payout) => payout.id);
 
     await tx.loanPaymentAllocation.deleteMany({
-      where: { payment: { loanId: { in: loanIds } } },
+      where: { payment: { OR: [{ loanId: { in: loanIds } }, { loanId: { startsWith: 'seed-loan-' } }] } },
     });
-    await tx.loanPayment.deleteMany({ where: { loanId: { in: loanIds } } });
-    await tx.loanInstallment.deleteMany({ where: { loanId: { in: loanIds } } });
-    await tx.loanProvisionEvent.deleteMany({ where: { loanId: { in: loanIds } } });
+    await tx.loanPayment.deleteMany({
+      where: { OR: [{ loanId: { in: loanIds } }, { loanId: { startsWith: 'seed-loan-' } }] },
+    });
+    await tx.loanInstallment.deleteMany({
+      where: { OR: [{ loanId: { in: loanIds } }, { loanId: { startsWith: 'seed-loan-' } }] },
+    });
+    await tx.loanProvisionEvent.deleteMany({
+      where: { OR: [{ loanId: { in: loanIds } }, { loanId: { startsWith: 'seed-loan-' } }] },
+    });
     await tx.depositPayout.deleteMany({ where: { depositId: { in: depositIds } } });
     await tx.deposit.deleteMany({ where: { id: { in: depositIds } } });
     await tx.depositor.deleteMany({ where: { id: { in: depositorIds } } });
@@ -190,6 +197,9 @@ async function resetSeedOwnedRows() {
               in: [...loanIds, ...paymentIds, ...depositIds, ...payoutIds, ...businessFundIds],
             },
           },
+          { sourceId: { startsWith: 'seed-loan-' } },
+          { sourceId: { startsWith: 'seed-deposit-' } },
+          { sourceId: { startsWith: 'seed-business-fund-' } },
         ],
       },
     });
@@ -198,8 +208,16 @@ async function resetSeedOwnedRows() {
         OR: [
           { id: { startsWith: 'seed-activity-' } },
           { targetId: { in: [...loanIds, ...depositIds] } },
+          { targetId: { startsWith: 'seed-loan-' } },
+          { targetId: { startsWith: 'seed-deposit-' } },
         ],
       },
+    });
+    await tx.loan.deleteMany({
+      where: { OR: [{ id: { in: loanIds } }, { id: { startsWith: 'seed-loan-' } }] },
+    });
+    await tx.borrower.deleteMany({
+      where: { OR: [{ id: { in: borrowerIds } }, { id: { startsWith: 'seed-borrower-' } }] },
     });
   });
 }
@@ -459,7 +477,7 @@ async function seedBorrowersAndLoans(adminId: string) {
         interestRate: rate(seed.interestRate),
         termMonths: seed.termMonths,
         status: seed.status,
-        startDate: seed.startDate,
+        applicationDate: seed.startDate,
         endDate,
         paymentFrequency: 'MONTHLY',
         repaymentStructure: 'AMORTIZING',
@@ -490,7 +508,7 @@ async function seedBorrowersAndLoans(adminId: string) {
         interestRate: rate(seed.interestRate),
         termMonths: seed.termMonths,
         status: seed.status,
-        startDate: seed.startDate,
+        applicationDate: seed.startDate,
         endDate,
         paymentFrequency: 'MONTHLY',
         repaymentStructure: 'AMORTIZING',
@@ -538,7 +556,7 @@ async function seedBorrowersAndLoans(adminId: string) {
     monthlyRate: 0.03,
     termMonths: 12,
     startDate: subMonths(today, 4),
-    statusForSequence: { 1: 'PAID', 2: 'PAID' },
+    statusForSequence: { 1: 'PAID', 2: 'PAID', 3: 'OVERDUE', 4: 'OVERDUE' },
   });
 
   const defaultedInstallments = buildMonthlyInstallments({

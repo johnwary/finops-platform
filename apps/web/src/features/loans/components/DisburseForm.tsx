@@ -51,7 +51,7 @@ export function DisburseForm({ loanId, onSuccess }: DisburseFormProps) {
         <Field data-invalid={!!errors.disbursementMethod}>
           <FieldLabel htmlFor="disbursementMethod">Disbursement Method</FieldLabel>
           <Select
-            value={disbursementMethod}
+            value={disbursementMethod ?? ''}
             onValueChange={(val) =>
               setValue('disbursementMethod', val as DisburseLoanInput['disbursementMethod'], { shouldValidate: true })
             }

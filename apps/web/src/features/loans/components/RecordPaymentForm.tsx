@@ -351,7 +351,7 @@ export function RecordPaymentForm({
           >
             <FieldLabel htmlFor="paymentMethod">Payment Method</FieldLabel>
             <Select
-              value={method}
+              value={method ?? ''}
               onValueChange={(val) =>
                 setValue('method', val as RecordPaymentInput['method'], {
                   shouldDirty: true,
