@@ -41,3 +41,4 @@ These stay out of the product surface until paying customers ask for them.
 - Hardened loan schedule generation so rounded installment principal totals equal the loan principal.
 - Added a Collections page for the overdue loan worklist using the existing reports endpoint.
 - Added a Portfolio Report page using existing lending report endpoints.
+- Improved borrower detail with loan summary cards and status-badged loan history.

@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -80,6 +81,14 @@ export function BorrowerDetailPage() {
   if (!data) return null
 
   const hasLoans = data.loans.length > 0
+  const activeLoanCount = data.loans.filter((loan) => (
+    loan.status === 'PENDING' ||
+    loan.status === 'APPROVED' ||
+    loan.status === 'ACTIVE' ||
+    loan.status === 'IN_ARREARS'
+  )).length
+  const arrearsLoanCount = data.loans.filter((loan) => loan.status === 'IN_ARREARS').length
+  const totalRemaining = data.loans.reduce((sum, loan) => sum + Number(loan.remainingBalance), 0)
 
   function handleDelete() {
     deleteBorrower.mutate(data.id, {
@@ -127,6 +136,13 @@ export function BorrowerDetailPage() {
         </RequireRole>
       </div>
 
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <BorrowerStatCard label="Total loans" value={String(data.loans.length)} />
+        <BorrowerStatCard label="Active loans" value={String(activeLoanCount)} />
+        <BorrowerStatCard label="In arrears" value={String(arrearsLoanCount)} />
+        <BorrowerStatCard label="Remaining balance" value={formatPeso(totalRemaining)} />
+      </div>
+
       {/* Details */}
       <BorrowerDetailsGrid borrower={data} />
 
@@ -166,6 +182,17 @@ export function BorrowerDetailPage() {
         </SheetContent>
       </Sheet>
     </div>
+  )
+}
+
+function BorrowerStatCard({ label, value }: { label: string; value: string }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardDescription>{label}</CardDescription>
+        <CardTitle className="text-xl tabular-nums">{value}</CardTitle>
+      </CardHeader>
+    </Card>
   )
 }
 

@@ -1,5 +1,6 @@
 import { format } from 'date-fns'
 import { Link } from 'react-router-dom'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Table,
@@ -10,10 +11,21 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { LOAN_STATUS_LABELS, LOAN_TYPE_LABELS, formatPeso } from '@/features/loans/utils'
-import type { BorrowerLoanSummary } from '../types'
+import type { BorrowerLoanSummary, LoanStatus } from '../types'
 
 interface BorrowerLoansListProps {
   loans: BorrowerLoanSummary[]
+}
+
+const STATUS_VARIANTS: Record<LoanStatus, 'outline' | 'secondary' | 'default' | 'destructive'> = {
+  PENDING: 'outline',
+  APPROVED: 'secondary',
+  ACTIVE: 'default',
+  IN_ARREARS: 'secondary',
+  PAID: 'default',
+  CANCELED: 'outline',
+  DEFAULTED: 'destructive',
+  WRITTEN_OFF: 'destructive',
 }
 
 export function BorrowerLoansList({ loans }: BorrowerLoansListProps) {
@@ -39,7 +51,9 @@ export function BorrowerLoansList({ loans }: BorrowerLoansListProps) {
           <TableRow key={loan.id}>
             <TableCell>{LOAN_TYPE_LABELS[loan.type]}</TableCell>
             <TableCell className="tabular-nums">{formatPeso(loan.amount)}</TableCell>
-            <TableCell>{LOAN_STATUS_LABELS[loan.status]}</TableCell>
+            <TableCell>
+              <Badge variant={STATUS_VARIANTS[loan.status]}>{LOAN_STATUS_LABELS[loan.status]}</Badge>
+            </TableCell>
             <TableCell className="text-muted-foreground">
               {format(new Date(loan.applicationDate), 'MMM d, yyyy')}
             </TableCell>
