@@ -134,6 +134,17 @@ function buildInstallments(
     }
   }
 
+  const expectedPrincipal = new Decimal(principal).toDecimalPlaces(2);
+  const scheduledPrincipal = installments.reduce(
+    (sum, installment) => sum.plus(installment.principal),
+    new Decimal(0),
+  );
+  const roundingDelta = expectedPrincipal.minus(scheduledPrincipal);
+  if (!roundingDelta.equals(0)) {
+    const last = installments[installments.length - 1];
+    last.principal = last.principal.plus(roundingDelta).toDecimalPlaces(2);
+  }
+
   return installments;
 }
 

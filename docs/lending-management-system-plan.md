@@ -34,7 +34,10 @@ These stay out of the product surface until paying customers ask for them.
 
 ## Next Priorities
 
-1. Harden loan payment allocation and payoff behavior.
-2. Improve overdue and collections workflows.
-3. Add lending-focused reports only when the dashboard proves the need.
-4. Add deposit/investor modules only as a paid expansion.
+1. Improve overdue and collections workflows.
+2. Add lending-focused reports only when the dashboard proves the need.
+3. Add deposit/investor modules only as a paid expansion.
+
+## Completed
+
+- Hardened loan schedule generation so rounded installment principal totals equal the loan principal.

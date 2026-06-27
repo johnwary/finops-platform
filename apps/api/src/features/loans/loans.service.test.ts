@@ -231,6 +231,29 @@ describe('loans.service disburseLoan', () => {
     expect(totalPrincipal.toNumber()).toBeCloseTo(1000, 0);
   });
 
+  it('adjusts final amortizing installment so rounded principal equals loan amount', async () => {
+    mocks.prisma.loan.findFirst.mockResolvedValue({
+      ...approvedLoan,
+      interestRate: new Decimal(0),
+      termMonths: 3,
+    });
+
+    await disburseLoan(
+      'loan-1',
+      { disbursementMethod: 'CASH', disbursedAt: new Date('2024-01-01') },
+      actor,
+    );
+
+    const installments = mocks.tx.loanInstallment.createMany.mock.calls[0][0].data;
+    const totalPrincipal = installments.reduce(
+      (sum: Decimal, i: { principal: Decimal }) => sum.plus(i.principal),
+      new Decimal(0),
+    );
+
+    expect(totalPrincipal.toFixed(2)).toBe('1000.00');
+    expect(installments[2].principal.toFixed(2)).toBe('333.34');
+  });
+
   it('generates interest-only installments with principal lump at end', async () => {
     const interestOnlyLoan = {
       ...approvedLoan,
