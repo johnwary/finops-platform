@@ -7,6 +7,7 @@ import { ProtectedRoute } from '@/features/auth/components/ProtectedRoute'
 import { RequireRole } from '@/features/auth/components/RequireRole'
 import { BorrowerDetailPage } from '@/features/borrowers/components/BorrowerDetailPage'
 import { BorrowersListPage } from '@/features/borrowers/components/BorrowersListPage'
+import { CollectionsPage } from '@/features/collections/components/CollectionsPage'
 import { DashboardPage } from '@/features/dashboard/components/DashboardPage'
 import { LoanDetailPage } from '@/features/loans/components/LoanDetailPage'
 import { LoansListPage } from '@/features/loans/components/LoansListPage'
@@ -63,6 +64,10 @@ export const router = createBrowserRouter([
           {
             path: 'borrowers/:id',
             element: <BorrowerDetailPage />,
+          },
+          {
+            path: 'collections',
+            element: <CollectionsPage />,
           },
         ],
       },

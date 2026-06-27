@@ -1,3 +1,5 @@
+import type { LoanType } from '@/features/loans/types'
+
 export type ReportPeriod = 'today' | 'week' | 'month' | 'quarter' | 'year'
 
 interface LoanStatusEntry {
@@ -72,7 +74,7 @@ export interface OverdueItem {
   remainingBalance: string
   earliestOverdueDueDate: string | null
   daysPastDue: number
-  type: string
+  type: LoanType
   disbursedAt: string | null
 }
 

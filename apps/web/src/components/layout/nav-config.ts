@@ -1,5 +1,6 @@
 import {
   Analytics01Icon,
+  CollectionsBookmarkIcon,
   CreditCardIcon,
   DashboardCircleIcon,
   Settings01Icon,
@@ -13,6 +14,7 @@ export const navMain: NavMainItem[] = [
   { title: 'Dashboard', url: '/dashboard', icon: DashboardCircleIcon, end: true },
   { title: 'Loans', url: '/dashboard/loans', icon: CreditCardIcon },
   { title: 'Borrowers', url: '/dashboard/borrowers', icon: UserMultiple02Icon },
+  { title: 'Collections', url: '/dashboard/collections', icon: CollectionsBookmarkIcon },
   { title: 'Reports', url: '/dashboard/reports', icon: Analytics01Icon },
 ]
 
