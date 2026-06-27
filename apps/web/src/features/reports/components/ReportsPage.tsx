@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { Download04Icon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/react'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -13,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { downloadCsv } from '@/lib/csv'
 import { formatPeso } from '@/lib/format'
 import { useDashboardSummary, useOverdue, usePortfolioAtRisk } from '@/features/dashboard/hooks/useDashboard'
 import type { DashboardSummary, ReportPeriod } from '@/features/dashboard/types'
@@ -77,6 +80,20 @@ export function ReportsPage() {
   const isLoading = summary.isPending || overdue.isPending || par.isPending
   const isError = summary.isError || overdue.isError || par.isError
   const overdueBalance = overdue.data?.data.reduce((sum, loan) => sum + Number(loan.remainingBalance), 0) ?? 0
+
+  function handleExportStatus() {
+    if (!summary.data) return
+    downloadCsv(`portfolio-status-${period}-${new Date().toISOString().slice(0, 10)}.csv`, STATUS_ROWS.map((row) => {
+      const stat = summary.data.loans.byStatus[row.key]
+      return {
+        status: row.label,
+        count: stat.count,
+        amount: stat.amount,
+        remainingBalance: stat.remainingBalance,
+        collected: stat.totalPaid,
+      }
+    }))
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -156,9 +173,15 @@ export function ReportsPage() {
       </div>
 
       <Card>
-        <CardHeader>
-          <CardDescription>Loan status breakdown</CardDescription>
-          <CardTitle>Portfolio by Status</CardTitle>
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <CardDescription>Loan status breakdown</CardDescription>
+            <CardTitle>Portfolio by Status</CardTitle>
+          </div>
+          <Button type="button" variant="outline" size="sm" onClick={handleExportStatus} disabled={!summary.data}>
+            <HugeiconsIcon icon={Download04Icon} size={16} />
+            Export CSV
+          </Button>
         </CardHeader>
         <StatusTable summary={summary.data} isLoading={summary.isPending} />
       </Card>

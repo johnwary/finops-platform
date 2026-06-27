@@ -1,4 +1,6 @@
 import { format } from 'date-fns'
+import { Download04Icon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/react'
 import { Link } from 'react-router-dom'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -14,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { downloadCsv } from '@/lib/csv'
 import { formatPeso } from '@/lib/format'
 import { useOverdue } from '@/features/dashboard/hooks/useDashboard'
 import { LOAN_TYPE_LABELS } from '@/features/loans/utils'
@@ -32,11 +35,31 @@ export function CollectionsPage() {
   const rows = overdue.data?.data ?? []
   const totalBalance = rows.reduce((sum, loan) => sum + Number(loan.remainingBalance), 0)
 
+  function handleExport() {
+    downloadCsv(`collections-${new Date().toISOString().slice(0, 10)}.csv`, rows.map((loan) => ({
+      borrower: loan.borrower.name,
+      phone: loan.borrower.phone,
+      email: loan.borrower.email,
+      type: LOAN_TYPE_LABELS[loan.type],
+      amount: loan.amount,
+      remainingBalance: loan.remainingBalance,
+      dueSince: loan.earliestOverdueDueDate?.slice(0, 10) ?? '',
+      daysPastDue: loan.daysPastDue,
+      disbursedAt: loan.disbursedAt?.slice(0, 10) ?? '',
+    })))
+  }
+
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-xl font-semibold">Collections</h1>
-        <p className="text-sm text-muted-foreground">Overdue loan worklist</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl font-semibold">Collections</h1>
+          <p className="text-sm text-muted-foreground">Overdue loan worklist</p>
+        </div>
+        <Button type="button" variant="outline" onClick={handleExport} disabled={overdue.isPending || !rows.length}>
+          <HugeiconsIcon icon={Download04Icon} size={16} />
+          Export CSV
+        </Button>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
