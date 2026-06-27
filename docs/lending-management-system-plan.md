@@ -58,6 +58,7 @@ These stay out of the product surface until paying customers ask for them.
 - Added committed Playwright e2e coverage for borrower creation, loan creation, approval, disbursement, payment, and receipt visibility.
 - Improved loan payment audit metadata with receipt, method, reference, paid date, and allocation amounts.
 - Added security audit logging for successful email/password login and forbidden API access.
+- Added an admin-only Settings audit log table for the latest audit events.
 
 ## Demo Flow
 

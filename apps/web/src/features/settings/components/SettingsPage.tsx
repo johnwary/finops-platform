@@ -39,6 +39,7 @@ import {
 import { useCreateInvitation } from '@/features/invitations/hooks/useCreateInvitation';
 import { useInvitations } from '@/features/invitations/hooks/useInvitations';
 import { useRevokeInvitation } from '@/features/invitations/hooks/useRevokeInvitation';
+import { useActivityLogs } from '@/features/activity/hooks/useActivityLogs';
 import {
   createInvitationSchema,
   type CreateInvitationInput,
@@ -73,12 +74,13 @@ export function SettingsPage() {
       <div>
         <h1 className="text-xl font-semibold">Settings</h1>
         <p className="text-sm text-muted-foreground">
-          Manage team members and invitations.
+          Manage team members, invitations, and audit logs.
         </p>
       </div>
       <Separator />
       <InviteUserSection />
       <InvitationsTable />
+      <AuditLogsTable />
     </div>
   );
 }
@@ -170,6 +172,92 @@ function InviteUserSection() {
         </form>
       </CardContent>
     </Card>
+  );
+}
+
+function AuditLogsTable() {
+  const activityLogs = useActivityLogs();
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Audit Logs</CardTitle>
+        <CardDescription>Latest 100 system and user audit events.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <AuditLogsTableContent activityLogs={activityLogs} />
+      </CardContent>
+    </Card>
+  );
+}
+
+function metadataSummary(metadata: unknown) {
+  if (!metadata || typeof metadata !== 'object') return '—';
+  const text = JSON.stringify(metadata);
+  return text.length > 120 ? `${text.slice(0, 120)}...` : text;
+}
+
+function AuditLogsTableContent({ activityLogs }: { activityLogs: ReturnType<typeof useActivityLogs> }) {
+  if (activityLogs.isPending) {
+    return (
+      <div className="flex flex-col gap-2">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} className="h-10 w-full" />
+        ))}
+      </div>
+    );
+  }
+
+  if (activityLogs.isError) {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>Failed to load audit logs.</AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (!activityLogs.data?.length) {
+    return <p className="text-sm text-muted-foreground">No audit logs yet.</p>;
+  }
+
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Time</TableHead>
+          <TableHead>Actor</TableHead>
+          <TableHead>Action</TableHead>
+          <TableHead>Target</TableHead>
+          <TableHead>Metadata</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {activityLogs.data.map((log) => (
+          <TableRow key={log.id}>
+            <TableCell className="text-muted-foreground">
+              {new Date(log.createdAt).toLocaleString('en-PH')}
+            </TableCell>
+            <TableCell>
+              {log.user ? (
+                <div className="min-w-0">
+                  <p className="font-medium truncate">{log.user.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{log.user.email}</p>
+                </div>
+              ) : (
+                <Badge variant="outline">{log.actorType}</Badge>
+              )}
+            </TableCell>
+            <TableCell className="font-medium">{log.action}</TableCell>
+            <TableCell className="text-muted-foreground max-w-32 truncate">
+              {log.targetId ?? '—'}
+            </TableCell>
+            <TableCell className="text-xs text-muted-foreground max-w-sm truncate">
+              {metadataSummary(log.metadata)}
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   );
 }
 
