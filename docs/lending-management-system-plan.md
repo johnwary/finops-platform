@@ -42,3 +42,12 @@ These stay out of the product surface until paying customers ask for them.
 - Added a Collections page for the overdue loan worklist using the existing reports endpoint.
 - Added a Portfolio Report page using existing lending report endpoints.
 - Improved borrower detail with loan summary cards and status-badged loan history.
+- Fixed borrower detail breadcrumbs for cleaner demo navigation.
+
+## Demo Flow
+
+1. Open Dashboard for portfolio health, collections, PAR, and overdue snapshot.
+2. Open Borrowers and review a borrower profile with loan summary and loan history.
+3. Open Loans and walk through loan status, schedule, and payments.
+4. Open Collections for the overdue worklist.
+5. Open Reports for the portfolio report.

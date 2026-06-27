@@ -41,6 +41,16 @@ function getBreadcrumbTrail(pathname: string): BreadcrumbTrailItem[] {
     ];
   }
 
+  if (
+    pathname.startsWith('/dashboard/borrowers/') &&
+    pathname !== '/dashboard/borrowers'
+  ) {
+    return [
+      { title: 'Borrowers', url: '/dashboard/borrowers' },
+      { title: 'Borrower Details' },
+    ];
+  }
+
   const activeItem = allNavItems.find((item) =>
     'end' in item && item.end
       ? item.url === pathname
