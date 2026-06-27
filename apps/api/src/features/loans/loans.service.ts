@@ -653,8 +653,15 @@ export async function recordPayment(id: string, data: RecordPaymentInput, actor:
         targetId: id,
         metadata: {
           paymentId: payment.id,
+          receiptNumber: payment.receiptNumber,
           amount: paymentAmount,
+          principalPortion: allocationPlan.principalPortion,
+          interestPortion: allocationPlan.interestPortion,
+          penalties: allocationPlan.penalties,
           remainingBalance: newRemainingBalance,
+          method: data.method,
+          reference: data.reference ?? null,
+          paidAt: payment.paidAt,
         },
       },
     });

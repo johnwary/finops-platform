@@ -22,6 +22,8 @@ Keep the current stack: Express, Prisma, PostgreSQL, Zod, Vitest, Vite, React, T
 - Deposit payouts
 - Investor/savings workflows
 - Single-company profile/settings for receipts and reports
+- App-level PostgreSQL backup/restore scripts; initial VPS deployments rely on provider snapshots/backups
+- Failed-login security audit logging; current small pass logs successful email/password login and forbidden API access
 
 These stay out of the product surface until paying customers ask for them.
 
@@ -54,6 +56,8 @@ These stay out of the product surface until paying customers ask for them.
 - Redirected staff from the manager/admin dashboard to Loans to avoid forbidden report API calls.
 - Added server-generated loan payment receipt numbers and showed them in the loan payment table.
 - Added committed Playwright e2e coverage for borrower creation, loan creation, approval, disbursement, payment, and receipt visibility.
+- Improved loan payment audit metadata with receipt, method, reference, paid date, and allocation amounts.
+- Added security audit logging for successful email/password login and forbidden API access.
 
 ## Demo Flow
 

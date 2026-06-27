@@ -339,7 +339,7 @@ describe('loans.service recordPayment', () => {
     vi.clearAllMocks();
     mocks.prisma.loan.findFirst.mockResolvedValue(activeLoan);
     mocks.prisma.loanInstallment.findFirst.mockResolvedValue(null);
-    mocks.tx.loanPayment.create.mockResolvedValue({ id: 'payment-1' });
+    mocks.tx.loanPayment.create.mockImplementation(({ data }) => Promise.resolve({ id: 'payment-1', ...data }));
     mocks.tx.loanInstallment.findFirst.mockResolvedValue(null);
     mocks.tx.loanInstallment.updateMany.mockResolvedValue({ count: 0 });
     mocks.tx.loan.update.mockResolvedValue({});
@@ -386,6 +386,13 @@ describe('loans.service recordPayment', () => {
     const paymentData = mocks.tx.loanPayment.create.mock.calls[0][0].data;
     expect(paymentData.principalPortion.toFixed(2)).toBe('140.00');
     expect(paymentData.interestPortion.toFixed(2)).toBe('40.00');
+
+    const activityData = mocks.tx.activityLog.create.mock.calls[0][0].data;
+    expect(activityData.metadata).toMatchObject({
+      receiptNumber: paymentData.receiptNumber,
+      method: 'CASH',
+      reference: 'OR-1',
+    });
 
     const allocationRows = mocks.tx.loanPaymentAllocation.createMany.mock.calls[0][0].data;
     expect(allocationRows).toHaveLength(2);

@@ -2,6 +2,7 @@ import { APIError, betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { admin } from 'better-auth/plugins';
 import { prisma } from './prisma.js';
+import { recordSecurityAudit } from './security-audit.js';
 
 function inviteIdentifier(email: string) {
   return `invite:${email.toLowerCase()}`;
@@ -35,6 +36,18 @@ export const auth = betterAuth({
   },
   plugins: [admin({ defaultRole: 'user', adminRoles: ['admin'] })],
   databaseHooks: {
+    session: {
+      create: {
+        after: async (session, ctx) => {
+          if (ctx?.path !== '/sign-in/email') return;
+          await recordSecurityAudit({
+            action: 'USER_LOGIN',
+            userId: session.userId,
+            metadata: { authPath: ctx.path },
+          });
+        },
+      },
+    },
     user: {
       create: {
         before: async (user) => {
