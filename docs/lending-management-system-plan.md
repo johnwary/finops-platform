@@ -21,6 +21,7 @@ Keep the current stack: Express, Prisma, PostgreSQL, Zod, Vitest, Vite, React, T
 - Deposits
 - Deposit payouts
 - Investor/savings workflows
+- Single-company profile/settings for receipts and reports
 
 These stay out of the product surface until paying customers ask for them.
 
