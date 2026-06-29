@@ -33,8 +33,6 @@ finops-platform/
 ├── apps/
 │   ├── api/          # Express + Prisma backend (@finops/api)
 │   └── web/          # Vite + React frontend (@finops/web)
-├── packages/
-│   └── types/        # Shared TypeScript types (@finops/types) — planned
 ├── package.json      # pnpm workspace root
 └── pnpm-workspace.yaml
 ```
@@ -44,8 +42,7 @@ Root `pnpm dev` runs both apps.
 ## Tech Stack
 
 **API:** Express 5, Prisma 7, PostgreSQL, better-auth, Zod, Pino, Vitest  
-**Web:** Vite, React 19, TypeScript, Tailwind 4, shadcn, React Query, Zustand, React Hook Form, Zod, Sonner  
-**Shared:** `@finops/types` (Prisma-derived types, shared to web via workspace import) — planned, not yet built
+**Web:** Vite, React 19, TypeScript, Tailwind 4, shadcn, React Query, Zustand, React Hook Form, Zod, Sonner
 
 ## Roles
 
@@ -165,7 +162,6 @@ apps/web/src/
 │   ├── api.ts             # Base fetch client (wraps fetch, handles errors)
 │   └── utils.ts           # cn() and misc utils
 ├── hooks/                 # Truly global hooks only (useDebounce, etc.)
-├── store/                 # Zustand stores (global UI state only)
 └── router.tsx             # React Router route definitions
 ```
 
@@ -205,11 +201,6 @@ Default `staleTime`: 3 min. Override per query to reduce VPS traffic.
 - Currency: Philippine Peso `₱`, 2 decimal places, `en-PH` locale
 - Timezone: `Asia/Manila` fixed — no user locale detection
 - Dates: `date-fns` with `Asia/Manila` offset
-
-## Shared Types (`packages/types`)
-
-Prisma-generated types flow into `@finops/types`, imported by web.  
-No type duplication between API and web. No codegen — manual re-export from Prisma types.
 
 ## Commits
 

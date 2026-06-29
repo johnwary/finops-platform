@@ -3,13 +3,11 @@ import { isConflictError } from '@/lib/api'
 import type { CreateBorrowerInput } from './schemas'
 import type { Gender, IdType, IncomeSource } from './types'
 
-export type BorrowerNameParts = {
+export function formatBorrowerName(b: {
   firstName: string
   middleName?: string | null
   lastName: string
-}
-
-export function formatBorrowerName(b: BorrowerNameParts): string {
+}): string {
   const first = b.middleName ? `${b.firstName} ${b.middleName}` : b.firstName
   return `${b.lastName}, ${first}`
 }
@@ -46,10 +44,6 @@ export function formatPhone(phone: string): string {
 export function maskIdNumber(idNumber: string): string {
   if (idNumber.length <= 4) return idNumber
   return `••••${idNumber.slice(-4)}`
-}
-
-export const optionalNumber = {
-  setValueAs: (value: string) => (value === '' ? undefined : Number(value)),
 }
 
 export function applyBorrowerConflictErrors(

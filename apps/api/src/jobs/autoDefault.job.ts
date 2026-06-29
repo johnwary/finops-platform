@@ -32,15 +32,13 @@ export async function markPastDueInstallmentsOverdue(now = new Date()): Promise<
 
   const overdueIds = pastDueInstallments
     .filter((installment) => {
-      const principalPaid = installment.allocations.reduce(
-        (sum, allocation) => sum.plus(allocation.principalApplied),
-        new Decimal(0),
+      const { principalPaid, interestPaid } = installment.allocations.reduce(
+        (acc, a) => ({
+          principalPaid: acc.principalPaid.plus(a.principalApplied),
+          interestPaid: acc.interestPaid.plus(a.interestApplied),
+        }),
+        { principalPaid: new Decimal(0), interestPaid: new Decimal(0) },
       );
-      const interestPaid = installment.allocations.reduce(
-        (sum, allocation) => sum.plus(allocation.interestApplied),
-        new Decimal(0),
-      );
-
       return (
         new Decimal(installment.principal).minus(principalPaid).greaterThan(0) ||
         new Decimal(installment.interest).minus(interestPaid).greaterThan(0)
