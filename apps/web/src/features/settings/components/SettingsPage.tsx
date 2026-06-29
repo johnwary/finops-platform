@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -28,6 +29,8 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
+import { authClient } from '@/lib/auth-client';
+import type { Role } from '@/lib/auth-client';
 import {
   Table,
   TableBody,
@@ -44,6 +47,7 @@ import {
   createInvitationSchema,
   type CreateInvitationInput,
 } from '@/features/invitations/schemas';
+import { useSession } from '@/features/auth/hooks/useSession';
 
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Admin',
@@ -80,6 +84,7 @@ export function SettingsPage() {
       <Separator />
       <InviteUserSection />
       <InvitationsTable />
+      <UsersTable />
       <AuditLogsTable />
     </div>
   );
@@ -365,4 +370,162 @@ function InvitationsTableContent({ invitations, revokeIsPending, onRevoke }: Inv
       </TableBody>
     </Table>
   );
+}
+
+type BetterAuthUser = {
+  id: string
+  name: string
+  email: string
+  role?: string | null
+  banned?: boolean | null
+  createdAt: Date
+}
+
+function useUsers() {
+  return useQuery({
+    queryKey: ['admin-users'],
+    queryFn: async () => {
+      const result = await authClient.admin.listUsers({ query: { limit: 100 } })
+      if (result.error) throw new Error(result.error.message ?? 'Failed to load users.')
+      return (result.data?.users ?? []) as BetterAuthUser[]
+    },
+    staleTime: 1000 * 60,
+  })
+}
+
+function UsersTable() {
+  const users = useUsers()
+  const session = useSession()
+  const queryClient = useQueryClient()
+
+  const setRole = useMutation({
+    mutationFn: ({ userId, role }: { userId: string; role: Role }) =>
+      // better-auth's type only lists built-in roles; cast to allow custom 'manager' role
+      authClient.admin.setRole({ userId, role: role as 'user' | 'admin' }),
+    onSuccess: () => {
+      toast.success('Role updated.')
+      void queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+    },
+    onError: () => toast.error('Failed to update role.'),
+  })
+
+  const ban = useMutation({
+    mutationFn: (userId: string) => authClient.admin.banUser({ userId }),
+    onSuccess: () => {
+      toast.success('User suspended.')
+      void queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+    },
+    onError: () => toast.error('Failed to suspend user.'),
+  })
+
+  const unban = useMutation({
+    mutationFn: (userId: string) => authClient.admin.unbanUser({ userId }),
+    onSuccess: () => {
+      toast.success('User reactivated.')
+      void queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+    },
+    onError: () => toast.error('Failed to reactivate user.'),
+  })
+
+  const currentUserId = session.data?.user?.id
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Team Members</CardTitle>
+        <CardDescription>Active user accounts. Change roles or suspend access.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {users.isPending ? (
+          <div className="flex flex-col gap-2">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
+          </div>
+        ) : users.isError ? (
+          <Alert variant="destructive">
+            <AlertDescription>Failed to load users.</AlertDescription>
+          </Alert>
+        ) : !users.data?.length ? (
+          <p className="text-sm text-muted-foreground">No users yet.</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Joined</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {users.data.map((user) => {
+                const isSelf = user.id === currentUserId
+                const isBusy = setRole.isPending || ban.isPending || unban.isPending
+                return (
+                  <TableRow key={user.id}>
+                    <TableCell className="font-medium">{user.name}</TableCell>
+                    <TableCell className="text-muted-foreground">{user.email}</TableCell>
+                    <TableCell>
+                      <Select
+                        value={user.role ?? 'user'}
+                        disabled={isSelf || isBusy}
+                        onValueChange={(role) =>
+                          setRole.mutate({ userId: user.id, role: role as Role })
+                        }
+                      >
+                        <SelectTrigger className="w-32 h-8">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="user">User</SelectItem>
+                          <SelectItem value="manager">Manager</SelectItem>
+                          <SelectItem value="admin">Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell>
+                      {user.banned ? (
+                        <Badge variant="destructive">Suspended</Badge>
+                      ) : (
+                        <Badge variant="secondary">Active</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {new Date(user.createdAt).toLocaleDateString('en-PH')}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {!isSelf && (
+                        user.banned ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={isBusy}
+                            onClick={() => unban.mutate(user.id)}
+                          >
+                            Reactivate
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={isBusy}
+                            onClick={() => ban.mutate(user.id)}
+                          >
+                            Suspend
+                          </Button>
+                        )
+                      )}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  )
 }

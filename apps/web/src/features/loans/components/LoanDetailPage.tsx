@@ -40,9 +40,12 @@ import { CancelForm } from '../components/CancelForm'
 import { DisburseForm } from '../components/DisburseForm'
 import { LoanStatusBadge } from '../components/LoanStatusBadge'
 import { RecordPaymentForm } from '../components/RecordPaymentForm'
+import { WriteOffForm } from '../components/WriteOffForm'
 import { useDefaultLoan } from '../hooks/useDefaultLoan'
 import { useDeleteLoan } from '../hooks/useDeleteLoan'
 import { useLoan } from '../hooks/useLoan'
+import { useMarkArrears } from '../hooks/useMarkArrears'
+import { useMarkCurrent } from '../hooks/useMarkCurrent'
 import type { LoanDetail } from '../types'
 import {
   formatPeso,
@@ -70,9 +73,14 @@ export function LoanDetailPage() {
   const [isPaymentOpen, setIsPaymentOpen] = useState(false)
   const [isDefaultOpen, setIsDefaultOpen] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [isWriteOffOpen, setIsWriteOffOpen] = useState(false)
+  const [isMarkArrearsOpen, setIsMarkArrearsOpen] = useState(false)
+  const [isMarkCurrentOpen, setIsMarkCurrentOpen] = useState(false)
 
   const defaultLoan = useDefaultLoan()
   const deleteLoan = useDeleteLoan()
+  const markArrears = useMarkArrears()
+  const markCurrent = useMarkCurrent()
 
   if (loan.isPending) {
     return (
@@ -131,10 +139,31 @@ export function LoanDetailPage() {
             {data.status === 'ACTIVE' && (
               <>
                 <Button size="sm" onClick={() => setIsPaymentOpen(true)}>Record Payment</Button>
+                <Button size="sm" variant="outline" onClick={() => setIsMarkArrearsOpen(true)}>
+                  Mark In Arrears
+                </Button>
                 <Button size="sm" variant="outline" onClick={() => setIsDefaultOpen(true)}>
                   Mark Default
                 </Button>
               </>
+            )}
+            {data.status === 'IN_ARREARS' && (
+              <>
+                <Button size="sm" onClick={() => setIsPaymentOpen(true)}>Record Payment</Button>
+                <Button size="sm" variant="outline" onClick={() => setIsMarkCurrentOpen(true)}>
+                  Mark Current
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setIsDefaultOpen(true)}>
+                  Mark Default
+                </Button>
+              </>
+            )}
+            {data.status === 'DEFAULTED' && (
+              <RequireRole role="admin" fallback="hide">
+                <Button size="sm" variant="destructive" onClick={() => setIsWriteOffOpen(true)}>
+                  Write Off
+                </Button>
+              </RequireRole>
             )}
             <RequireRole role="admin" fallback="hide">
               {(data.status === 'PENDING' || data.status === 'APPROVED') && (
@@ -228,6 +257,38 @@ export function LoanDetailPage() {
           />
         </SheetContent>
       </Sheet>
+
+      <Sheet open={isWriteOffOpen} onOpenChange={setIsWriteOffOpen}>
+        <SheetContent className="flex flex-col p-0">
+          <SheetHeader className="p-6 pb-0">
+            <SheetTitle>Write Off Loan</SheetTitle>
+            <SheetDescription>Provide a reason for writing off this defaulted loan.</SheetDescription>
+          </SheetHeader>
+          <WriteOffForm loanId={data.id} onSuccess={() => setIsWriteOffOpen(false)} />
+        </SheetContent>
+      </Sheet>
+
+      <ConfirmLoanActionDialog
+        open={isMarkArrearsOpen}
+        onOpenChange={setIsMarkArrearsOpen}
+        title="Mark loan as in arrears?"
+        description="This will set the loan status to IN_ARREARS. The borrower will appear on the collections worklist."
+        confirmLabel="Mark In Arrears"
+        borrowerName={formatBorrowerName(data.borrower)}
+        isPending={markArrears.isPending}
+        onConfirm={() => markArrears.mutate({ id: data.id }, { onSuccess: () => setIsMarkArrearsOpen(false) })}
+      />
+
+      <ConfirmLoanActionDialog
+        open={isMarkCurrentOpen}
+        onOpenChange={setIsMarkCurrentOpen}
+        title="Mark loan as current?"
+        description="This will restore the loan status to ACTIVE."
+        confirmLabel="Mark Current"
+        borrowerName={formatBorrowerName(data.borrower)}
+        isPending={markCurrent.isPending}
+        onConfirm={() => markCurrent.mutate({ id: data.id }, { onSuccess: () => setIsMarkCurrentOpen(false) })}
+      />
 
       <ConfirmLoanActionDialog
         open={isDefaultOpen}

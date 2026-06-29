@@ -65,3 +65,15 @@ export function recordPaymentSchema(maxAmount: number) {
 }
 
 export type RecordPaymentInput = z.infer<ReturnType<typeof recordPaymentSchema>>
+
+export const writeOffLoanSchema = z.object({
+  reason: z.string().trim().min(1, { message: 'Reason required' }).max(500),
+})
+
+export type WriteOffLoanInput = z.infer<typeof writeOffLoanSchema>
+
+export const reasonSchema = z.object({
+  reason: z.string().trim().max(500).optional(),
+})
+
+export type ReasonInput = z.infer<typeof reasonSchema>
