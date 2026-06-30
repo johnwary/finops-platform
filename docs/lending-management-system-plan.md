@@ -21,7 +21,6 @@ Keep the current stack: Express, Prisma, PostgreSQL, Zod, Vitest, Vite, React, T
 - Deposits
 - Deposit payouts
 - Investor/savings workflows
-- Single-company profile/settings for receipts and reports
 - App-level PostgreSQL backup/restore scripts; initial VPS deployments rely on provider snapshots/backups
 - Failed-login security audit logging; current small pass logs successful email/password login and forbidden API access
 
@@ -60,6 +59,7 @@ These stay out of the product surface until paying customers ask for them.
 - Added security audit logging for successful email/password login and forbidden API access.
 - Added an admin-only Settings audit log table for the latest audit events.
 - Added CSV exports for Loans, Collections, and the Portfolio by Status report.
+- Added a single-company profile/settings section for organization details.
 
 ## Demo Flow
 
