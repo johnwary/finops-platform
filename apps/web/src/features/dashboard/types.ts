@@ -2,6 +2,14 @@ import type { LoanType } from '@/features/loans/types'
 
 export type ReportPeriod = 'today' | 'week' | 'month' | 'quarter' | 'year'
 
+export const PERIODS: { value: ReportPeriod; label: string }[] = [
+  { value: 'today', label: 'Today' },
+  { value: 'week', label: 'This Week' },
+  { value: 'month', label: 'This Month' },
+  { value: 'quarter', label: 'This Quarter' },
+  { value: 'year', label: 'This Year' },
+]
+
 interface LoanStatusEntry {
   count: number
   amount: string

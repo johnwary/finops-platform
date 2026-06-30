@@ -4,6 +4,7 @@ import { addMonths, addWeeks, addDays, differenceInDays } from 'date-fns';
 import { prisma } from '../../lib/prisma.js';
 import { AppError } from '../../lib/response.js';
 import { resolveProvisionBucket } from '../../lib/lending.js';
+import { isUniqueViolation } from '../../lib/prisma-error.js';
 import type {
   RestructureLoanInput,
   CreateLoanInput,
@@ -24,15 +25,6 @@ interface Actor {
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
-
-function isUniqueViolation(err: unknown): boolean {
-  return (
-    typeof err === 'object' &&
-    err !== null &&
-    'code' in err &&
-    (err as { code: string }).code === 'P2002'
-  );
-}
 
 function toDecimal(value: number | null | undefined): Decimal | undefined {
   return value != null ? new Decimal(value) : undefined;

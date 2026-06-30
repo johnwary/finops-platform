@@ -321,7 +321,7 @@ export function LoanDetailPage() {
         confirmLabel="Mark Default"
         borrowerName={formatBorrowerName(data.borrower)}
         isPending={defaultLoan.isPending}
-        onConfirm={() => defaultLoan.mutate(data.id, { onSuccess: () => setIsDefaultOpen(false) })}
+        onConfirm={() => defaultLoan.mutate({ id: data.id }, { onSuccess: () => setIsDefaultOpen(false) })}
       />
 
       <ConfirmLoanActionDialog

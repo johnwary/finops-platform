@@ -1,9 +1,7 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { toast } from 'sonner'
-import { isConflictError, apiFetch } from '@/lib/api'
-import { getErrorMessage } from '@/lib/format'
+import { apiFetch, isConflictError } from '@/lib/api'
 import type { UpdateBorrowerInput } from '../schemas'
 import type { Borrower } from '../types'
+import { useBorrowerMutation } from './useBorrowerMutation'
 
 interface UpdateBorrowerArgs {
   id: string
@@ -11,22 +9,15 @@ interface UpdateBorrowerArgs {
 }
 
 export function useUpdateBorrower() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: ({ id, input }: UpdateBorrowerArgs) =>
+  return useBorrowerMutation<Borrower, UpdateBorrowerArgs>({
+    mutationFn: ({ id, input }) =>
       apiFetch<Borrower>(`/api/v1/borrowers/${id}`, {
         method: 'PATCH',
         body: JSON.stringify(input),
       }),
-    onSuccess: (_data, variables) => {
-      toast.success('Borrower updated.')
-      queryClient.invalidateQueries({ queryKey: ['borrowers'] })
-      queryClient.invalidateQueries({ queryKey: ['borrower', variables.id] })
-    },
-    onError: (err) => {
-      if (isConflictError(err)) return
-      toast.error(getErrorMessage(err, 'Failed to update borrower.'))
-    },
+    successMessage: 'Borrower updated.',
+    errorMessage: 'Failed to update borrower.',
+    borrowerId: (_data, { id }) => id,
+    handleError: isConflictError,
   })
 }

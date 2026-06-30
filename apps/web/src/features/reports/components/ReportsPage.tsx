@@ -16,17 +16,10 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { downloadCsv } from '@/lib/csv'
-import { formatPeso } from '@/lib/format'
+import { formatNumber, formatPeso } from '@/lib/format'
 import { useDashboardSummary, useOverdue, usePortfolioAtRisk } from '@/features/dashboard/hooks/useDashboard'
+import { PERIODS } from '@/features/dashboard/types'
 import type { DashboardSummary, ReportPeriod } from '@/features/dashboard/types'
-
-const PERIODS: { value: ReportPeriod; label: string }[] = [
-  { value: 'today', label: 'Today' },
-  { value: 'week', label: 'This Week' },
-  { value: 'month', label: 'This Month' },
-  { value: 'quarter', label: 'This Quarter' },
-  { value: 'year', label: 'This Year' },
-]
 
 const STATUS_ROWS: Array<{
   key: keyof DashboardSummary['loans']['byStatus']
@@ -41,9 +34,6 @@ const STATUS_ROWS: Array<{
   { key: 'canceled', label: 'Canceled', variant: 'outline' },
 ]
 
-function formatNumber(value: number) {
-  return new Intl.NumberFormat('en-PH').format(value)
-}
 
 function StatCard({
   label,

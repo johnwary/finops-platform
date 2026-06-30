@@ -1,26 +1,17 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { toast } from 'sonner'
-import { isConflictError, apiFetch } from '@/lib/api'
-import { getErrorMessage } from '@/lib/format'
+import { apiFetch, isConflictError } from '@/lib/api'
 import type { CreateBorrowerInput } from '../schemas'
 import type { Borrower } from '../types'
+import { useBorrowerMutation } from './useBorrowerMutation'
 
 export function useCreateBorrower() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: (input: CreateBorrowerInput) =>
+  return useBorrowerMutation<Borrower, CreateBorrowerInput>({
+    mutationFn: (input) =>
       apiFetch<Borrower>('/api/v1/borrowers', {
         method: 'POST',
         body: JSON.stringify(input),
       }),
-    onSuccess: () => {
-      toast.success('Borrower created.')
-      queryClient.invalidateQueries({ queryKey: ['borrowers'] })
-    },
-    onError: (err) => {
-      if (isConflictError(err)) return
-      toast.error(getErrorMessage(err, 'Failed to create borrower.'))
-    },
+    successMessage: 'Borrower created.',
+    errorMessage: 'Failed to create borrower.',
+    handleError: isConflictError,
   })
 }

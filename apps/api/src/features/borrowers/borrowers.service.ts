@@ -1,21 +1,13 @@
 import { Decimal } from '@prisma/client/runtime/client';
 import { prisma } from '../../lib/prisma.js';
 import { AppError } from '../../lib/response.js';
+import { isUniqueViolation } from '../../lib/prisma-error.js';
 import type {
   CreateBorrowerInput,
   ListBorrowerActivityInput,
   ListBorrowersInput,
   UpdateBorrowerInput,
 } from './borrowers.schema.js';
-
-function isUniqueViolation(err: unknown): boolean {
-  return (
-    typeof err === 'object' &&
-    err !== null &&
-    'code' in err &&
-    (err as { code: string }).code === 'P2002'
-  );
-}
 
 interface Actor {
   id: string;

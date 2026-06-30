@@ -5,22 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { formatPeso } from '@/lib/format'
+import { formatNumber, formatPeso } from '@/lib/format'
 import { useSession } from '@/features/auth/hooks/useSession'
 import { useDashboardSummary, useOverdue, usePortfolioAtRisk } from '../hooks/useDashboard'
+import { PERIODS } from '../types'
 import type { ReportPeriod } from '../types'
-
-const PERIODS: { value: ReportPeriod; label: string }[] = [
-  { value: 'today', label: 'Today' },
-  { value: 'week', label: 'This Week' },
-  { value: 'month', label: 'This Month' },
-  { value: 'quarter', label: 'This Quarter' },
-  { value: 'year', label: 'This Year' },
-]
-
-function formatNumber(value: number) {
-  return new Intl.NumberFormat('en-PH').format(value)
-}
 
 interface StatCardProps {
   label: string

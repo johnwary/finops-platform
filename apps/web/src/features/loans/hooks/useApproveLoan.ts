@@ -1,23 +1,10 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { toast } from 'sonner'
-import { apiFetch } from '@/lib/api'
-import { getErrorMessage } from '@/lib/format'
 import type { ApproveLoanInput } from '../schemas'
-import type { Loan } from '../types'
+import { useLoanAction } from './useLoanAction'
 
 export function useApproveLoan() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: ({ id, ...body }: { id: string } & ApproveLoanInput) =>
-      apiFetch<Loan>(`/api/v1/loans/${id}/approve`, { method: 'POST', body: JSON.stringify(body) }),
-    onSuccess: (_, { id }) => {
-      toast.success('Loan approved.')
-      queryClient.invalidateQueries({ queryKey: ['loans'] })
-      queryClient.invalidateQueries({ queryKey: ['loans', id] })
-    },
-    onError: (err) => {
-      toast.error(getErrorMessage(err, 'Failed to approve loan.'))
-    },
+  return useLoanAction<{ id: string } & ApproveLoanInput>({
+    action: 'approve',
+    successMessage: 'Loan approved.',
+    errorMessage: 'Failed to approve loan.',
   })
 }
