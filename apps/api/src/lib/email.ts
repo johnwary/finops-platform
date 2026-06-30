@@ -31,6 +31,25 @@ export async function sendInviteEmail(
   }
 }
 
+export async function sendPasswordResetEmail(to: string, resetUrl: string, expiresAt: Date): Promise<void> {
+  try {
+    await resend.emails.send({
+      from: fromEmail,
+      to,
+      subject: 'Reset your password',
+      html: `
+        <p>You requested a password reset for your Lending Management System account.</p>
+        <p><a href="${resetUrl}">Reset your password</a></p>
+        <p>This link expires at ${expiresAt.toLocaleString()}. If you did not request this, you can ignore this email.</p>
+      `,
+      text: `Reset your password: ${resetUrl}\nExpires: ${expiresAt.toLocaleString()}`,
+    });
+  } catch (err) {
+    logger.error({ err, to }, 'Failed to send password reset email');
+    throw err;
+  }
+}
+
 export async function sendWelcomeEmail(to: string, name: string): Promise<void> {
   try {
     await resend.emails.send({

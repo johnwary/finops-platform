@@ -388,6 +388,22 @@ model CapitalEntry {
 }
 
 // ============================
+// COMPANY PROFILE
+// ============================
+
+model CompanyProfile {
+  id        String   @id @default("default")
+  name      String   @default("")
+  address   String?
+  phone     String?
+  email     String?
+  website   String?
+  taxId     String?
+  logoUrl   String?
+  updatedAt DateTime @updatedAt
+}
+
+// ============================
 // ACTIVITY & AUDIT LOGS
 // ============================
 

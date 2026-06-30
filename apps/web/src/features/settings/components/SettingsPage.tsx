@@ -48,6 +48,8 @@ import {
   type CreateInvitationInput,
 } from '@/features/invitations/schemas';
 import { useSession } from '@/features/auth/hooks/useSession';
+import { useCompanyProfile, useUpdateCompanyProfile } from '@/features/company/hooks/useCompanyProfile';
+import type { CompanyProfile } from '@/features/company/types';
 
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Admin',
@@ -82,6 +84,7 @@ export function SettingsPage() {
         </p>
       </div>
       <Separator />
+      <CompanyProfileSection />
       <InviteUserSection />
       <InvitationsTable />
       <UsersTable />
@@ -524,6 +527,109 @@ function UsersTable() {
               })}
             </TableBody>
           </Table>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+const companyProfileSchema = z.object({
+  name: z.string().trim().min(1, { message: 'Company name required' }).max(200),
+  address: z.string().trim().max(500).optional(),
+  phone: z.string().trim().max(50).optional(),
+  email: z.string().trim().email({ message: 'Enter a valid email' }).max(200).optional().or(z.literal('')),
+  website: z.string().trim().max(200).optional(),
+  taxId: z.string().trim().max(100).optional(),
+})
+
+type CompanyProfileFormInput = z.infer<typeof companyProfileSchema>
+
+function CompanyProfileSection() {
+  const { data: profile, isPending } = useCompanyProfile()
+  const update = useUpdateCompanyProfile()
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isDirty },
+  } = useForm<CompanyProfileFormInput>({
+    resolver: zodResolver(companyProfileSchema),
+    values: profile
+      ? {
+          name: profile.name,
+          address: profile.address ?? '',
+          phone: profile.phone ?? '',
+          email: profile.email ?? '',
+          website: profile.website ?? '',
+          taxId: profile.taxId ?? '',
+        }
+      : undefined,
+  })
+
+  function handleSave(values: CompanyProfileFormInput) {
+    update.mutate(values as Partial<CompanyProfile>, { onSuccess: () => reset(values) })
+  }
+
+  return (
+    <Card className="max-w-lg">
+      <CardHeader>
+        <CardTitle>Company Profile</CardTitle>
+        <CardDescription>
+          Your organization details. Leave blank fields to omit them.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isPending ? (
+          <div className="flex flex-col gap-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit(handleSave)}>
+            <FieldGroup>
+              <Field data-invalid={!!errors.name}>
+                <FieldLabel htmlFor="cp-name">Company Name</FieldLabel>
+                <Input id="cp-name" {...register('name')} placeholder="Acme Lending Corp." />
+                <FieldError errors={[errors.name]} />
+              </Field>
+              <Field data-invalid={!!errors.address}>
+                <FieldLabel htmlFor="cp-address">Address</FieldLabel>
+                <Input id="cp-address" {...register('address')} placeholder="123 Main St, City" />
+                <FieldError errors={[errors.address]} />
+              </Field>
+              <Field data-invalid={!!errors.phone}>
+                <FieldLabel htmlFor="cp-phone">Phone</FieldLabel>
+                <Input id="cp-phone" {...register('phone')} placeholder="+63 912 345 6789" />
+                <FieldError errors={[errors.phone]} />
+              </Field>
+              <Field data-invalid={!!errors.email}>
+                <FieldLabel htmlFor="cp-email">Email</FieldLabel>
+                <Input id="cp-email" type="email" {...register('email')} placeholder="info@company.com" />
+                <FieldError errors={[errors.email]} />
+              </Field>
+              <Field data-invalid={!!errors.website}>
+                <FieldLabel htmlFor="cp-website">Website</FieldLabel>
+                <Input id="cp-website" {...register('website')} placeholder="https://company.com" />
+                <FieldError errors={[errors.website]} />
+              </Field>
+              <Field data-invalid={!!errors.taxId}>
+                <FieldLabel htmlFor="cp-taxid">TIN / Tax ID</FieldLabel>
+                <Input id="cp-taxid" {...register('taxId')} placeholder="123-456-789-000" />
+                <FieldError errors={[errors.taxId]} />
+              </Field>
+              {update.error ? (
+                <Alert variant="destructive">
+                  <AlertDescription>{update.error.message}</AlertDescription>
+                </Alert>
+              ) : null}
+              <Button type="submit" disabled={update.isPending || !isDirty} className="w-fit">
+                {update.isPending ? <Spinner data-icon="inline-start" /> : null}
+                {update.isPending ? 'Saving…' : 'Save Profile'}
+              </Button>
+            </FieldGroup>
+          </form>
         )}
       </CardContent>
     </Card>

@@ -77,3 +77,16 @@ export const reasonSchema = z.object({
 })
 
 export type ReasonInput = z.infer<typeof reasonSchema>
+
+export const restructureLoanSchema = z.object({
+  interestRate: z.number().min(0).max(100).optional(),
+  termMonths: z.number().int().min(1).max(360).optional(),
+  paymentFrequency: z.enum(['MONTHLY', 'BIWEEKLY', 'WEEKLY', 'DAILY']).optional(),
+  repaymentStructure: z.enum(['AMORTIZING', 'INTEREST_ONLY']).optional(),
+  reason: z.string().trim().min(1, { message: 'Reason required' }).max(500),
+}).refine(
+  (v) => v.interestRate !== undefined || v.termMonths !== undefined || v.paymentFrequency !== undefined || v.repaymentStructure !== undefined,
+  { message: 'At least one term must change.' },
+)
+
+export type RestructureLoanInput = z.infer<typeof restructureLoanSchema>

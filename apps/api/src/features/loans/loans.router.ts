@@ -16,6 +16,7 @@ import {
   markLoanArrearsController,
   markLoanCurrentController,
   writeOffLoanController,
+  restructureLoanController,
   listLoanActivityController,
 } from './loans.controller.js';
 import {
@@ -28,6 +29,7 @@ import {
   markArrearsSchema,
   markCurrentSchema,
   writeOffLoanSchema,
+  restructureLoanSchema,
   listLoanActivitySchema,
   listLoansSchema,
   loanParamsSchema,
@@ -134,6 +136,14 @@ loansRouter.post(
   validate(loanParamsSchema, 'params'),
   validate(writeOffLoanSchema),
   writeOffLoanController,
+);
+
+loansRouter.post(
+  '/:id/restructure',
+  requireRole(['admin', 'manager']),
+  validate(loanParamsSchema, 'params'),
+  validate(restructureLoanSchema),
+  restructureLoanController,
 );
 
 loansRouter.get(

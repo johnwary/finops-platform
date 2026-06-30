@@ -11,6 +11,7 @@ import type {
   MarkArrearsInput,
   MarkCurrentInput,
   WriteOffLoanInput,
+  RestructureLoanInput,
   ListLoansInput,
   ListLoanActivityInput,
 } from './loans.schema.js';
@@ -156,6 +157,16 @@ export async function writeOffLoanController(req: Request, res: Response, next: 
   try {
     const { id } = req.validatedParams as { id: string };
     const loan = await loansService.writeOffLoan(id, req.validatedBody as WriteOffLoanInput, { id: req.user!.id });
+    res.json(success(loan));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function restructureLoanController(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.validatedParams as { id: string };
+    const loan = await loansService.restructureLoan(id, req.validatedBody as RestructureLoanInput, { id: req.user!.id });
     res.json(success(loan));
   } catch (err) {
     next(err);

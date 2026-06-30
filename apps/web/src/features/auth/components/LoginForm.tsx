@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
+import { Link } from 'react-router-dom'
 
 import heroUrl from '../assets/login-image.jpg'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -56,8 +57,11 @@ export function LoginForm() {
             <FieldError errors={[errors.email]} />
           </Field>
           <Field data-invalid={!!errors.password}>
-            <div className="flex items-center">
+            <div className="flex items-center justify-between">
               <FieldLabel htmlFor="password">Password</FieldLabel>
+              <Link to="/forgot-password" className="text-sm underline underline-offset-4 text-muted-foreground">
+                Forgot password?
+              </Link>
             </div>
             <Input
               id="password"

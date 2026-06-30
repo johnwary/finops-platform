@@ -3,6 +3,7 @@ import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { admin } from 'better-auth/plugins';
 import { prisma } from './prisma.js';
 import { recordSecurityAudit } from './security-audit.js';
+import { sendPasswordResetEmail } from './email.js';
 
 function inviteIdentifier(email: string) {
   return `invite:${email.toLowerCase()}`;
@@ -30,6 +31,10 @@ export const auth = betterAuth({
     disableSignUp: false,
     requireEmailVerification: false,
     autoSignIn: true,
+    sendResetPassword: async ({ user, url }) => {
+      const expiresAt = new Date(Date.now() + 3600 * 1000);
+      await sendPasswordResetEmail(user.email, url, expiresAt);
+    },
   },
   session: {
     expiresIn: 60 * 60 * 24 * 2,

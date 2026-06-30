@@ -14,6 +14,7 @@ import { loansRouter } from './features/loans/loans.router.js';
 import { reportsRouter } from './features/reports/reports.router.js';
 import { invitationsRouter } from './features/invitations/invitations.router.js';
 import { activityRouter } from './features/activity/activity.router.js';
+import { companyRouter } from './features/company/company.router.js';
 import { startAutoDefaultScheduler } from './jobs/autoDefault.job.js';
 
 const app = express();
@@ -67,6 +68,7 @@ app.use('/api/v1/loans', loansRouter);
 app.use('/api/v1/reports', reportsRouter);
 app.use('/api/v1/invitations', invitationsRouter);
 app.use('/api/v1/activity', activityRouter);
+app.use('/api/v1/company', companyRouter);
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   if (err instanceof AppError) {

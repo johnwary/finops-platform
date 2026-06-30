@@ -41,6 +41,7 @@ import { DisburseForm } from '../components/DisburseForm'
 import { LoanStatusBadge } from '../components/LoanStatusBadge'
 import { RecordPaymentForm } from '../components/RecordPaymentForm'
 import { WriteOffForm } from '../components/WriteOffForm'
+import { RestructureForm } from '../components/RestructureForm'
 import { useDefaultLoan } from '../hooks/useDefaultLoan'
 import { useDeleteLoan } from '../hooks/useDeleteLoan'
 import { useLoan } from '../hooks/useLoan'
@@ -76,6 +77,7 @@ export function LoanDetailPage() {
   const [isWriteOffOpen, setIsWriteOffOpen] = useState(false)
   const [isMarkArrearsOpen, setIsMarkArrearsOpen] = useState(false)
   const [isMarkCurrentOpen, setIsMarkCurrentOpen] = useState(false)
+  const [isRestructureOpen, setIsRestructureOpen] = useState(false)
 
   const defaultLoan = useDefaultLoan()
   const deleteLoan = useDeleteLoan()
@@ -139,6 +141,9 @@ export function LoanDetailPage() {
             {data.status === 'ACTIVE' && (
               <>
                 <Button size="sm" onClick={() => setIsPaymentOpen(true)}>Record Payment</Button>
+                <Button size="sm" variant="outline" onClick={() => setIsRestructureOpen(true)}>
+                  Restructure
+                </Button>
                 <Button size="sm" variant="outline" onClick={() => setIsMarkArrearsOpen(true)}>
                   Mark In Arrears
                 </Button>
@@ -150,6 +155,9 @@ export function LoanDetailPage() {
             {data.status === 'IN_ARREARS' && (
               <>
                 <Button size="sm" onClick={() => setIsPaymentOpen(true)}>Record Payment</Button>
+                <Button size="sm" variant="outline" onClick={() => setIsRestructureOpen(true)}>
+                  Restructure
+                </Button>
                 <Button size="sm" variant="outline" onClick={() => setIsMarkCurrentOpen(true)}>
                   Mark Current
                 </Button>
@@ -159,11 +167,16 @@ export function LoanDetailPage() {
               </>
             )}
             {data.status === 'DEFAULTED' && (
-              <RequireRole role="admin" fallback="hide">
-                <Button size="sm" variant="destructive" onClick={() => setIsWriteOffOpen(true)}>
-                  Write Off
+              <>
+                <Button size="sm" variant="outline" onClick={() => setIsRestructureOpen(true)}>
+                  Restructure
                 </Button>
-              </RequireRole>
+                <RequireRole role="admin" fallback="hide">
+                  <Button size="sm" variant="destructive" onClick={() => setIsWriteOffOpen(true)}>
+                    Write Off
+                  </Button>
+                </RequireRole>
+              </>
             )}
             <RequireRole role="admin" fallback="hide">
               {(data.status === 'PENDING' || data.status === 'APPROVED') && (
@@ -265,6 +278,16 @@ export function LoanDetailPage() {
             <SheetDescription>Provide a reason for writing off this defaulted loan.</SheetDescription>
           </SheetHeader>
           <WriteOffForm loanId={data.id} onSuccess={() => setIsWriteOffOpen(false)} />
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={isRestructureOpen} onOpenChange={setIsRestructureOpen}>
+        <SheetContent className="sm:max-w-lg flex flex-col p-0">
+          <SheetHeader className="p-6 pb-0">
+            <SheetTitle>Restructure Loan</SheetTitle>
+            <SheetDescription>Rebuild the repayment schedule from the current remaining balance under new terms.</SheetDescription>
+          </SheetHeader>
+          <RestructureForm loan={data} onSuccess={() => setIsRestructureOpen(false)} />
         </SheetContent>
       </Sheet>
 
@@ -537,6 +560,77 @@ function InstallmentTable({ loan }: { loan: LoanDetail }) {
   )
 }
 
+function printReceipt(payment: LoanDetail['loanPayments'][number], loan: LoanDetail) {
+  const w = window.open('', '_blank', 'width=600,height=700')
+  if (!w) return
+  const borrowerName = formatBorrowerName(loan.borrower)
+  const hasPenalties = Number(payment.penalties) > 0
+
+  const d = w.document
+  d.write('<!DOCTYPE html><html><head></head><body></body></html>')
+  d.close()
+
+  const title = d.createElement('title')
+  title.textContent = `Receipt ${payment.receiptNumber}`
+  d.head.appendChild(title)
+
+  const style = d.createElement('style')
+  style.textContent = `
+    body { font-family: sans-serif; font-size: 13px; padding: 32px; max-width: 480px; margin: 0 auto; }
+    h1 { font-size: 18px; margin-bottom: 4px; }
+    .sub { color: #666; font-size: 12px; margin-bottom: 24px; }
+    table { width: 100%; border-collapse: collapse; }
+    td { padding: 6px 0; }
+    td:last-child { text-align: right; font-weight: 600; }
+    .divider { border-top: 1px solid #ddd; margin: 12px 0; }
+    .total td { font-size: 15px; font-weight: 700; }
+    @media print { button { display: none; } }
+  `
+  d.head.appendChild(style)
+
+  function text(tag: string, content: string, className?: string) {
+    const el = d.createElement(tag)
+    el.textContent = content
+    if (className) el.className = className
+    return el
+  }
+  function row(label: string, value: string) {
+    const tr = d.createElement('tr')
+    const td1 = d.createElement('td'); td1.textContent = label
+    const td2 = d.createElement('td'); td2.textContent = value
+    tr.append(td1, td2)
+    return tr
+  }
+  function divider() {
+    const div = d.createElement('div'); div.className = 'divider'; return div
+  }
+  function table(...rows: HTMLTableRowElement[]) {
+    const t = d.createElement('table'); t.append(...rows); return t
+  }
+
+  d.body.append(
+    text('h1', 'Payment Receipt'),
+    text('p', payment.receiptNumber, 'sub'),
+    table(
+      row('Borrower', borrowerName),
+      row('Date Paid', format(new Date(payment.paidAt), 'MMMM d, yyyy')),
+      row('Method', PAYMENT_METHOD_LABELS[payment.method]),
+      ...(payment.reference ? [row('Reference', payment.reference)] : []),
+    ),
+    divider(),
+    table(
+      row('Principal Repaid', formatPeso(payment.principalPortion)),
+      row('Interest', formatPeso(payment.interestPortion)),
+      ...(hasPenalties ? [row('Penalties', formatPeso(payment.penalties))] : []),
+    ),
+    divider(),
+    Object.assign(table(row('Total Paid', formatPeso(payment.amount))), { className: 'total' }),
+    divider(),
+    Object.assign(text('p', 'Remaining loan balance after this payment is not shown on this receipt. Keep this receipt for your records.'), { style: 'color:#666;font-size:11px;margin-top:24px;' }),
+    Object.assign(d.createElement('button'), { textContent: 'Print', onclick: () => w.print() }),
+  )
+}
+
 function PaymentTable({ loan }: { loan: LoanDetail }) {
   if (!loan.loanPayments.length) {
     return <p className="text-sm text-muted-foreground">No payments recorded yet.</p>
@@ -556,6 +650,7 @@ function PaymentTable({ loan }: { loan: LoanDetail }) {
           {hasPenalties && <TableHead>Penalties</TableHead>}
           <TableHead>Method</TableHead>
           <TableHead>Reference</TableHead>
+          <TableHead />
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -571,6 +666,11 @@ function PaymentTable({ loan }: { loan: LoanDetail }) {
             )}
             <TableCell>{PAYMENT_METHOD_LABELS[payment.method]}</TableCell>
             <TableCell className="text-muted-foreground">{payment.reference ?? '—'}</TableCell>
+            <TableCell>
+              <Button variant="ghost" size="sm" onClick={() => printReceipt(payment, loan)}>
+                Print
+              </Button>
+            </TableCell>
           </TableRow>
         ))}
       </TableBody>

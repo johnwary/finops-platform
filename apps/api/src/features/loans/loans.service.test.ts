@@ -8,12 +8,14 @@ const mocks = vi.hoisted(() => {
       findFirst: vi.fn(),
       updateMany: vi.fn(),
       createMany: vi.fn(),
+      deleteMany: vi.fn(),
     },
     loanPayment: {
       create: vi.fn(),
     },
     loanPaymentAllocation: {
       createMany: vi.fn(),
+      findFirst: vi.fn(),
     },
     loanProvisionEvent: {
       create: vi.fn(),
@@ -41,6 +43,9 @@ const mocks = vi.hoisted(() => {
       loanInstallment: {
         findFirst: vi.fn(),
       },
+      loanPaymentAllocation: {
+        findFirst: vi.fn(),
+      },
       borrower: {
         findFirst: vi.fn(),
       },
@@ -64,6 +69,7 @@ import {
   markLoanCurrent,
   recordPayment,
   restoreLoan,
+  restructureLoan,
   softDeleteLoan,
   writeOffLoan,
 } from './loans.service.js';
@@ -735,6 +741,127 @@ describe('loans.service writeOffLoan', () => {
     );
     expect(mocks.tx.activityLog.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ action: 'LOAN_WRITTEN_OFF' }) }),
+    );
+  });
+});
+
+// ── recordPayment — penalty-first allocation ──────────────────────────────────
+
+describe('loans.service recordPayment penalty-first allocation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.prisma.loan.findFirst.mockResolvedValue({
+      ...activeLoan,
+      penaltyRate: new Decimal('0.001'), // 0.1% daily
+    });
+    mocks.prisma.loanInstallment.findFirst.mockResolvedValue(null);
+    mocks.tx.loanPayment.create.mockImplementation(({ data }) => Promise.resolve({ id: 'payment-1', ...data }));
+    mocks.tx.loanInstallment.findFirst.mockResolvedValue(null);
+    mocks.tx.loanInstallment.updateMany.mockResolvedValue({ count: 0 });
+    mocks.tx.loan.update.mockResolvedValue({});
+    mocks.tx.capitalEntry.create.mockResolvedValue({});
+    mocks.tx.activityLog.create.mockResolvedValue({});
+    mocks.tx.loanPaymentAllocation.createMany.mockResolvedValue({ count: 0 });
+  });
+
+  it('applies penalties before interest and principal on overdue installment', async () => {
+    // dueDate 2026-01-01, paidAt 2026-01-11 → 10 DPD
+    // penalty = ₱100 × 0.001/day × 10 days = ₱1.00
+    // payment ₱61 = ₱1 penalty + ₱10 interest + ₱50 principal
+    mocks.tx.loanInstallment.findMany.mockResolvedValue([
+      {
+        id: 'installment-1',
+        dueDate: new Date('2026-01-01'),
+        principal: new Decimal(100),
+        interest: new Decimal(10),
+        allocations: [],
+      },
+    ]);
+
+    await recordPayment('loan-1', { amount: 61, method: 'CASH', paidAt: new Date('2026-01-11') }, actor);
+
+    const allocationRows = mocks.tx.loanPaymentAllocation.createMany.mock.calls[0][0].data;
+    expect(allocationRows).toHaveLength(1);
+    expect(allocationRows[0].penaltiesApplied.toFixed(2)).toBe('1.00');
+    expect(allocationRows[0].interestApplied.toFixed(2)).toBe('10.00');
+    expect(allocationRows[0].principalApplied.toFixed(2)).toBe('50.00');
+
+    const paymentData = mocks.tx.loanPayment.create.mock.calls[0][0].data;
+    expect(paymentData.penalties.toFixed(2)).toBe('1.00');
+    expect(paymentData.interestPortion.toFixed(2)).toBe('10.00');
+    expect(paymentData.principalPortion.toFixed(2)).toBe('50.00');
+  });
+});
+
+// ── restructureLoan ───────────────────────────────────────────────────────────
+
+describe('loans.service restructureLoan', () => {
+  const activeDisbursedLoan = {
+    ...activeLoan,
+    disbursedAt: new Date('2025-01-01'),
+    remainingBalance: new Decimal(900),
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.prisma.loan.findFirst.mockResolvedValue(activeDisbursedLoan);
+    mocks.tx.loanPaymentAllocation.findFirst.mockResolvedValue(null);
+    mocks.tx.loanInstallment.deleteMany.mockResolvedValue({ count: 3 });
+    mocks.tx.loanInstallment.createMany.mockResolvedValue({});
+    mocks.tx.loan.update.mockResolvedValue({ ...activeDisbursedLoan, termMonths: 6 });
+    mocks.tx.activityLog.create.mockResolvedValue({});
+  });
+
+  it('throws NOT_FOUND when loan does not exist', async () => {
+    mocks.prisma.loan.findFirst.mockResolvedValue(null);
+
+    await expect(
+      restructureLoan('loan-1', { termMonths: 6, reason: 'Hardship' }, actor),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND', status: 404 });
+  });
+
+  it('throws LOAN_INVALID_STATE for PENDING loan', async () => {
+    mocks.prisma.loan.findFirst.mockResolvedValue(baseLoan);
+
+    await expect(
+      restructureLoan('loan-1', { termMonths: 6, reason: 'Hardship' }, actor),
+    ).rejects.toMatchObject({ code: 'LOAN_INVALID_STATE', status: 409 });
+  });
+
+  it('throws CONFLICT when no terms have changed', async () => {
+    // Submit identical values to current loan (baseLoan rate=0.03, term=3, MONTHLY, AMORTIZING)
+    await expect(
+      restructureLoan('loan-1', {
+        interestRate: Number(activeDisbursedLoan.interestRate),
+        termMonths: activeDisbursedLoan.termMonths,
+        paymentFrequency: activeDisbursedLoan.paymentFrequency,
+        repaymentStructure: activeDisbursedLoan.repaymentStructure,
+        reason: 'No change',
+      }, actor),
+    ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 });
+
+    expect(mocks.tx.loanInstallment.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('throws CONFLICT when unpaid installments have allocations (inside tx)', async () => {
+    mocks.tx.loanPaymentAllocation.findFirst.mockResolvedValue({ id: 'alloc-1' });
+
+    await expect(
+      restructureLoan('loan-1', { termMonths: 6, reason: 'Hardship' }, actor),
+    ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 });
+
+    expect(mocks.tx.loanInstallment.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('rebuilds installment schedule and writes LOAN_RESTRUCTURED audit log', async () => {
+    await restructureLoan('loan-1', { termMonths: 6, reason: 'Hardship' }, actor);
+
+    expect(mocks.tx.loanInstallment.deleteMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ loanId: 'loan-1' }) }),
+    );
+    expect(mocks.tx.loanInstallment.createMany).toHaveBeenCalledOnce();
+    expect(mocks.tx.activityLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: 'LOAN_RESTRUCTURED' }) }),
     );
   });
 });

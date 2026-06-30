@@ -78,6 +78,17 @@ export const listLoanActivitySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(25),
 });
 
+export const restructureLoanSchema = z.object({
+  interestRate: z.coerce.number().min(0).max(1).optional(),
+  termMonths: z.coerce.number().int().min(1).max(360).optional(),
+  paymentFrequency: z.enum(['MONTHLY', 'BIWEEKLY', 'WEEKLY', 'DAILY']).optional(),
+  repaymentStructure: z.enum(['AMORTIZING', 'INTEREST_ONLY']).optional(),
+  reason: z.string().min(1).max(500).trim(),
+}).refine(
+  (v) => v.interestRate !== undefined || v.termMonths !== undefined || v.paymentFrequency !== undefined || v.repaymentStructure !== undefined,
+  { message: 'At least one term must change.' },
+);
+
 export const loanParamsSchema = z.object({ id: z.uuid() });
 
 export type CreateLoanInput = z.infer<typeof createLoanSchema>;
@@ -89,5 +100,6 @@ export type DefaultLoanInput = z.infer<typeof defaultLoanSchema>;
 export type MarkArrearsInput = z.infer<typeof markArrearsSchema>;
 export type MarkCurrentInput = z.infer<typeof markCurrentSchema>;
 export type WriteOffLoanInput = z.infer<typeof writeOffLoanSchema>;
+export type RestructureLoanInput = z.infer<typeof restructureLoanSchema>;
 export type ListLoansInput = z.infer<typeof listLoansSchema>;
 export type ListLoanActivityInput = z.infer<typeof listLoanActivitySchema>;

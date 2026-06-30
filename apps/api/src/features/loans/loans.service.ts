@@ -5,6 +5,7 @@ import { prisma } from '../../lib/prisma.js';
 import { AppError } from '../../lib/response.js';
 import { resolveProvisionBucket } from '../../lib/lending.js';
 import type {
+  RestructureLoanInput,
   CreateLoanInput,
   ApproveLoanInput,
   DisburseLoanInput,
@@ -158,6 +159,7 @@ type InstallmentWithAllocations = {
   id: string;
   principal: Decimal;
   interest: Decimal;
+  dueDate: Date;
   allocations: Array<{
     principalApplied: Decimal;
     interestApplied: Decimal;
@@ -192,29 +194,55 @@ function sumAllocationField(
   return allocations.reduce((sum, allocation) => sum.plus(allocation[field]), new Decimal(0));
 }
 
+// penaltyRate is a daily rate applied to the outstanding principal of each overdue installment.
+function computeAccruedPenalty(
+  installment: InstallmentWithAllocations,
+  dailyRate: Decimal,
+  asOf: Date,
+): Decimal {
+  if (dailyRate.equals(0) || installment.dueDate >= asOf) return new Decimal(0);
+  const dpd = Math.max(0, differenceInDays(asOf, installment.dueDate));
+  const principalOutstanding = maxZero(
+    new Decimal(installment.principal).minus(
+      sumAllocationField(installment.allocations, 'principalApplied'),
+    ),
+  );
+  const alreadyCharged = sumAllocationField(installment.allocations, 'penaltiesApplied');
+  const accrued = principalOutstanding.times(dailyRate).times(dpd).toDecimalPlaces(2);
+  return maxZero(accrued.minus(alreadyCharged));
+}
+
 function buildPaymentAllocationPlan(
   amount: Decimal,
   installments: InstallmentWithAllocations[],
+  dailyPenaltyRate: Decimal,
+  asOf: Date,
 ): PaymentAllocationPlan {
   let remaining = amount;
   let principalPortion = new Decimal(0);
   let interestPortion = new Decimal(0);
-  const penalties = new Decimal(0);
+  let totalPenalties = new Decimal(0);
   const allocations: PaymentAllocationPlan['allocations'] = [];
 
   for (const installment of installments) {
     if (remaining.equals(0)) break;
 
-    const principalOutstanding = maxZero(
-      new Decimal(installment.principal).minus(
-        sumAllocationField(installment.allocations, 'principalApplied'),
-      ),
-    );
+    const penaltyDue = computeAccruedPenalty(installment, dailyPenaltyRate, asOf);
     const interestOutstanding = maxZero(
       new Decimal(installment.interest).minus(
         sumAllocationField(installment.allocations, 'interestApplied'),
       ),
     );
+    const principalOutstanding = maxZero(
+      new Decimal(installment.principal).minus(
+        sumAllocationField(installment.allocations, 'principalApplied'),
+      ),
+    );
+
+    // Apply in order: penalties → interest → principal
+    const penaltiesApplied = minDecimal(remaining, penaltyDue);
+    remaining = remaining.minus(penaltiesApplied);
+    totalPenalties = totalPenalties.plus(penaltiesApplied);
 
     const interestApplied = minDecimal(remaining, interestOutstanding);
     remaining = remaining.minus(interestApplied);
@@ -224,12 +252,12 @@ function buildPaymentAllocationPlan(
     remaining = remaining.minus(principalApplied);
     principalPortion = principalPortion.plus(principalApplied);
 
-    if (interestApplied.greaterThan(0) || principalApplied.greaterThan(0)) {
+    if (penaltiesApplied.greaterThan(0) || interestApplied.greaterThan(0) || principalApplied.greaterThan(0)) {
       allocations.push({
         installmentId: installment.id,
         principalApplied,
         interestApplied,
-        penaltiesApplied: penalties,
+        penaltiesApplied,
       });
     }
   }
@@ -242,7 +270,7 @@ function buildPaymentAllocationPlan(
     );
   }
 
-  return { allocations, principalPortion, interestPortion, penalties };
+  return { allocations, principalPortion, interestPortion, penalties: totalPenalties };
 }
 
 // ── service functions ─────────────────────────────────────────────────────────
@@ -512,23 +540,31 @@ export async function recordPayment(id: string, data: RecordPaymentInput, actor:
   }
 
   const paymentAmount = new Decimal(data.amount);
+  const dailyPenaltyRate = loan.penaltyRate ? new Decimal(loan.penaltyRate) : new Decimal(0);
+  const asOf = data.paidAt ?? new Date();
 
   const oldestUnpaid = await prisma.loanInstallment.findFirst({
     where: { loanId: id, status: { not: 'PAID' } },
     orderBy: [{ dueDate: 'asc' }, { sequence: 'asc' }],
-    include: { allocations: { select: { interestApplied: true } } },
+    include: { allocations: { select: { principalApplied: true, interestApplied: true, penaltiesApplied: true } } },
   });
 
   if (oldestUnpaid) {
-    const alreadyApplied = oldestUnpaid.allocations.reduce(
+    const alreadyInterest = oldestUnpaid.allocations.reduce(
       (sum, a) => sum.plus(a.interestApplied),
       new Decimal(0),
     );
-    const interestOutstanding = new Decimal(oldestUnpaid.interest).minus(alreadyApplied);
-    if (interestOutstanding.greaterThan(0) && paymentAmount.lessThan(interestOutstanding)) {
+    const interestOutstanding = new Decimal(oldestUnpaid.interest).minus(alreadyInterest);
+    const penaltyDue = computeAccruedPenalty(
+      { ...oldestUnpaid, dueDate: oldestUnpaid.dueDate, allocations: oldestUnpaid.allocations },
+      dailyPenaltyRate,
+      asOf,
+    );
+    const minimumDue = penaltyDue.plus(maxZero(interestOutstanding));
+    if (minimumDue.greaterThan(0) && paymentAmount.lessThan(minimumDue)) {
       throw new AppError(
         'PAYMENT_BELOW_MINIMUM',
-        `Payment must be at least the outstanding interest on the oldest unpaid installment (${interestOutstanding.toFixed(2)}).`,
+        `Payment must be at least the outstanding penalties and interest on the oldest unpaid installment (${minimumDue.toFixed(2)}).`,
         409,
       );
     }
@@ -549,7 +585,7 @@ export async function recordPayment(id: string, data: RecordPaymentInput, actor:
       },
     });
 
-    const allocationPlan = buildPaymentAllocationPlan(paymentAmount, installments);
+    const allocationPlan = buildPaymentAllocationPlan(paymentAmount, installments, dailyPenaltyRate, asOf);
     const newTotalPaid = new Decimal(loan.totalPaid).plus(paymentAmount);
     const newRemainingBalance = new Decimal(loan.remainingBalance).minus(
       allocationPlan.principalPortion,
@@ -913,4 +949,92 @@ export async function listLoanActivity(
   const nextCursor = hasMore ? (data[data.length - 1]?.id ?? null) : null;
 
   return { data, meta: { nextCursor, hasMore, limit } };
+}
+
+export async function restructureLoan(id: string, data: RestructureLoanInput, actor: Actor) {
+  const loan = await prisma.loan.findFirst({ where: { id, deletedAt: null } });
+  if (!loan) throw new AppError('NOT_FOUND', 'Loan not found.', 404);
+
+  if (loan.status !== 'ACTIVE' && loan.status !== 'IN_ARREARS' && loan.status !== 'DEFAULTED') {
+    throw new AppError('LOAN_INVALID_STATE', `Cannot restructure a loan with status ${loan.status}.`, 409);
+  }
+
+  const newRate = data.interestRate !== undefined ? data.interestRate : Number(loan.interestRate);
+  const newTerm = data.termMonths !== undefined ? data.termMonths : loan.termMonths;
+  const newFrequency = data.paymentFrequency ?? loan.paymentFrequency;
+  const newStructure = data.repaymentStructure ?? loan.repaymentStructure;
+  const disbursedAt = loan.disbursedAt ?? new Date();
+
+  if (
+    newRate === Number(loan.interestRate) &&
+    newTerm === loan.termMonths &&
+    newFrequency === loan.paymentFrequency &&
+    newStructure === loan.repaymentStructure
+  ) {
+    throw new AppError('CONFLICT', 'No terms have changed. Update at least one field to restructure.', 409);
+  }
+
+  // Rebuild schedule from today against remaining principal balance
+  const installments = buildInstallments(
+    id,
+    Number(loan.remainingBalance),
+    newRate,
+    newTerm,
+    newFrequency,
+    newStructure,
+    new Date(),
+  );
+
+  return prisma.$transaction(async (tx) => {
+    // Block restructure if any unpaid installment has allocation rows — deleting them
+    // would cascade-wipe LoanPaymentAllocation and destroy repayment audit history.
+    const allocatedUnpaid = await tx.loanPaymentAllocation.findFirst({
+      where: {
+        installment: { loanId: id, status: { not: 'PAID' } },
+      },
+    });
+    if (allocatedUnpaid) {
+      throw new AppError('CONFLICT', 'Cannot restructure: unpaid installments have recorded payment allocations. Fully apply or reverse those payments first.', 409);
+    }
+
+    // Drop all unresolved installments; preserve PAID ones for audit history
+    await tx.loanInstallment.deleteMany({
+      where: { loanId: id, status: { not: 'PAID' } },
+    });
+
+    await tx.loanInstallment.createMany({ data: installments });
+
+    const newEndDate = addMonths(disbursedAt, newTerm);
+
+    const updated = await tx.loan.update({
+      where: { id },
+      data: {
+        interestRate: new Decimal(newRate),
+        termMonths: newTerm,
+        paymentFrequency: newFrequency,
+        repaymentStructure: newStructure,
+        endDate: newEndDate,
+        status: 'ACTIVE',
+      },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        userId: actor.id,
+        category: 'AUDIT',
+        action: 'LOAN_RESTRUCTURED',
+        targetId: id,
+        metadata: {
+          reason: data.reason,
+          newInterestRate: newRate,
+          newTermMonths: newTerm,
+          newPaymentFrequency: newFrequency,
+          newRepaymentStructure: newStructure,
+          remainingBalance: loan.remainingBalance,
+        },
+      },
+    });
+
+    return updated;
+  });
 }

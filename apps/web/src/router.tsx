@@ -3,6 +3,8 @@ import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom'
 import { AppShell } from '@/components/layout/AppShell'
 import { LoginPage } from '@/features/auth/components/LoginPage'
 import { InviteAcceptPage } from '@/features/auth/components/InviteAcceptPage'
+import { ForgotPasswordPage } from '@/features/auth/components/ForgotPasswordPage'
+import { ResetPasswordPage } from '@/features/auth/components/ResetPasswordPage'
 import { ProtectedRoute } from '@/features/auth/components/ProtectedRoute'
 import { RequireRole } from '@/features/auth/components/RequireRole'
 import { BorrowerDetailPage } from '@/features/borrowers/components/BorrowerDetailPage'
@@ -26,6 +28,14 @@ export const router = createBrowserRouter([
   {
     path: '/invite/accept',
     element: <InviteAcceptPage />,
+  },
+  {
+    path: '/forgot-password',
+    element: <ForgotPasswordPage />,
+  },
+  {
+    path: '/reset-password',
+    element: <ResetPasswordPage />,
   },
   {
     element: <ProtectedRoute />,
