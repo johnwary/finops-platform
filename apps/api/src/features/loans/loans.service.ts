@@ -957,6 +957,15 @@ export async function restructureLoan(id: string, data: RestructureLoanInput, ac
   const newStructure = data.repaymentStructure ?? loan.repaymentStructure;
   const disbursedAt = loan.disbursedAt ?? new Date();
 
+  if (
+    newRate === Number(loan.interestRate) &&
+    newTerm === loan.termMonths &&
+    newFrequency === loan.paymentFrequency &&
+    newStructure === loan.repaymentStructure
+  ) {
+    throw new AppError('CONFLICT', 'No terms have changed. Update at least one field to restructure.', 409);
+  }
+
   return prisma.$transaction(async (tx) => {
     // Block restructure if any unpaid installment has allocation rows — deleting them
     // would cascade-wipe LoanPaymentAllocation and destroy repayment audit history.

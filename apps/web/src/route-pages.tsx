@@ -1,0 +1,14 @@
+import { lazy } from 'react'
+
+export const LoginPage = lazy(() => import('@/features/auth/components/LoginPage').then((m) => ({ default: m.LoginPage })))
+export const InviteAcceptPage = lazy(() => import('@/features/auth/components/InviteAcceptPage').then((m) => ({ default: m.InviteAcceptPage })))
+export const ForgotPasswordPage = lazy(() => import('@/features/auth/components/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })))
+export const ResetPasswordPage = lazy(() => import('@/features/auth/components/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })))
+export const BorrowerDetailPage = lazy(() => import('@/features/borrowers/components/BorrowerDetailPage').then((m) => ({ default: m.BorrowerDetailPage })))
+export const BorrowersListPage = lazy(() => import('@/features/borrowers/components/BorrowersListPage').then((m) => ({ default: m.BorrowersListPage })))
+export const CollectionsPage = lazy(() => import('@/features/collections/components/CollectionsPage').then((m) => ({ default: m.CollectionsPage })))
+export const DashboardPage = lazy(() => import('@/features/dashboard/components/DashboardPage').then((m) => ({ default: m.DashboardPage })))
+export const LoanDetailPage = lazy(() => import('@/features/loans/components/LoanDetailPage').then((m) => ({ default: m.LoanDetailPage })))
+export const LoansListPage = lazy(() => import('@/features/loans/components/LoansListPage').then((m) => ({ default: m.LoansListPage })))
+export const ReportsPage = lazy(() => import('@/features/reports/components/ReportsPage').then((m) => ({ default: m.ReportsPage })))
+export const SettingsPage = lazy(() => import('@/features/settings/components/SettingsPage').then((m) => ({ default: m.SettingsPage })))

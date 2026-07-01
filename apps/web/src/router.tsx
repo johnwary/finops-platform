@@ -1,20 +1,27 @@
+import { Suspense, type ReactNode } from 'react'
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom'
 
 import { AppShell } from '@/components/layout/AppShell'
-import { LoginPage } from '@/features/auth/components/LoginPage'
-import { InviteAcceptPage } from '@/features/auth/components/InviteAcceptPage'
-import { ForgotPasswordPage } from '@/features/auth/components/ForgotPasswordPage'
-import { ResetPasswordPage } from '@/features/auth/components/ResetPasswordPage'
 import { ProtectedRoute } from '@/features/auth/components/ProtectedRoute'
 import { RequireRole } from '@/features/auth/components/RequireRole'
-import { BorrowerDetailPage } from '@/features/borrowers/components/BorrowerDetailPage'
-import { BorrowersListPage } from '@/features/borrowers/components/BorrowersListPage'
-import { CollectionsPage } from '@/features/collections/components/CollectionsPage'
-import { DashboardPage } from '@/features/dashboard/components/DashboardPage'
-import { LoanDetailPage } from '@/features/loans/components/LoanDetailPage'
-import { LoansListPage } from '@/features/loans/components/LoansListPage'
-import { ReportsPage } from '@/features/reports/components/ReportsPage'
-import { SettingsPage } from '@/features/settings/components/SettingsPage'
+import {
+  BorrowerDetailPage,
+  BorrowersListPage,
+  CollectionsPage,
+  DashboardPage,
+  ForgotPasswordPage,
+  InviteAcceptPage,
+  LoanDetailPage,
+  LoansListPage,
+  LoginPage,
+  ReportsPage,
+  ResetPasswordPage,
+  SettingsPage,
+} from '@/route-pages'
+
+function page(element: ReactNode) {
+  return <Suspense fallback={null}>{element}</Suspense>
+}
 
 export const router = createBrowserRouter([
   {
@@ -23,19 +30,19 @@ export const router = createBrowserRouter([
   },
   {
     path: '/login',
-    element: <LoginPage />,
+    element: page(<LoginPage />),
   },
   {
     path: '/invite/accept',
-    element: <InviteAcceptPage />,
+    element: page(<InviteAcceptPage />),
   },
   {
     path: '/forgot-password',
-    element: <ForgotPasswordPage />,
+    element: page(<ForgotPasswordPage />),
   },
   {
     path: '/reset-password',
-    element: <ResetPasswordPage />,
+    element: page(<ResetPasswordPage />),
   },
   {
     element: <ProtectedRoute />,
@@ -50,46 +57,46 @@ export const router = createBrowserRouter([
         children: [
           {
             index: true,
-            element: <DashboardPage />,
+            element: page(<DashboardPage />),
           },
           {
             path: 'settings',
-            element: (
+            element: page(
               <RequireRole role="admin">
                 <SettingsPage />
-              </RequireRole>
+              </RequireRole>,
             ),
           },
           {
             path: 'loans',
-            element: <LoansListPage />,
+            element: page(<LoansListPage />),
           },
           {
             path: 'loans/:id',
-            element: <LoanDetailPage />,
+            element: page(<LoanDetailPage />),
           },
           {
             path: 'borrowers',
-            element: <BorrowersListPage />,
+            element: page(<BorrowersListPage />),
           },
           {
             path: 'borrowers/:id',
-            element: <BorrowerDetailPage />,
+            element: page(<BorrowerDetailPage />),
           },
           {
             path: 'collections',
-            element: (
+            element: page(
               <RequireRole role={['admin', 'manager']}>
                 <CollectionsPage />
-              </RequireRole>
+              </RequireRole>,
             ),
           },
           {
             path: 'reports',
-            element: (
+            element: page(
               <RequireRole role={['admin', 'manager']}>
                 <ReportsPage />
-              </RequireRole>
+              </RequireRole>,
             ),
           },
         ],

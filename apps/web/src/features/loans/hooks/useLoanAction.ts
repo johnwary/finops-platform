@@ -13,7 +13,9 @@ type UseLoanActionOptions<TInput extends LoanActionInput> = {
   body?: (input: TInput) => unknown
 }
 
-function defaultBody<TInput extends LoanActionInput>({ id: _id, ...body }: TInput) {
+function defaultBody<TInput extends LoanActionInput>(input: TInput) {
+  const body: Partial<TInput> = { ...input }
+  delete body.id
   return body
 }
 

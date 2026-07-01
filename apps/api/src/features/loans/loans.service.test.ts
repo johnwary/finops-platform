@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => {
       findMany: vi.fn(),
       findFirst: vi.fn(),
       updateMany: vi.fn(),
+      count: vi.fn(),
       createMany: vi.fn(),
       deleteMany: vi.fn(),
     },
@@ -806,6 +807,7 @@ describe('loans.service restructureLoan', () => {
     vi.clearAllMocks();
     mocks.prisma.loan.findFirst.mockResolvedValue(activeDisbursedLoan);
     mocks.tx.loanPaymentAllocation.findFirst.mockResolvedValue(null);
+    mocks.tx.loanInstallment.count.mockResolvedValue(0);
     mocks.tx.loanInstallment.deleteMany.mockResolvedValue({ count: 3 });
     mocks.tx.loanInstallment.createMany.mockResolvedValue({});
     mocks.tx.loan.update.mockResolvedValue({ ...activeDisbursedLoan, termMonths: 6 });
