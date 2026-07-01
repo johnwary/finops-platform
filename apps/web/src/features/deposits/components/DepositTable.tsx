@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/table'
 import { formatPeso, formatPercent } from '@/lib/format'
 import { useDeposits } from '../hooks/useDeposits'
+import { DEPOSIT_RETURN_RATE_PERIOD_LABELS } from '../utils'
 import type { DepositStatus, DepositType } from '../types'
 
 interface DepositTableProps {
@@ -164,7 +165,7 @@ function DepositTableContent({ deposits }: { deposits: ReturnType<typeof useDepo
             </TableCell>
             <TableCell className="tabular-nums">{formatPeso(d.amount)}</TableCell>
             <TableCell className="tabular-nums">
-              {formatPercent(d.expectedReturnRate)} / {d.expectedReturnRatePeriod.toLowerCase()}
+              {formatPercent(d.expectedReturnRate)} / {DEPOSIT_RETURN_RATE_PERIOD_LABELS[d.expectedReturnRatePeriod]}
             </TableCell>
             <TableCell>{d.termMonths}mo</TableCell>
             <TableCell>{TYPE_LABELS[d.depositType]}</TableCell>
