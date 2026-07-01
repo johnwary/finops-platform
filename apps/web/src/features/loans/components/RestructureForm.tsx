@@ -34,7 +34,7 @@ export function RestructureForm({ loan, onSuccess }: RestructureFormProps) {
     handleSubmit,
     setValue,
     control,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<RestructureLoanInput>({
     resolver: zodResolver(restructureLoanSchema),
     defaultValues: {
@@ -48,17 +48,8 @@ export function RestructureForm({ loan, onSuccess }: RestructureFormProps) {
 
   const freq = useWatch({ control, name: 'paymentFrequency' })
   const structure = useWatch({ control, name: 'repaymentStructure' })
-  const watchedRate = useWatch({ control, name: 'interestRate' })
-  const watchedTerm = useWatch({ control, name: 'termMonths' })
-
-  const isUnchanged =
-    watchedRate === currentRate &&
-    watchedTerm === loan.termMonths &&
-    freq === loan.paymentFrequency &&
-    structure === loan.repaymentStructure
 
   function handleRestructure(values: RestructureLoanInput) {
-    if (isUnchanged) return
     restructure.mutate({ id: loan.id, ...values }, { onSuccess })
   }
 
@@ -148,7 +139,7 @@ export function RestructureForm({ loan, onSuccess }: RestructureFormProps) {
         <SheetClose asChild>
           <Button type="button" variant="outline">Cancel</Button>
         </SheetClose>
-        <Button type="submit" disabled={restructure.isPending || isUnchanged}>
+        <Button type="submit" disabled={restructure.isPending || !isDirty}>
           {restructure.isPending ? <Spinner data-icon="inline-start" /> : null}
           {restructure.isPending ? 'Restructuring…' : 'Restructure Loan'}
         </Button>

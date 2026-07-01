@@ -957,26 +957,6 @@ export async function restructureLoan(id: string, data: RestructureLoanInput, ac
   const newStructure = data.repaymentStructure ?? loan.repaymentStructure;
   const disbursedAt = loan.disbursedAt ?? new Date();
 
-  if (
-    newRate === Number(loan.interestRate) &&
-    newTerm === loan.termMonths &&
-    newFrequency === loan.paymentFrequency &&
-    newStructure === loan.repaymentStructure
-  ) {
-    throw new AppError('CONFLICT', 'No terms have changed. Update at least one field to restructure.', 409);
-  }
-
-  // Rebuild schedule from today against remaining principal balance
-  const installments = buildInstallments(
-    id,
-    Number(loan.remainingBalance),
-    newRate,
-    newTerm,
-    newFrequency,
-    newStructure,
-    new Date(),
-  );
-
   return prisma.$transaction(async (tx) => {
     // Block restructure if any unpaid installment has allocation rows — deleting them
     // would cascade-wipe LoanPaymentAllocation and destroy repayment audit history.
@@ -989,10 +969,26 @@ export async function restructureLoan(id: string, data: RestructureLoanInput, ac
       throw new AppError('CONFLICT', 'Cannot restructure: unpaid installments have recorded payment allocations. Fully apply or reverse those payments first.', 409);
     }
 
+    // Count paid installments so new sequences don't collide with preserved ones
+    const paidCount = await tx.loanInstallment.count({
+      where: { loanId: id, status: 'PAID' },
+    });
+
     // Drop all unresolved installments; preserve PAID ones for audit history
     await tx.loanInstallment.deleteMany({
       where: { loanId: id, status: { not: 'PAID' } },
     });
+
+    // Rebuild schedule from today against remaining principal balance
+    const installments = buildInstallments(
+      id,
+      Number(loan.remainingBalance),
+      newRate,
+      newTerm,
+      newFrequency,
+      newStructure,
+      new Date(),
+    ).map((inst) => ({ ...inst, sequence: inst.sequence + paidCount }));
 
     await tx.loanInstallment.createMany({ data: installments });
 
