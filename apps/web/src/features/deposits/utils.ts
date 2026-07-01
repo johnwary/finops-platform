@@ -1,3 +1,31 @@
+import type { DepositPayoutType, DepositReturnRatePeriod, DepositType, PaymentMethod } from './types'
+
+export const DEPOSIT_TYPE_LABELS: Record<DepositType, string> = {
+  SPECIAL: 'Special',
+  REGULAR: 'Regular',
+}
+
+export const DEPOSIT_PAYOUT_TYPE_LABELS: Record<DepositPayoutType, string> = {
+  MATURITY_ONLY: 'Maturity Only',
+  SEMI_ANNUAL: 'Semi-Annual',
+  QUARTERLY: 'Quarterly',
+  MONTHLY_INTEREST: 'Monthly Interest',
+}
+
+export const DEPOSIT_RETURN_RATE_PERIOD_LABELS: Record<DepositReturnRatePeriod, string> = {
+  MONTH: 'month',
+  QUARTERLY: 'quarter',
+  SEMI_ANNUAL: 'semi-annual period',
+  ANNUAL: 'year',
+}
+
+export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  CASH: 'Cash',
+  BANK_TRANSFER: 'Bank Transfer',
+  GCASH: 'GCash',
+  CHECK: 'Check',
+}
+
 export interface DepositKpiInput {
   amount: string
   totalPayoutPaid: string
