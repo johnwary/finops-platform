@@ -1,13 +1,10 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
-import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { SheetClose, SheetFooter } from '@/components/ui/sheet'
-import { Spinner } from '@/components/ui/spinner'
 import { useWriteOffLoan } from '../hooks/useWriteOffLoan'
 import { writeOffLoanSchema, type WriteOffLoanInput } from '../schemas'
+import { LoanActionFormShell } from './LoanActionFormShell'
 
 interface WriteOffFormProps {
   loanId: string
@@ -30,30 +27,19 @@ export function WriteOffForm({ loanId, onSuccess }: WriteOffFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit(handleWriteOff)} className="flex flex-col gap-6 p-6">
-      <FieldGroup>
-        <Field data-invalid={!!errors.reason}>
-          <FieldLabel htmlFor="writeoff-reason">Reason</FieldLabel>
-          <Input id="writeoff-reason" {...register('reason')} placeholder="e.g. Unrecoverable after 180+ DPD" />
-          <FieldError errors={[errors.reason]} />
-        </Field>
-
-        {writeOff.error ? (
-          <Alert variant="destructive">
-            <AlertDescription>{writeOff.error.message}</AlertDescription>
-          </Alert>
-        ) : null}
-      </FieldGroup>
-
-      <SheetFooter className="flex-row justify-end">
-        <SheetClose asChild>
-          <Button type="button" variant="outline">Cancel</Button>
-        </SheetClose>
-        <Button type="submit" variant="destructive" disabled={writeOff.isPending}>
-          {writeOff.isPending ? <Spinner data-icon="inline-start" /> : null}
-          {writeOff.isPending ? 'Writing off…' : 'Write Off Loan'}
-        </Button>
-      </SheetFooter>
-    </form>
+    <LoanActionFormShell
+      onSubmit={handleSubmit(handleWriteOff)}
+      error={writeOff.error}
+      isPending={writeOff.isPending}
+      pendingLabel="Writing off..."
+      submitLabel="Write Off Loan"
+      submitVariant="destructive"
+    >
+      <Field data-invalid={!!errors.reason}>
+        <FieldLabel htmlFor="writeoff-reason">Reason</FieldLabel>
+        <Input id="writeoff-reason" {...register('reason')} placeholder="e.g. Unrecoverable after 180+ DPD" />
+        <FieldError errors={[errors.reason]} />
+      </Field>
+    </LoanActionFormShell>
   )
 }

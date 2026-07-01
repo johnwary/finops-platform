@@ -164,7 +164,7 @@ describe('loans.service approveLoan', () => {
   });
 
   it('throws NOT_FOUND when loan does not exist', async () => {
-    mocks.prisma.loan.findFirst.mockResolvedValue(null);
+    mocks.tx.$queryRaw.mockResolvedValue([]);
 
     await expect(approveLoan('loan-1', {}, actor)).rejects.toMatchObject({
       code: 'NOT_FOUND',
@@ -173,7 +173,7 @@ describe('loans.service approveLoan', () => {
   });
 
   it('throws LOAN_INVALID_STATE when loan is not PENDING', async () => {
-    mocks.prisma.loan.findFirst.mockResolvedValue(activeLoan);
+    mocks.tx.$queryRaw.mockResolvedValue([activeLoan]);
 
     await expect(approveLoan('loan-1', {}, actor)).rejects.toMatchObject({
       code: 'LOAN_INVALID_STATE',
@@ -184,7 +184,7 @@ describe('loans.service approveLoan', () => {
   });
 
   it('updates status to APPROVED and writes audit log', async () => {
-    mocks.prisma.loan.findFirst.mockResolvedValue(baseLoan);
+    mocks.tx.$queryRaw.mockResolvedValue([baseLoan]);
 
     const result = await approveLoan('loan-1', {}, actor);
 
@@ -311,7 +311,7 @@ describe('loans.service cancelLoan', () => {
   });
 
   it('throws LOAN_INVALID_STATE when loan is ACTIVE', async () => {
-    mocks.prisma.loan.findFirst.mockResolvedValue(activeLoan);
+    mocks.tx.$queryRaw.mockResolvedValue([activeLoan]);
 
     await expect(
       cancelLoan('loan-1', { cancellationReason: 'test' }, actor),
@@ -319,7 +319,7 @@ describe('loans.service cancelLoan', () => {
   });
 
   it('cancels a PENDING loan', async () => {
-    mocks.prisma.loan.findFirst.mockResolvedValue(baseLoan);
+    mocks.tx.$queryRaw.mockResolvedValue([baseLoan]);
 
     const result = await cancelLoan('loan-1', { cancellationReason: 'Duplicate application' }, actor);
 
@@ -332,7 +332,7 @@ describe('loans.service cancelLoan', () => {
   });
 
   it('cancels an APPROVED loan', async () => {
-    mocks.prisma.loan.findFirst.mockResolvedValue(approvedLoan);
+    mocks.tx.$queryRaw.mockResolvedValue([approvedLoan]);
 
     await cancelLoan('loan-1', { cancellationReason: 'Client withdrew' }, actor);
 
@@ -584,7 +584,7 @@ describe('loans.service softDeleteLoan', () => {
   });
 
   it('throws LOAN_INVALID_STATE when loan is ACTIVE', async () => {
-    mocks.prisma.loan.findFirst.mockResolvedValue(activeLoan);
+    mocks.tx.$queryRaw.mockResolvedValue([activeLoan]);
 
     await expect(softDeleteLoan('loan-1', actor)).rejects.toMatchObject({
       code: 'LOAN_INVALID_STATE',
@@ -593,7 +593,7 @@ describe('loans.service softDeleteLoan', () => {
   });
 
   it('throws LOAN_INVALID_STATE when loan is IN_ARREARS', async () => {
-    mocks.prisma.loan.findFirst.mockResolvedValue(arrearsLoan);
+    mocks.tx.$queryRaw.mockResolvedValue([arrearsLoan]);
 
     await expect(softDeleteLoan('loan-1', actor)).rejects.toMatchObject({
       code: 'LOAN_INVALID_STATE',
@@ -602,7 +602,7 @@ describe('loans.service softDeleteLoan', () => {
   });
 
   it('soft-deletes a CANCELED loan', async () => {
-    mocks.prisma.loan.findFirst.mockResolvedValue(canceledLoan);
+    mocks.tx.$queryRaw.mockResolvedValue([canceledLoan]);
 
     await softDeleteLoan('loan-1', actor);
 
@@ -625,7 +625,7 @@ describe('loans.service restoreLoan', () => {
   });
 
   it('throws NOT_FOUND when no deleted loan exists', async () => {
-    mocks.prisma.loan.findFirst.mockResolvedValue(null);
+    mocks.tx.$queryRaw.mockResolvedValue([]);
 
     await expect(restoreLoan('loan-1', actor)).rejects.toMatchObject({
       code: 'NOT_FOUND',
@@ -634,10 +634,10 @@ describe('loans.service restoreLoan', () => {
   });
 
   it('clears deletedAt and writes audit log', async () => {
-    mocks.prisma.loan.findFirst.mockResolvedValue({
+    mocks.tx.$queryRaw.mockResolvedValue([{
       ...canceledLoan,
       deletedAt: new Date('2024-01-01'),
-    });
+    }]);
 
     await restoreLoan('loan-1', actor);
 
@@ -660,7 +660,7 @@ describe('loans.service markLoanArrears', () => {
   });
 
   it('throws LOAN_INVALID_STATE when loan is not ACTIVE', async () => {
-    mocks.prisma.loan.findFirst.mockResolvedValue(arrearsLoan);
+    mocks.tx.$queryRaw.mockResolvedValue([arrearsLoan]);
 
     await expect(markLoanArrears('loan-1', {}, actor)).rejects.toMatchObject({
       code: 'LOAN_INVALID_STATE',
@@ -669,7 +669,7 @@ describe('loans.service markLoanArrears', () => {
   });
 
   it('transitions ACTIVE loan to IN_ARREARS', async () => {
-    mocks.prisma.loan.findFirst.mockResolvedValue(activeLoan);
+    mocks.tx.$queryRaw.mockResolvedValue([activeLoan]);
 
     await markLoanArrears('loan-1', { reason: 'Missed 2 payments' }, actor);
 
@@ -694,7 +694,7 @@ describe('loans.service markLoanCurrent', () => {
   });
 
   it('throws LOAN_INVALID_STATE when loan is not IN_ARREARS', async () => {
-    mocks.prisma.loan.findFirst.mockResolvedValue(activeLoan);
+    mocks.tx.$queryRaw.mockResolvedValue([activeLoan]);
 
     await expect(markLoanCurrent('loan-1', {}, actor)).rejects.toMatchObject({
       code: 'LOAN_INVALID_STATE',
@@ -703,7 +703,7 @@ describe('loans.service markLoanCurrent', () => {
   });
 
   it('transitions IN_ARREARS loan back to ACTIVE', async () => {
-    mocks.prisma.loan.findFirst.mockResolvedValue(arrearsLoan);
+    mocks.tx.$queryRaw.mockResolvedValue([arrearsLoan]);
 
     await markLoanCurrent('loan-1', { reason: 'Arrears cleared' }, actor);
 
@@ -728,7 +728,7 @@ describe('loans.service writeOffLoan', () => {
   });
 
   it('throws LOAN_INVALID_STATE when loan is not DEFAULTED', async () => {
-    mocks.prisma.loan.findFirst.mockResolvedValue(activeLoan);
+    mocks.tx.$queryRaw.mockResolvedValue([activeLoan]);
 
     await expect(writeOffLoan('loan-1', { reason: 'Uncollectible' }, actor)).rejects.toMatchObject({
       code: 'LOAN_INVALID_STATE',
@@ -737,7 +737,7 @@ describe('loans.service writeOffLoan', () => {
   });
 
   it('transitions DEFAULTED loan to WRITTEN_OFF', async () => {
-    mocks.prisma.loan.findFirst.mockResolvedValue(defaultedLoan);
+    mocks.tx.$queryRaw.mockResolvedValue([defaultedLoan]);
 
     await writeOffLoan('loan-1', { reason: 'Borrower absconded' }, actor);
 
@@ -809,7 +809,7 @@ describe('loans.service restructureLoan', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.prisma.loan.findFirst.mockResolvedValue(activeDisbursedLoan);
+    mocks.tx.$queryRaw.mockResolvedValue([activeDisbursedLoan]);
     mocks.tx.loanPaymentAllocation.findFirst.mockResolvedValue(null);
     mocks.tx.loanInstallment.count.mockResolvedValue(0);
     mocks.tx.loanInstallment.deleteMany.mockResolvedValue({ count: 3 });
@@ -819,7 +819,7 @@ describe('loans.service restructureLoan', () => {
   });
 
   it('throws NOT_FOUND when loan does not exist', async () => {
-    mocks.prisma.loan.findFirst.mockResolvedValue(null);
+    mocks.tx.$queryRaw.mockResolvedValue([]);
 
     await expect(
       restructureLoan('loan-1', { termMonths: 6, reason: 'Hardship' }, actor),
@@ -827,7 +827,7 @@ describe('loans.service restructureLoan', () => {
   });
 
   it('throws LOAN_INVALID_STATE for PENDING loan', async () => {
-    mocks.prisma.loan.findFirst.mockResolvedValue(baseLoan);
+    mocks.tx.$queryRaw.mockResolvedValue([baseLoan]);
 
     await expect(
       restructureLoan('loan-1', { termMonths: 6, reason: 'Hardship' }, actor),

@@ -2,7 +2,7 @@ import { Decimal } from '@prisma/client/runtime/client';
 import { randomUUID } from 'node:crypto';
 import { addMonths, addWeeks, addDays, differenceInDays } from 'date-fns';
 import { prisma } from '../../lib/prisma.js';
-import type { Loan } from '../../generated/prisma/client.js';
+import type { Loan, Prisma } from '../../generated/prisma/client.js';
 import { AppError } from '../../lib/response.js';
 import { resolveProvisionBucket } from '../../lib/lending.js';
 import { isUniqueViolation } from '../../lib/prisma-error.js';
@@ -30,6 +30,36 @@ interface Actor {
 
 function toDecimal(value: number | null | undefined): Decimal | undefined {
   return value != null ? new Decimal(value) : undefined;
+}
+
+async function lockedLoan(
+  tx: Prisma.TransactionClient,
+  id: string,
+  deleted: 'active' | 'deleted' | 'any' = 'active',
+): Promise<Loan> {
+  const rows = await tx.$queryRaw<Loan[]>`
+    SELECT *
+    FROM "Loan"
+    WHERE id = ${id}
+    FOR UPDATE
+  `;
+  const loan = rows[0];
+  const isMissing =
+    !loan ||
+    (deleted === 'active' && loan.deletedAt != null) ||
+    (deleted === 'deleted' && loan.deletedAt == null);
+
+  if (isMissing) {
+    throw new AppError('NOT_FOUND', deleted === 'deleted' ? 'Deleted loan not found.' : 'Loan not found.', 404);
+  }
+
+  return loan;
+}
+
+function assertLoanStatus(loan: Loan, allowed: readonly Loan['status'][], message: string) {
+  if (!allowed.includes(loan.status)) {
+    throw new AppError('LOAN_INVALID_STATE', message, 409);
+  }
 }
 
 function receiptNumber(date = new Date()): string {
@@ -384,18 +414,14 @@ export async function listLoans({ cursor, limit, borrowerId, status, search, typ
 }
 
 export async function approveLoan(id: string, data: ApproveLoanInput, actor: Actor) {
-  const loan = await prisma.loan.findFirst({ where: { id, deletedAt: null } });
-  if (!loan) throw new AppError('NOT_FOUND', 'Loan not found.', 404);
-
-  if (loan.status !== 'PENDING') {
-    throw new AppError('LOAN_INVALID_STATE', `Cannot approve a loan with status ${loan.status}.`, 409);
-  }
-
   const approvedAt = data.approvedAt
     ? new Date(Date.UTC(data.approvedAt.getUTCFullYear(), data.approvedAt.getUTCMonth(), data.approvedAt.getUTCDate(), 4, 0, 0))
     : new Date();
 
   return prisma.$transaction(async (tx) => {
+    const loan = await lockedLoan(tx, id);
+    assertLoanStatus(loan, ['PENDING'], `Cannot approve a loan with status ${loan.status}.`);
+
     const updated = await tx.loan.update({
       where: { id },
       data: {
@@ -426,18 +452,8 @@ export async function disburseLoan(id: string, data: DisburseLoanInput, actor: A
     : new Date();
 
   return prisma.$transaction(async (tx) => {
-    const rows = await tx.$queryRaw<Loan[]>`
-      SELECT *
-      FROM "Loan"
-      WHERE id = ${id}
-      FOR UPDATE
-    `;
-    const loan = rows[0];
-    if (!loan || loan.deletedAt != null) throw new AppError('NOT_FOUND', 'Loan not found.', 404);
-
-    if (loan.status !== 'APPROVED') {
-      throw new AppError('LOAN_INVALID_STATE', `Cannot disburse a loan with status ${loan.status}.`, 409);
-    }
+    const loan = await lockedLoan(tx, id);
+    assertLoanStatus(loan, ['APPROVED'], `Cannot disburse a loan with status ${loan.status}.`);
 
     const endDate = addMonths(disbursedAt, loan.termMonths);
     const installments = buildInstallments(
@@ -494,18 +510,10 @@ export async function disburseLoan(id: string, data: DisburseLoanInput, actor: A
 }
 
 export async function cancelLoan(id: string, data: CancelLoanInput, actor: Actor) {
-  const loan = await prisma.loan.findFirst({ where: { id, deletedAt: null } });
-  if (!loan) throw new AppError('NOT_FOUND', 'Loan not found.', 404);
-
-  if (loan.status !== 'PENDING' && loan.status !== 'APPROVED') {
-    throw new AppError(
-      'LOAN_INVALID_STATE',
-      `Cannot cancel a loan with status ${loan.status}.`,
-      409,
-    );
-  }
-
   return prisma.$transaction(async (tx) => {
+    const loan = await lockedLoan(tx, id);
+    assertLoanStatus(loan, ['PENDING', 'APPROVED'], `Cannot cancel a loan with status ${loan.status}.`);
+
     const updated = await tx.loan.update({
       where: { id },
       data: {
@@ -535,18 +543,8 @@ export async function recordPayment(id: string, data: RecordPaymentInput, actor:
   const asOf = data.paidAt ?? new Date();
 
   return prisma.$transaction(async (tx) => {
-    const rows = await tx.$queryRaw<Loan[]>`
-      SELECT *
-      FROM "Loan"
-      WHERE id = ${id}
-      FOR UPDATE
-    `;
-    const loan = rows[0];
-    if (!loan || loan.deletedAt != null) throw new AppError('NOT_FOUND', 'Loan not found.', 404);
-
-    if (loan.status !== 'ACTIVE' && loan.status !== 'IN_ARREARS') {
-      throw new AppError('LOAN_INVALID_STATE', `Cannot record payment on a loan with status ${loan.status}.`, 409);
-    }
+    const loan = await lockedLoan(tx, id);
+    assertLoanStatus(loan, ['ACTIVE', 'IN_ARREARS'], `Cannot record payment on a loan with status ${loan.status}.`);
 
     if (loan.locked) {
       throw new AppError('LOAN_LOCKED', 'Loan is locked and cannot accept payments.', 409);
@@ -716,9 +714,6 @@ export async function recordPayment(id: string, data: RecordPaymentInput, actor:
 }
 
 export async function defaultLoan(id: string, data: DefaultLoanInput, actor: Actor) {
-  const loan = await prisma.loan.findFirst({ where: { id, deletedAt: null } });
-  if (!loan) throw new AppError('NOT_FOUND', 'Loan not found.', 404);
-
   // Compute DPD outside transaction (read-only, safe to do before)
   let dpd = data.daysPastDue ?? 0;
 
@@ -734,23 +729,11 @@ export async function defaultLoan(id: string, data: DefaultLoanInput, actor: Act
   }
 
   return prisma.$transaction(async (tx) => {
-    // SELECT FOR UPDATE acquires a row-level lock — concurrent calls block here until
-    // the first transaction commits, preventing duplicate provision events.
-    const rows = await tx.$queryRaw<{ id: string; status: string; remainingBalance: string; deletedAt: Date | null }[]>`
-      SELECT id, status, "remainingBalance", "deletedAt"
-      FROM "Loan"
-      WHERE id = ${id}
-      FOR UPDATE
-    `;
-    const lockedLoan = rows[0];
-    if (!lockedLoan || lockedLoan.deletedAt != null) throw new AppError('NOT_FOUND', 'Loan not found.', 404);
-
-    if (lockedLoan.status !== 'ACTIVE' && lockedLoan.status !== 'IN_ARREARS') {
-      throw new AppError('LOAN_INVALID_STATE', `Cannot default a loan with status ${lockedLoan.status}.`, 409);
-    }
+    const loan = await lockedLoan(tx, id);
+    assertLoanStatus(loan, ['ACTIVE', 'IN_ARREARS'], `Cannot default a loan with status ${loan.status}.`);
 
     const { bucket, rate } = resolveProvisionBucket(dpd);
-    const basisAmount = new Decimal(lockedLoan.remainingBalance);
+    const basisAmount = new Decimal(loan.remainingBalance);
     const provisionAmount = basisAmount.times(rate).toDecimalPlaces(2);
 
     const updated = await tx.loan.update({
@@ -782,7 +765,7 @@ export async function defaultLoan(id: string, data: DefaultLoanInput, actor: Act
           bucket,
           provisionRate: rate,
           provisionAmount,
-          remainingBalance: lockedLoan.remainingBalance,
+          remainingBalance: loan.remainingBalance,
         },
       },
     });
@@ -792,14 +775,12 @@ export async function defaultLoan(id: string, data: DefaultLoanInput, actor: Act
 }
 
 export async function softDeleteLoan(id: string, actor: Actor) {
-  const loan = await prisma.loan.findFirst({ where: { id, deletedAt: null } });
-  if (!loan) throw new AppError('NOT_FOUND', 'Loan not found.', 404);
-
-  if (loan.status === 'ACTIVE' || loan.status === 'IN_ARREARS') {
-    throw new AppError('LOAN_INVALID_STATE', 'Cannot delete an active loan.', 409);
-  }
-
   return prisma.$transaction(async (tx) => {
+    const loan = await lockedLoan(tx, id);
+    if (loan.status === 'ACTIVE' || loan.status === 'IN_ARREARS') {
+      throw new AppError('LOAN_INVALID_STATE', 'Cannot delete an active loan.', 409);
+    }
+
     const deleted = await tx.loan.update({
       where: { id },
       data: { deletedAt: new Date() },
@@ -820,10 +801,9 @@ export async function softDeleteLoan(id: string, actor: Actor) {
 }
 
 export async function restoreLoan(id: string, actor: Actor) {
-  const loan = await prisma.loan.findFirst({ where: { id, deletedAt: { not: null } } });
-  if (!loan) throw new AppError('NOT_FOUND', 'Deleted loan not found.', 404);
-
   return prisma.$transaction(async (tx) => {
+    const loan = await lockedLoan(tx, id, 'deleted');
+
     const restored = await tx.loan.update({
       where: { id },
       data: { deletedAt: null },
@@ -844,14 +824,10 @@ export async function restoreLoan(id: string, actor: Actor) {
 }
 
 export async function markLoanArrears(id: string, data: MarkArrearsInput, actor: Actor) {
-  const loan = await prisma.loan.findFirst({ where: { id, deletedAt: null } });
-  if (!loan) throw new AppError('NOT_FOUND', 'Loan not found.', 404);
-
-  if (loan.status !== 'ACTIVE') {
-    throw new AppError('LOAN_INVALID_STATE', `Cannot mark a loan with status ${loan.status} as in arrears.`, 409);
-  }
-
   return prisma.$transaction(async (tx) => {
+    const loan = await lockedLoan(tx, id);
+    assertLoanStatus(loan, ['ACTIVE'], `Cannot mark a loan with status ${loan.status} as in arrears.`);
+
     const updated = await tx.loan.update({
       where: { id },
       data: { status: 'IN_ARREARS' },
@@ -872,14 +848,10 @@ export async function markLoanArrears(id: string, data: MarkArrearsInput, actor:
 }
 
 export async function markLoanCurrent(id: string, data: MarkCurrentInput, actor: Actor) {
-  const loan = await prisma.loan.findFirst({ where: { id, deletedAt: null } });
-  if (!loan) throw new AppError('NOT_FOUND', 'Loan not found.', 404);
-
-  if (loan.status !== 'IN_ARREARS') {
-    throw new AppError('LOAN_INVALID_STATE', `Cannot mark a loan with status ${loan.status} as current.`, 409);
-  }
-
   return prisma.$transaction(async (tx) => {
+    const loan = await lockedLoan(tx, id);
+    assertLoanStatus(loan, ['IN_ARREARS'], `Cannot mark a loan with status ${loan.status} as current.`);
+
     const updated = await tx.loan.update({
       where: { id },
       data: { status: 'ACTIVE' },
@@ -900,14 +872,10 @@ export async function markLoanCurrent(id: string, data: MarkCurrentInput, actor:
 }
 
 export async function writeOffLoan(id: string, data: WriteOffLoanInput, actor: Actor) {
-  const loan = await prisma.loan.findFirst({ where: { id, deletedAt: null } });
-  if (!loan) throw new AppError('NOT_FOUND', 'Loan not found.', 404);
-
-  if (loan.status !== 'DEFAULTED') {
-    throw new AppError('LOAN_INVALID_STATE', `Cannot write off a loan with status ${loan.status}.`, 409);
-  }
-
   return prisma.$transaction(async (tx) => {
+    const loan = await lockedLoan(tx, id);
+    assertLoanStatus(loan, ['DEFAULTED'], `Cannot write off a loan with status ${loan.status}.`);
+
     const updated = await tx.loan.update({
       where: { id },
       data: { status: 'WRITTEN_OFF' },
@@ -961,29 +929,25 @@ export async function listLoanActivity(
 }
 
 export async function restructureLoan(id: string, data: RestructureLoanInput, actor: Actor) {
-  const loan = await prisma.loan.findFirst({ where: { id, deletedAt: null } });
-  if (!loan) throw new AppError('NOT_FOUND', 'Loan not found.', 404);
-
-  if (loan.status !== 'ACTIVE' && loan.status !== 'IN_ARREARS' && loan.status !== 'DEFAULTED') {
-    throw new AppError('LOAN_INVALID_STATE', `Cannot restructure a loan with status ${loan.status}.`, 409);
-  }
-
-  const newRate = data.interestRate !== undefined ? data.interestRate : Number(loan.interestRate);
-  const newTerm = data.termMonths !== undefined ? data.termMonths : loan.termMonths;
-  const newFrequency = data.paymentFrequency ?? loan.paymentFrequency;
-  const newStructure = data.repaymentStructure ?? loan.repaymentStructure;
-  const disbursedAt = loan.disbursedAt ?? new Date();
-
-  if (
-    newRate === Number(loan.interestRate) &&
-    newTerm === loan.termMonths &&
-    newFrequency === loan.paymentFrequency &&
-    newStructure === loan.repaymentStructure
-  ) {
-    throw new AppError('CONFLICT', 'No terms have changed. Update at least one field to restructure.', 409);
-  }
-
   return prisma.$transaction(async (tx) => {
+    const loan = await lockedLoan(tx, id);
+    assertLoanStatus(loan, ['ACTIVE', 'IN_ARREARS', 'DEFAULTED'], `Cannot restructure a loan with status ${loan.status}.`);
+
+    const newRate = data.interestRate !== undefined ? data.interestRate : Number(loan.interestRate);
+    const newTerm = data.termMonths !== undefined ? data.termMonths : loan.termMonths;
+    const newFrequency = data.paymentFrequency ?? loan.paymentFrequency;
+    const newStructure = data.repaymentStructure ?? loan.repaymentStructure;
+    const disbursedAt = loan.disbursedAt ?? new Date();
+
+    if (
+      newRate === Number(loan.interestRate) &&
+      newTerm === loan.termMonths &&
+      newFrequency === loan.paymentFrequency &&
+      newStructure === loan.repaymentStructure
+    ) {
+      throw new AppError('CONFLICT', 'No terms have changed. Update at least one field to restructure.', 409);
+    }
+
     // Block restructure if any unpaid installment has allocation rows — deleting them
     // would cascade-wipe LoanPaymentAllocation and destroy repayment audit history.
     const allocatedUnpaid = await tx.loanPaymentAllocation.findFirst({

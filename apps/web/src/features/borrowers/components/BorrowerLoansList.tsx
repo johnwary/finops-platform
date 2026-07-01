@@ -10,7 +10,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { LOAN_STATUS_LABELS, LOAN_TYPE_LABELS, formatPeso } from '@/features/loans/utils'
+import { formatPeso } from '@/lib/format'
+import { LOAN_STATUS_LABELS, LOAN_TYPE_LABELS } from '@/features/loans/utils'
 import type { BorrowerLoanSummary, LoanStatus } from '../types'
 
 interface BorrowerLoansListProps {

@@ -14,10 +14,11 @@ import {
 } from '@/components/ui/select'
 import { SheetClose, SheetFooter } from '@/components/ui/sheet'
 import { Spinner } from '@/components/ui/spinner'
+import { formatPercent, formatPeso } from '@/lib/format'
 import { useRestructureLoan } from '../hooks/useRestructureLoan'
 import { restructureLoanSchema, type RestructureLoanInput } from '../schemas'
 import type { LoanDetail } from '../types'
-import { formatPercent, PAYMENT_FREQUENCY_LABELS, REPAYMENT_STRUCTURE_LABELS } from '../utils'
+import { PAYMENT_FREQUENCY_LABELS, REPAYMENT_STRUCTURE_LABELS } from '../utils'
 
 interface RestructureFormProps {
   loan: LoanDetail
@@ -65,7 +66,7 @@ export function RestructureForm({ loan, onSuccess }: RestructureFormProps) {
   return (
     <form onSubmit={handleSubmit(handleRestructure)} className="flex flex-col gap-6 p-6 overflow-y-auto">
       <p className="text-sm text-muted-foreground">
-        Remaining balance <span className="font-semibold text-foreground">{Number(loan.remainingBalance).toLocaleString('en-PH', { style: 'currency', currency: 'PHP' })}</span> will be rescheduled under new terms. Paid installments are preserved.
+        Remaining balance <span className="font-semibold text-foreground">{formatPeso(loan.remainingBalance)}</span> will be rescheduled under new terms. Paid installments are preserved.
       </p>
 
       <FieldGroup>

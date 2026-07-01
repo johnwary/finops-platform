@@ -1,13 +1,10 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
-import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { SheetClose, SheetFooter } from '@/components/ui/sheet'
-import { Spinner } from '@/components/ui/spinner'
 import { useCancelLoan } from '../hooks/useCancelLoan'
 import { cancelLoanSchema, type CancelLoanInput } from '../schemas'
+import { LoanActionFormShell } from './LoanActionFormShell'
 
 interface CancelFormProps {
   loanId: string
@@ -30,30 +27,19 @@ export function CancelForm({ loanId, onSuccess }: CancelFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit(handleCancel)} className="flex flex-col gap-6 p-6">
-      <FieldGroup>
-        <Field data-invalid={!!errors.cancellationReason}>
-          <FieldLabel htmlFor="cancellationReason">Cancellation Reason</FieldLabel>
-          <Input id="cancellationReason" {...register('cancellationReason')} />
-          <FieldError errors={[errors.cancellationReason]} />
-        </Field>
-
-        {cancelLoan.error ? (
-          <Alert variant="destructive">
-            <AlertDescription>{cancelLoan.error.message}</AlertDescription>
-          </Alert>
-        ) : null}
-      </FieldGroup>
-
-      <SheetFooter className="flex-row justify-end">
-        <SheetClose asChild>
-          <Button type="button" variant="outline">Cancel</Button>
-        </SheetClose>
-        <Button type="submit" variant="destructive" disabled={cancelLoan.isPending}>
-          {cancelLoan.isPending ? <Spinner data-icon="inline-start" /> : null}
-          {cancelLoan.isPending ? 'Canceling…' : 'Cancel Loan'}
-        </Button>
-      </SheetFooter>
-    </form>
+    <LoanActionFormShell
+      onSubmit={handleSubmit(handleCancel)}
+      error={cancelLoan.error}
+      isPending={cancelLoan.isPending}
+      pendingLabel="Canceling..."
+      submitLabel="Cancel Loan"
+      submitVariant="destructive"
+    >
+      <Field data-invalid={!!errors.cancellationReason}>
+        <FieldLabel htmlFor="cancellationReason">Cancellation Reason</FieldLabel>
+        <Input id="cancellationReason" {...register('cancellationReason')} />
+        <FieldError errors={[errors.cancellationReason]} />
+      </Field>
+    </LoanActionFormShell>
   )
 }

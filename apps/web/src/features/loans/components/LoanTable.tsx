@@ -23,7 +23,8 @@ import {
 import { useLoans } from '../hooks/useLoans'
 import type { LoanStatus, LoanType } from '../types'
 import { formatBorrowerName } from '@/features/borrowers/utils'
-import { formatPeso, formatPercent, LOAN_STATUS_LABELS, LOAN_TYPE_LABELS } from '../utils'
+import { formatPeso, formatPercent } from '@/lib/format'
+import { LOAN_STATUS_LABELS, LOAN_TYPE_LABELS } from '../utils'
 import { LoanStatusBadge } from './LoanStatusBadge'
 
 interface LoanTableProps {

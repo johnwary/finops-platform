@@ -7,8 +7,6 @@ import type {
   RepaymentStructure,
 } from './types'
 
-export { formatPeso, formatPercent } from '@/lib/format'
-
 export const LOAN_TYPE_LABELS: Record<LoanType, string> = {
   SALARY: 'Salary',
   BUSINESS: 'Business',

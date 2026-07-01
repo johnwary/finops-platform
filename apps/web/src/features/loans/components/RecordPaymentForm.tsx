@@ -32,11 +32,11 @@ import {
 } from '@/components/ui/select';
 import { SheetClose, SheetFooter } from '@/components/ui/sheet';
 import { Spinner } from '@/components/ui/spinner';
+import { formatPeso, todayManilaDateString } from '@/lib/format';
 import { useRecordPayment } from '../hooks/useRecordPayment';
 import { recordPaymentSchema, type RecordPaymentInput } from '../schemas';
 import type { LoanInstallment } from '../types';
-import { todayManilaDateString } from '@/lib/format';
-import { formatPeso, PAYMENT_METHOD_LABELS } from '../utils';
+import { PAYMENT_METHOD_LABELS } from '../utils';
 
 interface RecordPaymentFormProps {
   loanId: string;

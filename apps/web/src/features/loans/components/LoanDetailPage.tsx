@@ -35,6 +35,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { RequireRole } from '@/features/auth/components/RequireRole'
 import { formatBorrowerName } from '@/features/borrowers/utils'
+import { formatPeso, formatPercent } from '@/lib/format'
 import { ApproveForm } from '../components/ApproveForm'
 import { CancelForm } from '../components/CancelForm'
 import { DisburseForm } from '../components/DisburseForm'
@@ -49,8 +50,6 @@ import { useMarkArrears } from '../hooks/useMarkArrears'
 import { useMarkCurrent } from '../hooks/useMarkCurrent'
 import type { LoanDetail } from '../types'
 import {
-  formatPeso,
-  formatPercent,
   INSTALLMENT_STATUS_LABELS,
   LOAN_TYPE_LABELS,
   PAYMENT_FREQUENCY_LABELS,

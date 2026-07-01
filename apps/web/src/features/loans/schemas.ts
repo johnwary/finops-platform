@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { formatPeso } from './utils'
+import { formatPeso } from '@/lib/format'
 
 export const createLoanSchema = z.object({
   borrowerId: z.string().uuid({ message: 'Must be a valid UUID' }),
