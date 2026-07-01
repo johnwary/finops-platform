@@ -1,13 +1,24 @@
+import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
 import { RequireRole } from '@/features/auth/components/RequireRole'
 import { formatPeso, formatPercent } from '@/lib/format'
+import { CloseForm } from '../components/CloseForm'
 import { DepositPayoutHistory } from '../components/DepositPayoutHistory'
+import { RecordPayoutForm } from '../components/RecordPayoutForm'
+import { WithdrawForm } from '../components/WithdrawForm'
 import { useDeposit } from '../hooks/useDeposit'
 import type { DepositDetail, DepositStatus } from '../types'
 import {
@@ -32,6 +43,9 @@ const STATUS_LABELS: Record<DepositStatus, string> = {
 export function DepositDetailPage() {
   const { id } = useParams<{ id: string }>()
   const deposit = useDeposit(id)
+  const [isPayoutOpen, setIsPayoutOpen] = useState(false)
+  const [isWithdrawOpen, setIsWithdrawOpen] = useState(false)
+  const [isCloseOpen, setIsCloseOpen] = useState(false)
 
   if (deposit.isPending) {
     return (
@@ -74,10 +88,9 @@ export function DepositDetailPage() {
         {data.status === 'ACTIVE' && (
           <RequireRole role={['admin', 'manager']} fallback="hide">
             <div className="flex items-center gap-2 flex-wrap">
-              {/* ponytail: forms land in Task 11 — buttons disabled until Record Payout/Withdraw/Close forms exist */}
-              <Button size="sm" disabled>Record Payout</Button>
-              <Button size="sm" variant="outline" disabled>Withdraw</Button>
-              <Button size="sm" variant="outline" disabled>Close</Button>
+              <Button size="sm" onClick={() => setIsPayoutOpen(true)}>Record Payout</Button>
+              <Button size="sm" variant="outline" onClick={() => setIsWithdrawOpen(true)}>Withdraw</Button>
+              <Button size="sm" variant="outline" onClick={() => setIsCloseOpen(true)}>Close</Button>
             </div>
           </RequireRole>
         )}
@@ -102,6 +115,36 @@ export function DepositDetailPage() {
           <DepositPayoutHistory payouts={data.payouts} />
         </div>
       </div>
+
+      <Sheet open={isPayoutOpen} onOpenChange={setIsPayoutOpen}>
+        <SheetContent className="sm:max-w-lg flex flex-col p-0">
+          <SheetHeader className="p-6 pb-0">
+            <SheetTitle>Record Payout</SheetTitle>
+            <SheetDescription>Record a payout against this deposit.</SheetDescription>
+          </SheetHeader>
+          <RecordPayoutForm depositId={data.id} onSuccess={() => setIsPayoutOpen(false)} />
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={isWithdrawOpen} onOpenChange={setIsWithdrawOpen}>
+        <SheetContent className="flex flex-col p-0">
+          <SheetHeader className="p-6 pb-0">
+            <SheetTitle>Withdraw Deposit</SheetTitle>
+            <SheetDescription>Return principal to the depositor and close this deposit.</SheetDescription>
+          </SheetHeader>
+          <WithdrawForm depositId={data.id} onSuccess={() => setIsWithdrawOpen(false)} />
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={isCloseOpen} onOpenChange={setIsCloseOpen}>
+        <SheetContent className="flex flex-col p-0">
+          <SheetHeader className="p-6 pb-0">
+            <SheetTitle>Close Deposit</SheetTitle>
+            <SheetDescription>Close this deposit without a principal payout.</SheetDescription>
+          </SheetHeader>
+          <CloseForm depositId={data.id} onSuccess={() => setIsCloseOpen(false)} />
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

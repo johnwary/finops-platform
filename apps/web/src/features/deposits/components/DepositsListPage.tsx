@@ -1,6 +1,15 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
+import { RequireRole } from '@/features/auth/components/RequireRole'
+import { CreateDepositForm } from '../components/CreateDepositForm'
 import { DepositTable } from '../components/DepositTable'
 import { useDeposits } from '../hooks/useDeposits'
 import type { DepositStatus, DepositType } from '../types'
@@ -8,6 +17,7 @@ import type { DepositStatus, DepositType } from '../types'
 export function DepositsListPage() {
   const [status, setStatus] = useState<DepositStatus | undefined>(undefined)
   const [depositType, setDepositType] = useState<DepositType | undefined>(undefined)
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [pageIndex, setPageIndex] = useState(0)
   const [pageCursors, setPageCursors] = useState<(string | undefined)[]>([undefined])
 
@@ -55,7 +65,9 @@ export function DepositsListPage() {
           <p className="text-sm text-muted-foreground">Manage depositor deposits.</p>
         </div>
         <div className="flex items-center gap-2">
-          {/* ponytail: New Deposit form lands in Task 11 — button deferred until CreateDepositForm exists */}
+          <RequireRole role={['admin', 'manager']} fallback="hide">
+            <Button onClick={() => setIsCreateOpen(true)}>New Deposit</Button>
+          </RequireRole>
         </div>
       </div>
       <Separator />
@@ -89,6 +101,15 @@ export function DepositsListPage() {
           </Button>
         </div>
       ) : null}
+      <Sheet open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <SheetContent className="sm:max-w-lg flex flex-col p-0">
+          <SheetHeader className="p-6 pb-0">
+            <SheetTitle>New Deposit</SheetTitle>
+            <SheetDescription>Create a new depositor deposit.</SheetDescription>
+          </SheetHeader>
+          <CreateDepositForm onSuccess={() => setIsCreateOpen(false)} />
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }
