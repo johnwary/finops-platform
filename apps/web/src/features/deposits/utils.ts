@@ -1,4 +1,4 @@
-import type { DepositPayoutType, DepositReturnRatePeriod, DepositType, PaymentMethod } from './types'
+import type { DepositPayoutType, DepositReturnRatePeriod, DepositStatus, DepositType, PaymentMethod } from './types'
 
 export const DEPOSIT_TYPE_LABELS: Record<DepositType, string> = {
   SPECIAL: 'Special',
@@ -30,6 +30,7 @@ export interface DepositKpiInput {
   amount: string
   totalPayoutPaid: string
   principalReturned: string
+  status: DepositStatus
 }
 
 export interface DepositKpis {
@@ -44,7 +45,10 @@ export interface DepositKpis {
 export function computeDepositKpis(d: DepositKpiInput): DepositKpis {
   const amount = parseFloat(d.amount)
   const paidOut = parseFloat(d.totalPayoutPaid)
-  const principalReturned = parseFloat(d.principalReturned)
+  // WITHDRAWN/CLOSED return the full principal to the depositor via a capital
+  // outflow, but the API only increments principalReturned on payouts — so a
+  // terminal deposit has its principal fully returned regardless of that field.
+  const principalReturned = d.status === 'ACTIVE' ? parseFloat(d.principalReturned) : amount
   return {
     totalPaidOut: paidOut.toFixed(2),
     principalReturned: principalReturned.toFixed(2),
