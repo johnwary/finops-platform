@@ -1,12 +1,22 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
+import { RequireRole } from '@/features/auth/components/RequireRole'
 import { useDebounce } from '@/hooks/use-debounce'
+import { CreateDepositorForm } from '../components/CreateDepositorForm'
 import { DepositorTable } from '../components/DepositorTable'
 import { useDepositors } from '../hooks/useDepositors'
 
 export function DepositorsListPage() {
   const [search, setSearch] = useState('')
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [pageIndex, setPageIndex] = useState(0)
   const [pageCursors, setPageCursors] = useState<(string | undefined)[]>([undefined])
 
@@ -50,7 +60,9 @@ export function DepositorsListPage() {
           <p className="text-sm text-muted-foreground">Manage depositor profiles.</p>
         </div>
         <div className="flex items-center gap-2">
-          {/* ponytail: New Depositor form lands in Task 5 — button deferred until CreateDepositorForm exists */}
+          <RequireRole role={['admin', 'manager']} fallback="hide">
+            <Button onClick={() => setIsCreateOpen(true)}>New Depositor</Button>
+          </RequireRole>
         </div>
       </div>
       <Separator />
@@ -83,6 +95,15 @@ export function DepositorsListPage() {
           </Button>
         </div>
       ) : null}
+      <Sheet open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <SheetContent className="sm:max-w-lg flex flex-col p-0">
+          <SheetHeader className="p-6 pb-0">
+            <SheetTitle>New Depositor</SheetTitle>
+            <SheetDescription>Create a new depositor profile.</SheetDescription>
+          </SheetHeader>
+          <CreateDepositorForm onSuccess={() => setIsCreateOpen(false)} />
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }
