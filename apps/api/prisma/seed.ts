@@ -5,6 +5,11 @@ import { addMonths, subDays, subMonths } from 'date-fns';
 import { Decimal } from '@prisma/client/runtime/client';
 import { PrismaClient } from '../src/generated/prisma/client.js';
 
+if (process.env.NODE_ENV === 'production') {
+  console.error('Refusing to seed: NODE_ENV is production. Seeding overwrites real data.');
+  process.exit(1);
+}
+
 const databaseUrl = process.env.DATABASE_URL;
 
 if (!databaseUrl) {
