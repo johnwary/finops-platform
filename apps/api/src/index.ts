@@ -8,7 +8,7 @@ import { randomUUID } from 'crypto';
 import { toNodeHandler } from 'better-auth/node';
 import { logger } from './lib/logger.js';
 import { auth } from './lib/auth.js';
-import { AppError, error } from './lib/response.js';
+import { errorHandler } from './middleware/error.middleware.js';
 import { borrowersRouter } from './features/borrowers/borrowers.router.js';
 import { loansRouter } from './features/loans/loans.router.js';
 import { reportsRouter } from './features/reports/reports.router.js';
@@ -70,25 +70,7 @@ app.use('/api/v1/invitations', invitationsRouter);
 app.use('/api/v1/activity', activityRouter);
 app.use('/api/v1/company', companyRouter);
 
-app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  if (err instanceof AppError) {
-    res.status(err.status).json(error(err.code, err.message, err.status));
-    return;
-  }
-
-  const maybeApiError = err as { status?: number; statusCode?: number; body?: { message?: string }; message?: string };
-  const status = maybeApiError.status ?? maybeApiError.statusCode;
-
-  if (typeof status === 'number' && status >= 400 && status < 600) {
-    res
-      .status(status)
-      .json(error('AUTH_ERROR', maybeApiError.body?.message ?? maybeApiError.message ?? 'Authentication error.', status));
-    return;
-  }
-
-  logger.error({ err }, 'Unhandled API error');
-  res.status(500).json(error('INTERNAL_ERROR', 'Unexpected server error.', 500));
-});
+app.use(errorHandler);
 
 const server = app.listen(API_PORT, () => {
   logger.info(`API running on port ${API_PORT}`);
