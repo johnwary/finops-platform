@@ -3,11 +3,10 @@ import { Decimal } from '@prisma/client/runtime/client';
 import nodeCron from 'node-cron';
 import { prisma } from '../lib/prisma.js';
 import { logger } from '../lib/logger.js';
-import { resolveProvisionBucket } from '../lib/lending.js';
-import type { LoanStatus } from '../generated/prisma/client.js';
+import { resolveProvisionBucket, AUTO_DEFAULT_STATUSES } from '../lib/lending.js';
+import type { Loan } from '../generated/prisma/client.js';
 
 const DEFAULT_DPD_THRESHOLD = 90;
-const AUTO_DEFAULT_STATUSES: LoanStatus[] = ['ACTIVE', 'IN_ARREARS'];
 
 export async function markPastDueInstallmentsOverdue(now = new Date()): Promise<number> {
   const pastDueInstallments = await prisma.loanInstallment.findMany({
@@ -94,6 +93,16 @@ export async function runAutoDefaultJob(): Promise<void> {
 
     try {
       await prisma.$transaction(async (tx) => {
+        // Re-read the loan under a row lock: a manual transition (paid, written off,
+        // canceled) may have landed between the candidate scan and now.
+        const locked = await tx.$queryRaw<Loan[]>`
+          SELECT * FROM "Loan" WHERE id = ${loan.id} FOR UPDATE
+        `;
+        const current = locked[0];
+        if (!current || current.deletedAt != null || !AUTO_DEFAULT_STATUSES.includes(current.status)) {
+          return;
+        }
+
         await tx.loan.update({
           where: { id: loan.id },
           data: { status: 'DEFAULTED', defaultedAt: now },
