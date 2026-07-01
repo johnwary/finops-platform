@@ -2,6 +2,7 @@ import { Decimal } from '@prisma/client/runtime/client';
 import { addMonths } from 'date-fns';
 import { prisma } from '../../lib/prisma.js';
 import { AppError } from '../../lib/response.js';
+import type { Deposit, Prisma } from '../../generated/prisma/client.js';
 import type {
   CreateDepositInput,
   UpdateDepositInput,
@@ -13,6 +14,23 @@ import type {
 
 interface Actor {
   id: string;
+}
+
+// Re-read a deposit under a row lock inside a transaction, guarding against a
+// concurrent state change (payout, withdrawal, close) between the initial read
+// and the write. Mirrors lockedLoan() in loans.service.
+async function lockedActiveDeposit(tx: Prisma.TransactionClient, id: string, verb: string): Promise<Deposit> {
+  const rows = await tx.$queryRaw<Deposit[]>`
+    SELECT * FROM "Deposit" WHERE id = ${id} FOR UPDATE
+  `;
+  const deposit = rows[0];
+  if (!deposit || deposit.deletedAt != null) {
+    throw new AppError('NOT_FOUND', 'Deposit not found.', 404);
+  }
+  if (deposit.status !== 'ACTIVE') {
+    throw new AppError('DEPOSIT_INVALID_STATE', `Cannot ${verb} a deposit with status ${deposit.status}.`, 409);
+  }
+  return deposit;
 }
 
 export async function createDeposit(data: CreateDepositInput, actor: Actor) {
@@ -139,20 +157,11 @@ export async function updateDeposit(id: string, data: UpdateDepositInput, actor:
 }
 
 export async function withdrawDeposit(id: string, data: WithdrawDepositInput, actor: Actor) {
-  const deposit = await prisma.deposit.findFirst({ where: { id, deletedAt: null } });
-  if (!deposit) throw new AppError('NOT_FOUND', 'Deposit not found.', 404);
-
-  if (deposit.status !== 'ACTIVE') {
-    throw new AppError(
-      'DEPOSIT_INVALID_STATE',
-      `Cannot withdraw a deposit with status ${deposit.status}.`,
-      409,
-    );
-  }
-
   const now = new Date();
 
   return prisma.$transaction(async (tx) => {
+    const deposit = await lockedActiveDeposit(tx, id, 'withdraw');
+
     const updated = await tx.deposit.update({
       where: { id },
       data: {
@@ -190,20 +199,11 @@ export async function withdrawDeposit(id: string, data: WithdrawDepositInput, ac
 }
 
 export async function closeDeposit(id: string, data: CloseDepositInput, actor: Actor) {
-  const deposit = await prisma.deposit.findFirst({ where: { id, deletedAt: null } });
-  if (!deposit) throw new AppError('NOT_FOUND', 'Deposit not found.', 404);
-
-  if (deposit.status !== 'ACTIVE') {
-    throw new AppError(
-      'DEPOSIT_INVALID_STATE',
-      `Cannot close a deposit with status ${deposit.status}.`,
-      409,
-    );
-  }
-
   const now = new Date();
 
   return prisma.$transaction(async (tx) => {
+    const deposit = await lockedActiveDeposit(tx, id, 'close');
+
     const updated = await tx.deposit.update({
       where: { id },
       data: {
@@ -240,24 +240,17 @@ export async function closeDeposit(id: string, data: CloseDepositInput, actor: A
 }
 
 export async function recordPayout(id: string, data: RecordPayoutInput, actor: Actor) {
-  const deposit = await prisma.deposit.findFirst({ where: { id, deletedAt: null } });
-  if (!deposit) throw new AppError('NOT_FOUND', 'Deposit not found.', 404);
-
-  if (deposit.status !== 'ACTIVE') {
-    throw new AppError(
-      'DEPOSIT_INVALID_STATE',
-      `Cannot record payout on a deposit with status ${deposit.status}.`,
-      409,
-    );
-  }
-
   const payoutAmount = new Decimal(data.amount);
-  const newTotalPayoutPaid = new Decimal(deposit.totalPayoutPaid).plus(payoutAmount);
-  const newPrincipalReturned = new Decimal(deposit.principalReturned).plus(
-    new Decimal(data.principalPortion),
-  );
 
   return prisma.$transaction(async (tx) => {
+    const deposit = await lockedActiveDeposit(tx, id, 'record payout on');
+
+    // Recompute from the locked row so concurrent payouts can't clobber the totals.
+    const newTotalPayoutPaid = new Decimal(deposit.totalPayoutPaid).plus(payoutAmount);
+    const newPrincipalReturned = new Decimal(deposit.principalReturned).plus(
+      new Decimal(data.principalPortion),
+    );
+
     const payout = await tx.depositPayout.create({
       data: {
         depositId: id,
