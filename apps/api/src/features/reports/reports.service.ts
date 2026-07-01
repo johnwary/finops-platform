@@ -1,18 +1,10 @@
 import { Decimal } from '@prisma/client/runtime/client';
-import { startOfDay, startOfWeek, startOfMonth, startOfQuarter, startOfYear } from 'date-fns';
 import { prisma } from '../../lib/prisma.js';
+import { startOfManilaPeriod } from '../../lib/time.js';
+import type { LoanStatus } from '../../generated/prisma/client.js';
 import type { PeriodInput } from './reports.schema.js';
 
-function periodStart(period: PeriodInput['period']): Date {
-  const now = new Date();
-  switch (period) {
-    case 'today':   return startOfDay(now);
-    case 'week':    return startOfWeek(now, { weekStartsOn: 1 });
-    case 'month':   return startOfMonth(now);
-    case 'quarter': return startOfQuarter(now);
-    case 'year':    return startOfYear(now);
-  }
-}
+const OUTSTANDING_LOAN_STATUSES: LoanStatus[] = ['ACTIVE', 'IN_ARREARS', 'DEFAULTED'];
 
 function sumDecimals(rows: { _sum: { [k: string]: Decimal | null } }, key: string): string {
   const val = (rows._sum as Record<string, Decimal | null>)[key];
@@ -25,7 +17,7 @@ function formatBorrowerName(b: { firstName: string; middleName?: string | null; 
 }
 
 export async function getSummary(input: PeriodInput) {
-  const since = periodStart(input.period);
+  const since = startOfManilaPeriod(input.period);
 
   const [
     // Borrowers
@@ -36,7 +28,7 @@ export async function getSummary(input: PeriodInput) {
     loanCounts,
     loanAmounts,
 
-    // Active loan portfolio
+    // Outstanding loan portfolio
     activeLoanPortfolio,
 
     // Collections in period
@@ -73,9 +65,9 @@ export async function getSummary(input: PeriodInput) {
       _sum: { amount: true, remainingBalance: true, totalPaid: true },
     }),
 
-    // Active loan portfolio totals
+    // Outstanding loan portfolio totals
     prisma.loan.aggregate({
-      where: { status: 'ACTIVE', deletedAt: null },
+      where: { status: { in: OUTSTANDING_LOAN_STATUSES }, deletedAt: null },
       _sum: { amount: true, remainingBalance: true, totalPaid: true },
       _count: true,
     }),
@@ -113,7 +105,7 @@ export async function getSummary(input: PeriodInput) {
 
     // Loans disbursed in period
     prisma.loan.aggregate({
-      where: { status: { in: ['ACTIVE', 'PAID', 'DEFAULTED'] }, disbursedAt: { gte: since }, deletedAt: null },
+      where: { status: { in: [...OUTSTANDING_LOAN_STATUSES, 'PAID'] }, disbursedAt: { gte: since }, deletedAt: null },
       _sum: { amount: true },
       _count: true,
     }),
@@ -156,9 +148,9 @@ export async function getSummary(input: PeriodInput) {
       },
       activePortfolio: {
         count: activeLoanPortfolio._count,
-        totalDisbursed: (activeLoanPortfolio._sum.amount ?? new Decimal(0)).toFixed(2),
-        totalRemaining: (activeLoanPortfolio._sum.remainingBalance ?? new Decimal(0)).toFixed(2),
-        totalCollected: (activeLoanPortfolio._sum.totalPaid ?? new Decimal(0)).toFixed(2),
+        totalDisbursed: (activeLoanPortfolio._sum?.amount ?? new Decimal(0)).toFixed(2),
+        totalRemaining: (activeLoanPortfolio._sum?.remainingBalance ?? new Decimal(0)).toFixed(2),
+        totalCollected: (activeLoanPortfolio._sum?.totalPaid ?? new Decimal(0)).toFixed(2),
       },
       periodDisbursements: {
         count: periodDisbursements._count,
@@ -193,7 +185,7 @@ export async function getSummary(input: PeriodInput) {
 export async function getOverdue() {
   const loans = await prisma.loan.findMany({
     where: {
-      status: 'ACTIVE',
+      status: { in: OUTSTANDING_LOAN_STATUSES },
       deletedAt: null,
       loanInstallments: { some: { status: 'OVERDUE' } },
     },
@@ -250,17 +242,17 @@ export async function getOverdue() {
 
 export async function getPortfolioAtRisk() {
   const [activePortfolio, atRiskPortfolio] = await Promise.all([
-    // Total outstanding balance of all ACTIVE loans
+    // Total outstanding balance of collectible loans
     prisma.loan.aggregate({
-      where: { status: 'ACTIVE', deletedAt: null },
+      where: { status: { in: OUTSTANDING_LOAN_STATUSES }, deletedAt: null },
       _sum: { remainingBalance: true },
       _count: true,
     }),
 
-    // Outstanding balance of ACTIVE loans with at least one OVERDUE installment
+    // Outstanding balance of collectible loans with at least one OVERDUE installment
     prisma.loan.findMany({
       where: {
-        status: 'ACTIVE',
+        status: { in: OUTSTANDING_LOAN_STATUSES },
         deletedAt: null,
         loanInstallments: { some: { status: 'OVERDUE' } },
       },
@@ -268,7 +260,7 @@ export async function getPortfolioAtRisk() {
     }),
   ]);
 
-  const totalPortfolio = activePortfolio._sum.remainingBalance ?? new Decimal(0);
+  const totalPortfolio = activePortfolio._sum?.remainingBalance ?? new Decimal(0);
   const atRiskBalance = atRiskPortfolio.reduce(
     (sum, l) => sum.plus(l.remainingBalance),
     new Decimal(0),

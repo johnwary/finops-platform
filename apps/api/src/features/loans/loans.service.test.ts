@@ -203,6 +203,7 @@ describe('loans.service approveLoan', () => {
 describe('loans.service disburseLoan', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.tx.$queryRaw.mockResolvedValue([approvedLoan]);
     mocks.tx.loan.update.mockResolvedValue({ ...activeLoan });
     mocks.tx.loanInstallment.createMany.mockResolvedValue({ count: 3 });
     mocks.tx.capitalEntry.create.mockResolvedValue({});
@@ -210,7 +211,7 @@ describe('loans.service disburseLoan', () => {
   });
 
   it('throws LOAN_INVALID_STATE when loan is not APPROVED', async () => {
-    mocks.prisma.loan.findFirst.mockResolvedValue(activeLoan);
+    mocks.tx.$queryRaw.mockResolvedValue([activeLoan]);
 
     await expect(
       disburseLoan('loan-1', { disbursementMethod: 'CASH' }, actor),
@@ -239,11 +240,11 @@ describe('loans.service disburseLoan', () => {
   });
 
   it('adjusts final amortizing installment so rounded principal equals loan amount', async () => {
-    mocks.prisma.loan.findFirst.mockResolvedValue({
+    mocks.tx.$queryRaw.mockResolvedValue([{
       ...approvedLoan,
       interestRate: new Decimal(0),
       termMonths: 3,
-    });
+    }]);
 
     await disburseLoan(
       'loan-1',
@@ -266,7 +267,7 @@ describe('loans.service disburseLoan', () => {
       ...approvedLoan,
       repaymentStructure: 'INTEREST_ONLY',
     };
-    mocks.prisma.loan.findFirst.mockResolvedValue(interestOnlyLoan);
+    mocks.tx.$queryRaw.mockResolvedValue([interestOnlyLoan]);
 
     await disburseLoan(
       'loan-1',
@@ -346,6 +347,7 @@ describe('loans.service recordPayment', () => {
     vi.clearAllMocks();
     mocks.prisma.loan.findFirst.mockResolvedValue(activeLoan);
     mocks.prisma.loanInstallment.findFirst.mockResolvedValue(null);
+    mocks.tx.$queryRaw.mockResolvedValue([activeLoan]);
     mocks.tx.loanPayment.create.mockImplementation(({ data }) => Promise.resolve({ id: 'payment-1', ...data }));
     mocks.tx.loanInstallment.findFirst.mockResolvedValue(null);
     mocks.tx.loanInstallment.updateMany.mockResolvedValue({ count: 0 });
@@ -443,7 +445,7 @@ describe('loans.service recordPayment', () => {
   });
 
   it('throws LOAN_INVALID_STATE when loan is not ACTIVE or IN_ARREARS', async () => {
-    mocks.prisma.loan.findFirst.mockResolvedValue(canceledLoan);
+    mocks.tx.$queryRaw.mockResolvedValue([canceledLoan]);
 
     await expect(
       recordPayment('loan-1', { amount: 100, method: 'CASH' }, actor),
@@ -451,7 +453,7 @@ describe('loans.service recordPayment', () => {
   });
 
   it('throws LOAN_LOCKED when loan is locked', async () => {
-    mocks.prisma.loan.findFirst.mockResolvedValue({ ...activeLoan, locked: true });
+    mocks.tx.$queryRaw.mockResolvedValue([{ ...activeLoan, locked: true }]);
 
     await expect(
       recordPayment('loan-1', { amount: 100, method: 'CASH' }, actor),
@@ -459,9 +461,11 @@ describe('loans.service recordPayment', () => {
   });
 
   it('throws PAYMENT_BELOW_MINIMUM when payment is less than outstanding interest', async () => {
-    mocks.prisma.loanInstallment.findFirst.mockResolvedValue({
+    mocks.tx.loanInstallment.findFirst.mockResolvedValue({
       id: 'installment-1',
+      principal: new Decimal(100),
       interest: new Decimal(50),
+      dueDate: new Date(),
       allocations: [],
     });
 
@@ -471,7 +475,7 @@ describe('loans.service recordPayment', () => {
   });
 
   it('accepts payment on IN_ARREARS loan', async () => {
-    mocks.prisma.loan.findFirst.mockResolvedValue(arrearsLoan);
+    mocks.tx.$queryRaw.mockResolvedValue([arrearsLoan]);
     mocks.tx.loanInstallment.findMany.mockResolvedValue([
       {
         id: 'installment-1',
@@ -488,10 +492,10 @@ describe('loans.service recordPayment', () => {
 
   it('marks loan PAID and writes LOAN_PAID_OFF log when balance reaches zero', async () => {
     // remainingBalance must equal the principal portion of this payment (100) for isPaidOff to be true
-    mocks.prisma.loan.findFirst.mockResolvedValue({
+    mocks.tx.$queryRaw.mockResolvedValue([{
       ...activeLoan,
       remainingBalance: new Decimal(100),
-    });
+    }]);
 
     const installment = {
       id: 'installment-1',
@@ -751,10 +755,10 @@ describe('loans.service writeOffLoan', () => {
 describe('loans.service recordPayment penalty-first allocation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.prisma.loan.findFirst.mockResolvedValue({
+    mocks.tx.$queryRaw.mockResolvedValue([{
       ...activeLoan,
       penaltyRate: new Decimal('0.001'), // 0.1% daily
-    });
+    }]);
     mocks.prisma.loanInstallment.findFirst.mockResolvedValue(null);
     mocks.tx.loanPayment.create.mockImplementation(({ data }) => Promise.resolve({ id: 'payment-1', ...data }));
     mocks.tx.loanInstallment.findFirst.mockResolvedValue(null);

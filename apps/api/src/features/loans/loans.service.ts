@@ -2,9 +2,11 @@ import { Decimal } from '@prisma/client/runtime/client';
 import { randomUUID } from 'node:crypto';
 import { addMonths, addWeeks, addDays, differenceInDays } from 'date-fns';
 import { prisma } from '../../lib/prisma.js';
+import type { Loan } from '../../generated/prisma/client.js';
 import { AppError } from '../../lib/response.js';
 import { resolveProvisionBucket } from '../../lib/lending.js';
 import { isUniqueViolation } from '../../lib/prisma-error.js';
+import { normalizePhone } from '../../lib/phone.js';
 import type {
   RestructureLoanInput,
   CreateLoanInput,
@@ -33,13 +35,6 @@ function toDecimal(value: number | null | undefined): Decimal | undefined {
 function receiptNumber(date = new Date()): string {
   const day = date.toISOString().slice(0, 10).replaceAll('-', '');
   return `RCPT-${day}-${randomUUID().slice(0, 8).toUpperCase()}`;
-}
-
-function normalizePhone(phone: string): string {
-  const digits = phone.replace(/\D/g, '');
-  if (digits.startsWith('63') && digits.length === 12) return '0' + digits.slice(2);
-  if (digits.length === 10) return '0' + digits;
-  return digits;
 }
 
 function installmentDueDate(start: Date, frequency: string, seq: number): Date {
@@ -425,30 +420,36 @@ export async function approveLoan(id: string, data: ApproveLoanInput, actor: Act
 }
 
 export async function disburseLoan(id: string, data: DisburseLoanInput, actor: Actor) {
-  const loan = await prisma.loan.findFirst({ where: { id, deletedAt: null } });
-  if (!loan) throw new AppError('NOT_FOUND', 'Loan not found.', 404);
-
-  if (loan.status !== 'APPROVED') {
-    throw new AppError('LOAN_INVALID_STATE', `Cannot disburse a loan with status ${loan.status}.`, 409);
-  }
-
   // Use noon Manila time (UTC+8 = UTC+480 min) to avoid UTC day-shift on date-only input
   const disbursedAt = data.disbursedAt
     ? new Date(Date.UTC(data.disbursedAt.getUTCFullYear(), data.disbursedAt.getUTCMonth(), data.disbursedAt.getUTCDate(), 4, 0, 0))
     : new Date();
-  const endDate = addMonths(disbursedAt, loan.termMonths);
-
-  const installments = buildInstallments(
-    id,
-    Number(loan.amount),
-    Number(loan.interestRate),
-    loan.termMonths,
-    loan.paymentFrequency,
-    loan.repaymentStructure,
-    disbursedAt,
-  );
 
   return prisma.$transaction(async (tx) => {
+    const rows = await tx.$queryRaw<Loan[]>`
+      SELECT *
+      FROM "Loan"
+      WHERE id = ${id}
+      FOR UPDATE
+    `;
+    const loan = rows[0];
+    if (!loan || loan.deletedAt != null) throw new AppError('NOT_FOUND', 'Loan not found.', 404);
+
+    if (loan.status !== 'APPROVED') {
+      throw new AppError('LOAN_INVALID_STATE', `Cannot disburse a loan with status ${loan.status}.`, 409);
+    }
+
+    const endDate = addMonths(disbursedAt, loan.termMonths);
+    const installments = buildInstallments(
+      id,
+      Number(loan.amount),
+      Number(loan.interestRate),
+      loan.termMonths,
+      loan.paymentFrequency,
+      loan.repaymentStructure,
+      disbursedAt,
+    );
+
     const updated = await tx.loan.update({
       where: { id },
       data: {
@@ -530,49 +531,55 @@ export async function cancelLoan(id: string, data: CancelLoanInput, actor: Actor
 }
 
 export async function recordPayment(id: string, data: RecordPaymentInput, actor: Actor) {
-  const loan = await prisma.loan.findFirst({ where: { id, deletedAt: null } });
-  if (!loan) throw new AppError('NOT_FOUND', 'Loan not found.', 404);
-
-  if (loan.status !== 'ACTIVE' && loan.status !== 'IN_ARREARS') {
-    throw new AppError('LOAN_INVALID_STATE', `Cannot record payment on a loan with status ${loan.status}.`, 409);
-  }
-
-  if (loan.locked) {
-    throw new AppError('LOAN_LOCKED', 'Loan is locked and cannot accept payments.', 409);
-  }
-
   const paymentAmount = new Decimal(data.amount);
-  const dailyPenaltyRate = loan.penaltyRate ? new Decimal(loan.penaltyRate) : new Decimal(0);
   const asOf = data.paidAt ?? new Date();
 
-  const oldestUnpaid = await prisma.loanInstallment.findFirst({
-    where: { loanId: id, status: { not: 'PAID' } },
-    orderBy: [{ dueDate: 'asc' }, { sequence: 'asc' }],
-    include: { allocations: { select: { principalApplied: true, interestApplied: true, penaltiesApplied: true } } },
-  });
-
-  if (oldestUnpaid) {
-    const alreadyInterest = oldestUnpaid.allocations.reduce(
-      (sum, a) => sum.plus(a.interestApplied),
-      new Decimal(0),
-    );
-    const interestOutstanding = new Decimal(oldestUnpaid.interest).minus(alreadyInterest);
-    const penaltyDue = computeAccruedPenalty(
-      { ...oldestUnpaid, dueDate: oldestUnpaid.dueDate, allocations: oldestUnpaid.allocations },
-      dailyPenaltyRate,
-      asOf,
-    );
-    const minimumDue = penaltyDue.plus(maxZero(interestOutstanding));
-    if (minimumDue.greaterThan(0) && paymentAmount.lessThan(minimumDue)) {
-      throw new AppError(
-        'PAYMENT_BELOW_MINIMUM',
-        `Payment must be at least the outstanding penalties and interest on the oldest unpaid installment (${minimumDue.toFixed(2)}).`,
-        409,
-      );
-    }
-  }
-
   return prisma.$transaction(async (tx) => {
+    const rows = await tx.$queryRaw<Loan[]>`
+      SELECT *
+      FROM "Loan"
+      WHERE id = ${id}
+      FOR UPDATE
+    `;
+    const loan = rows[0];
+    if (!loan || loan.deletedAt != null) throw new AppError('NOT_FOUND', 'Loan not found.', 404);
+
+    if (loan.status !== 'ACTIVE' && loan.status !== 'IN_ARREARS') {
+      throw new AppError('LOAN_INVALID_STATE', `Cannot record payment on a loan with status ${loan.status}.`, 409);
+    }
+
+    if (loan.locked) {
+      throw new AppError('LOAN_LOCKED', 'Loan is locked and cannot accept payments.', 409);
+    }
+
+    const dailyPenaltyRate = loan.penaltyRate ? new Decimal(loan.penaltyRate) : new Decimal(0);
+    const oldestUnpaid = await tx.loanInstallment.findFirst({
+      where: { loanId: id, status: { not: 'PAID' } },
+      orderBy: [{ dueDate: 'asc' }, { sequence: 'asc' }],
+      include: { allocations: { select: { principalApplied: true, interestApplied: true, penaltiesApplied: true } } },
+    });
+
+    if (oldestUnpaid) {
+      const alreadyInterest = oldestUnpaid.allocations.reduce(
+        (sum, a) => sum.plus(a.interestApplied),
+        new Decimal(0),
+      );
+      const interestOutstanding = new Decimal(oldestUnpaid.interest).minus(alreadyInterest);
+      const penaltyDue = computeAccruedPenalty(
+        { ...oldestUnpaid, dueDate: oldestUnpaid.dueDate, allocations: oldestUnpaid.allocations },
+        dailyPenaltyRate,
+        asOf,
+      );
+      const minimumDue = penaltyDue.plus(maxZero(interestOutstanding));
+      if (minimumDue.greaterThan(0) && paymentAmount.lessThan(minimumDue)) {
+        throw new AppError(
+          'PAYMENT_BELOW_MINIMUM',
+          `Payment must be at least the outstanding penalties and interest on the oldest unpaid installment (${minimumDue.toFixed(2)}).`,
+          409,
+        );
+      }
+    }
+
     const installments = await tx.loanInstallment.findMany({
       where: { loanId: id, status: { not: 'PAID' } },
       orderBy: [{ dueDate: 'asc' }, { sequence: 'asc' }],

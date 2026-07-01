@@ -1,12 +1,18 @@
 import { z } from 'zod';
 
+const dateStringSchema = z
+  .string()
+  .refine((v) => !isNaN(Date.parse(v)), { message: 'Invalid date' })
+  .transform((v) => new Date(v))
+  .refine((d) => d <= new Date(), { message: 'Date cannot be in the future' });
+
 export const createLoanSchema = z.object({
   borrowerId: z.uuid(),
   type: z.enum(['SALARY', 'BUSINESS', 'PERSONAL', 'PURCHASE_ORDER', 'PENSION', 'INVESTMENT']),
   amount: z.coerce.number().positive(),
   interestRate: z.coerce.number().min(0).max(1), // decimal fraction e.g. 0.03 = 3%
   termMonths: z.coerce.number().int().min(1).max(360),
-  applicationDate: z.coerce.date(),
+  applicationDate: dateStringSchema,
   paymentFrequency: z.enum(['MONTHLY', 'BIWEEKLY', 'WEEKLY', 'DAILY']).default('MONTHLY'),
   repaymentStructure: z.enum(['AMORTIZING', 'INTEREST_ONLY']).default('AMORTIZING'),
   loanFee: z.coerce.number().min(0).optional(),
@@ -14,12 +20,6 @@ export const createLoanSchema = z.object({
   purpose: z.string().max(500).trim().optional(),
   notes: z.string().max(2000).trim().optional(),
 });
-
-const dateStringSchema = z
-  .string()
-  .refine((v) => !isNaN(Date.parse(v)), { message: 'Invalid date' })
-  .transform((v) => new Date(v))
-  .refine((d) => d <= new Date(), { message: 'Date cannot be in the future' });
 
 export const approveLoanSchema = z.object({
   approvedAt: dateStringSchema.optional(),

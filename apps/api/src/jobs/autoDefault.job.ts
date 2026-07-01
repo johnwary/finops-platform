@@ -4,8 +4,10 @@ import nodeCron from 'node-cron';
 import { prisma } from '../lib/prisma.js';
 import { logger } from '../lib/logger.js';
 import { resolveProvisionBucket } from '../lib/lending.js';
+import type { LoanStatus } from '../generated/prisma/client.js';
 
 const DEFAULT_DPD_THRESHOLD = 90;
+const AUTO_DEFAULT_STATUSES: LoanStatus[] = ['ACTIVE', 'IN_ARREARS'];
 
 export async function markPastDueInstallmentsOverdue(now = new Date()): Promise<number> {
   const pastDueInstallments = await prisma.loanInstallment.findMany({
@@ -13,7 +15,7 @@ export async function markPastDueInstallmentsOverdue(now = new Date()): Promise<
       status: 'SCHEDULED',
       dueDate: { lt: now },
       loan: {
-        status: 'ACTIVE',
+        status: { in: AUTO_DEFAULT_STATUSES },
         deletedAt: null,
       },
     },
@@ -61,10 +63,10 @@ export async function runAutoDefaultJob(): Promise<void> {
   const now = new Date();
   const markedOverdue = await markPastDueInstallmentsOverdue(now);
 
-  // Find ACTIVE loans that have at least one OVERDUE installment
+  // Find collectible loans that have at least one OVERDUE installment
   const candidates = await prisma.loan.findMany({
     where: {
-      status: 'ACTIVE',
+      status: { in: AUTO_DEFAULT_STATUSES },
       deletedAt: null,
       loanInstallments: { some: { status: 'OVERDUE' } },
     },

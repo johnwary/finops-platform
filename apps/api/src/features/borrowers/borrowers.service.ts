@@ -2,6 +2,7 @@ import { Decimal } from '@prisma/client/runtime/client';
 import { prisma } from '../../lib/prisma.js';
 import { AppError } from '../../lib/response.js';
 import { isUniqueViolation } from '../../lib/prisma-error.js';
+import { normalizePhone } from '../../lib/phone.js';
 import type {
   CreateBorrowerInput,
   ListBorrowerActivityInput,
@@ -11,13 +12,6 @@ import type {
 
 interface Actor {
   id: string;
-}
-
-function normalizePhone(phone: string): string {
-  const digits = phone.replace(/\D/g, '');
-  if (digits.startsWith('63') && digits.length === 12) return '0' + digits.slice(2);
-  if (digits.length === 10) return '0' + digits;
-  return digits;
 }
 
 function formatBorrowerName(b: { firstName: string; middleName?: string | null; lastName: string }): string {

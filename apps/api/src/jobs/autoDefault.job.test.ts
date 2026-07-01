@@ -60,7 +60,7 @@ describe('autoDefault.job', () => {
           status: 'SCHEDULED',
           dueDate: { lt: now },
           loan: {
-            status: 'ACTIVE',
+            status: { in: ['ACTIVE', 'IN_ARREARS'] },
             deletedAt: null,
           },
         },
