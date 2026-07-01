@@ -126,7 +126,8 @@ export async function listDepositors({ cursor, limit, search }: ListDepositorsIn
   });
 
   const hasMore = depositors.length > limit;
-  const data = hasMore ? depositors.slice(0, limit) : depositors;
+  const sliced = hasMore ? depositors.slice(0, limit) : depositors;
+  const data = sliced.map(({ _count, ...d }) => ({ ...d, depositCount: _count.deposits }));
   const nextCursor = hasMore ? (data[data.length - 1]?.id ?? null) : null;
 
   return { data, meta: { nextCursor, hasMore, limit } };
