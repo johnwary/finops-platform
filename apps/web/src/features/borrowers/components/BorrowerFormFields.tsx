@@ -84,7 +84,7 @@ export function BorrowerFormFields({ register, setValue, control, errors }: Borr
         <Select
           value={gender ?? ''}
           onValueChange={(val) =>
-            setValue('gender', val as CreateBorrowerInput['gender'], { shouldValidate: true })
+            setValue('gender', val as CreateBorrowerInput['gender'], { shouldValidate: true, shouldDirty: true })
           }
         >
           <SelectTrigger id="gender">
@@ -108,7 +108,7 @@ export function BorrowerFormFields({ register, setValue, control, errors }: Borr
         <Select
           value={idType ?? ''}
           onValueChange={(val) =>
-            setValue('idType', val as CreateBorrowerInput['idType'], { shouldValidate: true })
+            setValue('idType', val as CreateBorrowerInput['idType'], { shouldValidate: true, shouldDirty: true })
           }
         >
           <SelectTrigger id="idType">
@@ -155,6 +155,7 @@ export function BorrowerFormFields({ register, setValue, control, errors }: Borr
           onValueChange={(val) =>
             setValue('incomeSource', val as CreateBorrowerInput['incomeSource'], {
               shouldValidate: true,
+              shouldDirty: true,
             })
           }
         >
@@ -180,7 +181,7 @@ export function BorrowerFormFields({ register, setValue, control, errors }: Borr
           id="monthlyIncome"
           placeholder="0.00"
           value={monthlyIncome ?? undefined}
-          onChange={(val) => setValue('monthlyIncome', val, { shouldValidate: true })}
+          onChange={(val) => setValue('monthlyIncome', val, { shouldValidate: true, shouldDirty: true })}
           aria-invalid={!!errors.monthlyIncome}
         />
         <FieldError errors={[errors.monthlyIncome]} />

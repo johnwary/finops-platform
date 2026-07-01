@@ -58,7 +58,7 @@ export function EditBorrowerForm({ borrower, onSuccess }: EditBorrowerFormProps)
     setValue,
     setError,
     control,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<CreateBorrowerInput>({
     resolver: zodResolver(createBorrowerSchema) as Resolver<CreateBorrowerInput>,
     defaultValues: defaults,
@@ -66,6 +66,7 @@ export function EditBorrowerForm({ borrower, onSuccess }: EditBorrowerFormProps)
 
   function handleUpdate(values: CreateBorrowerInput) {
     const input = updateBorrowerSchema.parse(diffValues(defaults, values))
+    if (Object.keys(input).length === 0) return
     updateBorrower.mutate(
       { id: borrower.id, input },
       {
@@ -98,7 +99,7 @@ export function EditBorrowerForm({ borrower, onSuccess }: EditBorrowerFormProps)
             Cancel
           </Button>
         </SheetClose>
-        <Button type="submit" disabled={updateBorrower.isPending}>
+        <Button type="submit" disabled={updateBorrower.isPending || !isDirty}>
           {updateBorrower.isPending ? <Spinner data-icon="inline-start" /> : null}
           {updateBorrower.isPending ? 'Saving…' : 'Save Changes'}
         </Button>

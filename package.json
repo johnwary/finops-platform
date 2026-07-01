@@ -21,7 +21,7 @@
     "web:lint": "pnpm --filter web lint",
     "web:preview": "pnpm --filter web preview"
   },
-  "packageManager": "pnpm@11.8.0",
+  "packageManager": "pnpm@11.9.0",
   "engines": {
     "node": ">=20",
     "pnpm": ">=11"

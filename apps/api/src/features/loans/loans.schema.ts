@@ -37,7 +37,7 @@ export const cancelLoanSchema = z.object({
 
 export const recordPaymentSchema = z.object({
   amount: z.coerce.number().positive(),
-  paidAt: z.coerce.date().optional(),
+  paidAt: dateStringSchema.optional(),
   method: z.enum(['CASH', 'BANK_TRANSFER', 'GCASH', 'CHECK']),
   reference: z.string().max(255).trim().optional(),
   notes: z.string().max(2000).trim().optional(),

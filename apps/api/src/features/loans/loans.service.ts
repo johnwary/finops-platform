@@ -35,6 +35,13 @@ function receiptNumber(date = new Date()): string {
   return `RCPT-${day}-${randomUUID().slice(0, 8).toUpperCase()}`;
 }
 
+function normalizePhone(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.startsWith('63') && digits.length === 12) return '0' + digits.slice(2);
+  if (digits.length === 10) return '0' + digits;
+  return digits;
+}
+
 function installmentDueDate(start: Date, frequency: string, seq: number): Date {
   switch (frequency) {
     case 'BIWEEKLY':
@@ -353,10 +360,13 @@ export async function listLoans({ cursor, limit, borrowerId, status, search, typ
   if (status) where.status = status;
   if (type) where.type = type;
   if (search) {
+    const normalizedPhone = normalizePhone(search);
     where.OR = [
       { borrower: { firstName: { contains: search, mode: 'insensitive' } } },
       { borrower: { middleName: { contains: search, mode: 'insensitive' } } },
       { borrower: { lastName: { contains: search, mode: 'insensitive' } } },
+      { borrower: { email: { contains: search, mode: 'insensitive' } } },
+      ...(normalizedPhone ? [{ borrower: { phoneNormalized: { contains: normalizedPhone } } }] : []),
     ];
   }
 
