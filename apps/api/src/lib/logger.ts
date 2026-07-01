@@ -7,6 +7,9 @@ export const logger = pino({
     'req.body.idNumber',
     'req.body.accountNumber',
     'req.body.fullName',
+    'req.body.phone',
+    'req.body.email',
+    'req.body.address',
     'req.headers.authorization',
   ],
   transport:
