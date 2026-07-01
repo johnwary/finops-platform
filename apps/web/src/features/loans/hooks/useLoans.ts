@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { apiFetchList } from '@/lib/api'
+import { toSearchParams } from '@/lib/query'
 import type { Loan, LoanStatus, LoanType } from '../types'
 
 interface UseLoansParams {
@@ -11,17 +12,11 @@ interface UseLoansParams {
 }
 
 export function useLoans(params?: UseLoansParams) {
-  const query = new URLSearchParams()
-  if (params?.status) query.set('status', params.status)
-  if (params?.type) query.set('type', params.type)
-  if (params?.search) query.set('search', params.search)
-  if (params?.borrowerId) query.set('borrowerId', params.borrowerId)
-  if (params?.cursor) query.set('cursor', params.cursor)
-  const qs = query.toString()
+  const qs = toSearchParams({ status: params?.status, type: params?.type, search: params?.search, borrowerId: params?.borrowerId, cursor: params?.cursor })
 
   return useQuery({
     queryKey: ['loans', params],
-    queryFn: () => apiFetchList<Loan>(`/api/v1/loans${qs ? `?${qs}` : ''}`),
+    queryFn: () => apiFetchList<Loan>(`/api/v1/loans${qs}`),
     staleTime: 3 * 60 * 1000,
   })
 }
