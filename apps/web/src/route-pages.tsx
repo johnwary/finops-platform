@@ -8,6 +8,7 @@ export const BorrowerDetailPage = lazy(() => import('@/features/borrowers/compon
 export const BorrowersListPage = lazy(() => import('@/features/borrowers/components/BorrowersListPage').then((m) => ({ default: m.BorrowersListPage })))
 export const CollectionsPage = lazy(() => import('@/features/collections/components/CollectionsPage').then((m) => ({ default: m.CollectionsPage })))
 export const DashboardPage = lazy(() => import('@/features/dashboard/components/DashboardPage').then((m) => ({ default: m.DashboardPage })))
+export const DepositorDetailPage = lazy(() => import('@/features/depositors/components/DepositorDetailPage').then((m) => ({ default: m.DepositorDetailPage })))
 export const DepositorsListPage = lazy(() => import('@/features/depositors/components/DepositorsListPage').then((m) => ({ default: m.DepositorsListPage })))
 export const LoanDetailPage = lazy(() => import('@/features/loans/components/LoanDetailPage').then((m) => ({ default: m.LoanDetailPage })))
 export const LoansListPage = lazy(() => import('@/features/loans/components/LoansListPage').then((m) => ({ default: m.LoansListPage })))

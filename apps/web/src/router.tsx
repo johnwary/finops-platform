@@ -9,6 +9,7 @@ import {
   BorrowersListPage,
   CollectionsPage,
   DashboardPage,
+  DepositorDetailPage,
   DepositorsListPage,
   ForgotPasswordPage,
   InviteAcceptPage,
@@ -87,6 +88,10 @@ export const router = createBrowserRouter([
           {
             path: 'depositors',
             element: page(<DepositorsListPage />),
+          },
+          {
+            path: 'depositors/:id',
+            element: page(<DepositorDetailPage />),
           },
           {
             path: 'collections',
