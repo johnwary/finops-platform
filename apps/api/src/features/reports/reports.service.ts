@@ -1,10 +1,8 @@
 import { Decimal } from '@prisma/client/runtime/client';
 import { prisma } from '../../lib/prisma.js';
 import { startOfManilaPeriod } from '../../lib/time.js';
-import type { LoanStatus } from '../../generated/prisma/client.js';
+import { OUTSTANDING_LOAN_STATUSES } from '../../lib/lending.js';
 import type { PeriodInput } from './reports.schema.js';
-
-const OUTSTANDING_LOAN_STATUSES: LoanStatus[] = ['ACTIVE', 'IN_ARREARS', 'DEFAULTED'];
 
 function sumDecimals(rows: { _sum: { [k: string]: Decimal | null } }, key: string): string {
   const val = (rows._sum as Record<string, Decimal | null>)[key];
