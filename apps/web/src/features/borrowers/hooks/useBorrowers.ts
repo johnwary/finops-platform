@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { apiFetchList } from '@/lib/api'
+import { toSearchParams } from '@/lib/query'
 import type { BorrowerListItem } from '../types'
 
 interface UseBorrowersParams {
@@ -10,16 +11,11 @@ interface UseBorrowersParams {
 }
 
 export function useBorrowers(params?: UseBorrowersParams) {
-  const query = new URLSearchParams()
-  if (params?.search) query.set('search', params.search)
-  if (params?.cursor) query.set('cursor', params.cursor)
-  if (params?.limit) query.set('limit', String(params.limit))
-  if (params?.deleted) query.set('deleted', 'true')
-  const qs = query.toString()
+  const qs = toSearchParams({ search: params?.search, cursor: params?.cursor, limit: params?.limit, deleted: params?.deleted })
 
   return useQuery({
     queryKey: ['borrowers', { search: params?.search, cursor: params?.cursor, limit: params?.limit, deleted: params?.deleted }],
-    queryFn: () => apiFetchList<BorrowerListItem>(`/api/v1/borrowers${qs ? `?${qs}` : ''}`),
+    queryFn: () => apiFetchList<BorrowerListItem>(`/api/v1/borrowers${qs}`),
     staleTime: 3 * 60 * 1000,
   })
 }
