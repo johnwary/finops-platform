@@ -31,8 +31,10 @@ export interface DashboardSummary {
       pending: LoanStatusEntry
       approved: LoanStatusEntry
       active: LoanStatusEntry
+      inArrears: LoanStatusEntry
       paid: LoanStatusEntry
       defaulted: LoanStatusEntry
+      writtenOff: LoanStatusEntry
       canceled: LoanStatusEntry
     }
     activePortfolio: {

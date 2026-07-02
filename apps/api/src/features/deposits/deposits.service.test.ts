@@ -19,10 +19,21 @@ const mocks = vi.hoisted(() => {
 
 vi.mock('../../lib/prisma', () => ({ prisma: mocks.prisma }));
 
-import { recordPayout } from './deposits.service.js';
+import { closeDeposit, recordPayout, withdrawDeposit } from './deposits.service.js';
 import { recordPayoutSchema } from './deposits.schema.js';
 
 const actor = { id: 'user-1' };
+
+const activeDeposit = {
+  id: 'dep-1',
+  depositorId: 'depositor-1',
+  status: 'ACTIVE',
+  deletedAt: null,
+  amount: new Decimal(100_000),
+  totalPayoutPaid: new Decimal(0),
+  principalReturned: new Decimal(0),
+  notes: null,
+};
 
 describe('recordPayout locked recheck', () => {
   beforeEach(() => {
@@ -45,7 +56,7 @@ describe('recordPayout locked recheck', () => {
 
   it('accumulates totals from the locked row', async () => {
     mocks.tx.$queryRaw.mockResolvedValue([
-      { id: 'dep-1', status: 'ACTIVE', deletedAt: null, totalPayoutPaid: new Decimal(100), principalReturned: new Decimal(50) },
+      { id: 'dep-1', status: 'ACTIVE', deletedAt: null, amount: new Decimal(100_000), totalPayoutPaid: new Decimal(100), principalReturned: new Decimal(50) },
     ]);
 
     await recordPayout('dep-1', { amount: 100, principalPortion: 60, returnPortion: 40, method: 'CASH' }, actor);
@@ -57,6 +68,68 @@ describe('recordPayout locked recheck', () => {
           principalReturned: new Decimal(110),
         }),
       }),
+    );
+  });
+});
+
+describe('recordPayout principal cap', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.tx.depositPayout.create.mockResolvedValue({ id: 'payout-1' });
+  });
+
+  it('rejects a payout whose cumulative principal exceeds the deposit amount', async () => {
+    mocks.tx.$queryRaw.mockResolvedValue([
+      { ...activeDeposit, principalReturned: new Decimal(99_950) },
+    ]);
+
+    await expect(
+      recordPayout('dep-1', { amount: 100, principalPortion: 100, returnPortion: 0, method: 'CASH' }, actor),
+    ).rejects.toMatchObject({ code: 'PAYOUT_EXCEEDS_PRINCIPAL', status: 409 });
+
+    expect(mocks.tx.depositPayout.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('deposit termination principal outflow', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.tx.deposit.update.mockResolvedValue({});
+  });
+
+  it('close only outflows the principal not yet returned via payouts', async () => {
+    mocks.tx.$queryRaw.mockResolvedValue([
+      { ...activeDeposit, principalReturned: new Decimal(40_000) },
+    ]);
+
+    await closeDeposit('dep-1', {}, actor);
+
+    expect(mocks.tx.capitalEntry.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          flowType: 'OUTFLOW',
+          source: 'DEPOSIT_WITHDRAWAL',
+          amount: new Decimal(60_000),
+        }),
+      }),
+    );
+    expect(mocks.tx.deposit.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ principalReturned: new Decimal(100_000) }),
+      }),
+    );
+  });
+
+  it('withdraw skips the capital entry when principal was fully returned already', async () => {
+    mocks.tx.$queryRaw.mockResolvedValue([
+      { ...activeDeposit, principalReturned: new Decimal(100_000) },
+    ]);
+
+    await withdrawDeposit('dep-1', {}, actor);
+
+    expect(mocks.tx.capitalEntry.create).not.toHaveBeenCalled();
+    expect(mocks.tx.activityLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: 'DEPOSIT_WITHDRAWN' }) }),
     );
   });
 });

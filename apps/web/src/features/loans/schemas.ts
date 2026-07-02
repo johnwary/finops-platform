@@ -36,6 +36,7 @@ export const disburseLoanSchema = z.object({
     .string()
     .min(1, { message: 'Disbursement date required' })
     .refine((val) => new Date(val) <= new Date(), { message: 'Disbursement date cannot be in the future' }),
+  collectFee: z.boolean().optional(),
   notes: z.string().max(2000).optional(),
 })
 

@@ -119,15 +119,17 @@ function ManagerDashboard() {
       {/* Loan status breakdown */}
       <div className="flex flex-col gap-3">
         <SectionHeader title="Loans by Status" />
-        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="grid gap-3 sm:grid-cols-4 lg:grid-cols-8">
           {(
             [
-              ['Pending',   summary?.loans.byStatus.pending,   'outline'],
-              ['Approved',  summary?.loans.byStatus.approved,  'secondary'],
-              ['Active',    summary?.loans.byStatus.active,    'default'],
-              ['Paid',      summary?.loans.byStatus.paid,      'default'],
-              ['Defaulted', summary?.loans.byStatus.defaulted, 'destructive'],
-              ['Canceled',  summary?.loans.byStatus.canceled,  'outline'],
+              ['Pending',     summary?.loans.byStatus.pending,    'outline'],
+              ['Approved',    summary?.loans.byStatus.approved,   'secondary'],
+              ['Active',      summary?.loans.byStatus.active,     'default'],
+              ['In Arrears',  summary?.loans.byStatus.inArrears,  'destructive'],
+              ['Paid',        summary?.loans.byStatus.paid,       'default'],
+              ['Defaulted',   summary?.loans.byStatus.defaulted,  'destructive'],
+              ['Written Off', summary?.loans.byStatus.writtenOff, 'outline'],
+              ['Canceled',    summary?.loans.byStatus.canceled,   'outline'],
             ] as const
           ).map(([label, stat, variant]) => (
             <Card key={label}>

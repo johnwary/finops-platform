@@ -214,7 +214,7 @@ describe('loans.service disburseLoan', () => {
     mocks.tx.$queryRaw.mockResolvedValue([activeLoan]);
 
     await expect(
-      disburseLoan('loan-1', { disbursementMethod: 'CASH' }, actor),
+      disburseLoan('loan-1', { disbursementMethod: 'CASH', collectFee: true }, actor),
     ).rejects.toMatchObject({ code: 'LOAN_INVALID_STATE', status: 409 });
 
     expect(mocks.tx.loanInstallment.createMany).not.toHaveBeenCalled();
@@ -225,7 +225,7 @@ describe('loans.service disburseLoan', () => {
 
     await disburseLoan(
       'loan-1',
-      { disbursementMethod: 'CASH', disbursedAt: new Date('2024-01-01') },
+      { disbursementMethod: 'CASH', disbursedAt: new Date('2024-01-01'), collectFee: true },
       actor,
     );
 
@@ -248,7 +248,7 @@ describe('loans.service disburseLoan', () => {
 
     await disburseLoan(
       'loan-1',
-      { disbursementMethod: 'CASH', disbursedAt: new Date('2024-01-01') },
+      { disbursementMethod: 'CASH', disbursedAt: new Date('2024-01-01'), collectFee: true },
       actor,
     );
 
@@ -271,7 +271,7 @@ describe('loans.service disburseLoan', () => {
 
     await disburseLoan(
       'loan-1',
-      { disbursementMethod: 'CASH', disbursedAt: new Date('2024-01-01') },
+      { disbursementMethod: 'CASH', disbursedAt: new Date('2024-01-01'), collectFee: true },
       actor,
     );
 
@@ -288,7 +288,7 @@ describe('loans.service disburseLoan', () => {
   it('writes capital outflow and audit log', async () => {
     mocks.prisma.loan.findFirst.mockResolvedValue(approvedLoan);
 
-    await disburseLoan('loan-1', { disbursementMethod: 'GCASH' }, actor);
+    await disburseLoan('loan-1', { disbursementMethod: 'GCASH', collectFee: true }, actor);
 
     expect(mocks.tx.capitalEntry.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -298,6 +298,45 @@ describe('loans.service disburseLoan', () => {
     expect(mocks.tx.activityLog.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ action: 'LOAN_DISBURSED' }) }),
     );
+  });
+
+  it('sets endDate to the final installment due date', async () => {
+    await disburseLoan(
+      'loan-1',
+      { disbursementMethod: 'CASH', disbursedAt: new Date('2024-01-01'), collectFee: true },
+      actor,
+    );
+
+    const installments = mocks.tx.loanInstallment.createMany.mock.calls[0][0].data;
+    const lastDueDate = installments[installments.length - 1].dueDate;
+    expect(mocks.tx.loan.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ endDate: lastDueDate }) }),
+    );
+  });
+
+  it('records a LOAN_FEE inflow when the loan has a fee and collectFee is true', async () => {
+    mocks.tx.$queryRaw.mockResolvedValue([{ ...approvedLoan, loanFee: new Decimal(500) }]);
+
+    await disburseLoan('loan-1', { disbursementMethod: 'CASH', collectFee: true }, actor);
+
+    expect(mocks.tx.capitalEntry.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          flowType: 'INFLOW',
+          source: 'LOAN_FEE',
+          amount: new Decimal(500),
+        }),
+      }),
+    );
+  });
+
+  it('skips the fee inflow when collectFee is false', async () => {
+    mocks.tx.$queryRaw.mockResolvedValue([{ ...approvedLoan, loanFee: new Decimal(500) }]);
+
+    await disburseLoan('loan-1', { disbursementMethod: 'CASH', collectFee: false }, actor);
+
+    const sources = mocks.tx.capitalEntry.create.mock.calls.map((c) => c[0].data.source);
+    expect(sources).toEqual(['LOAN_DISBURSEMENT']);
   });
 });
 
@@ -869,5 +908,18 @@ describe('loans.service restructureLoan', () => {
     expect(mocks.tx.activityLog.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ action: 'LOAN_RESTRUCTURED' }) }),
     );
+  });
+
+  it('sets endDate to the last rebuilt installment due date, not term from disbursement', async () => {
+    await restructureLoan('loan-1', { termMonths: 6, reason: 'Hardship' }, actor);
+
+    const installments = mocks.tx.loanInstallment.createMany.mock.calls[0][0].data;
+    const lastDueDate = installments[installments.length - 1].dueDate;
+    expect(mocks.tx.loan.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ endDate: lastDueDate }) }),
+    );
+    // Schedule restarted today — end date must be in the future, not anchored
+    // to the original 2025-01-01 disbursement.
+    expect(lastDueDate.getTime()).toBeGreaterThan(Date.now());
   });
 });

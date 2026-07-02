@@ -29,8 +29,10 @@ const STATUS_ROWS: Array<{
   { key: 'pending', label: 'Pending', variant: 'outline' },
   { key: 'approved', label: 'Approved', variant: 'secondary' },
   { key: 'active', label: 'Active', variant: 'default' },
+  { key: 'inArrears', label: 'In Arrears', variant: 'destructive' },
   { key: 'paid', label: 'Paid', variant: 'default' },
   { key: 'defaulted', label: 'Defaulted', variant: 'destructive' },
+  { key: 'writtenOff', label: 'Written Off', variant: 'outline' },
   { key: 'canceled', label: 'Canceled', variant: 'outline' },
 ]
 

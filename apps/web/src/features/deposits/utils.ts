@@ -45,9 +45,9 @@ export interface DepositKpis {
 export function computeDepositKpis(d: DepositKpiInput): DepositKpis {
   const amount = parseFloat(d.amount)
   const paidOut = parseFloat(d.totalPayoutPaid)
-  // WITHDRAWN/CLOSED return the full principal to the depositor via a capital
-  // outflow, but the API only increments principalReturned on payouts — so a
-  // terminal deposit has its principal fully returned regardless of that field.
+  // WITHDRAWN/CLOSED deposits have their full principal returned. The API now
+  // sets principalReturned = amount on those transitions; this fallback keeps
+  // rows written before that fix displaying correctly.
   const principalReturned = d.status === 'ACTIVE' ? parseFloat(d.principalReturned) : amount
   return {
     totalPaidOut: paidOut.toFixed(2),

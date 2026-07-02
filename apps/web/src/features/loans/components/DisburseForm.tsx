@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { todayManilaDateString } from '@/lib/format'
+import { formatPeso, todayManilaDateString } from '@/lib/format'
 import { useDisburseLoan } from '../hooks/useDisburseLoan'
 import { disburseLoanSchema, type DisburseLoanInput } from '../schemas'
 import { PAYMENT_METHOD_LABELS } from '../utils'
@@ -17,13 +17,15 @@ import { LoanActionFormShell } from './LoanActionFormShell'
 
 interface DisburseFormProps {
   loanId: string
+  loanFee: string | null
   onSuccess: () => void
 }
 
-export function DisburseForm({ loanId, onSuccess }: DisburseFormProps) {
+export function DisburseForm({ loanId, loanFee, onSuccess }: DisburseFormProps) {
   const disburseLoan = useDisburseLoan()
 
   const todayLocal = todayManilaDateString()
+  const hasFee = loanFee !== null && Number(loanFee) > 0
 
   const {
     register,
@@ -33,7 +35,7 @@ export function DisburseForm({ loanId, onSuccess }: DisburseFormProps) {
     formState: { errors },
   } = useForm<DisburseLoanInput>({
     resolver: zodResolver(disburseLoanSchema),
-    defaultValues: { disbursedAt: todayLocal },
+    defaultValues: { disbursedAt: todayLocal, collectFee: true },
   })
 
   const disbursementMethod = useWatch({ control, name: 'disbursementMethod' })
@@ -80,6 +82,17 @@ export function DisburseForm({ loanId, onSuccess }: DisburseFormProps) {
         />
         <FieldError errors={[errors.disbursedAt]} />
       </Field>
+
+      {hasFee && (
+        <Field>
+          <div className="flex items-center gap-2">
+            <input id="collectFee" type="checkbox" className="size-4 accent-primary" {...register('collectFee')} />
+            <FieldLabel htmlFor="collectFee">
+              Collect loan fee of {formatPeso(loanFee!)} on disbursement
+            </FieldLabel>
+          </div>
+        </Field>
+      )}
 
       <Field data-invalid={!!errors.notes}>
         <FieldLabel htmlFor="disburseNotes">Notes (optional)</FieldLabel>

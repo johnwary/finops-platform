@@ -4,11 +4,6 @@ import { startOfManilaPeriod } from '../../lib/time.js';
 import { OUTSTANDING_LOAN_STATUSES } from '../../lib/lending.js';
 import type { PeriodInput } from './reports.schema.js';
 
-function sumDecimals(rows: { _sum: { [k: string]: Decimal | null } }, key: string): string {
-  const val = (rows._sum as Record<string, Decimal | null>)[key];
-  return (val ?? new Decimal(0)).toFixed(2);
-}
-
 function formatBorrowerName(b: { firstName: string; middleName?: string | null; lastName: string }): string {
   const first = b.middleName ? `${b.firstName} ${b.middleName}` : b.firstName;
   return `${b.lastName}, ${first}`;
@@ -72,7 +67,7 @@ export async function getSummary(input: PeriodInput) {
 
     // Collections (payments) in period
     prisma.loanPayment.aggregate({
-      where: { paidAt: { gte: since } },
+      where: { paidAt: { gte: since }, loan: { deletedAt: null } },
       _sum: { amount: true, principalPortion: true, interestPortion: true },
       _count: true,
     }),
@@ -137,12 +132,14 @@ export async function getSummary(input: PeriodInput) {
 
     loans: {
       byStatus: {
-        pending:   { count: loanCountMap['PENDING']   ?? 0, ...loanAmountMap['PENDING']   ?? { amount: '0.00', remainingBalance: '0.00', totalPaid: '0.00' } },
-        approved:  { count: loanCountMap['APPROVED']  ?? 0, ...loanAmountMap['APPROVED']  ?? { amount: '0.00', remainingBalance: '0.00', totalPaid: '0.00' } },
-        active:    { count: loanCountMap['ACTIVE']    ?? 0, ...loanAmountMap['ACTIVE']    ?? { amount: '0.00', remainingBalance: '0.00', totalPaid: '0.00' } },
-        paid:      { count: loanCountMap['PAID']      ?? 0, ...loanAmountMap['PAID']      ?? { amount: '0.00', remainingBalance: '0.00', totalPaid: '0.00' } },
-        defaulted: { count: loanCountMap['DEFAULTED'] ?? 0, ...loanAmountMap['DEFAULTED'] ?? { amount: '0.00', remainingBalance: '0.00', totalPaid: '0.00' } },
-        canceled:  { count: loanCountMap['CANCELED']  ?? 0, ...loanAmountMap['CANCELED']  ?? { amount: '0.00', remainingBalance: '0.00', totalPaid: '0.00' } },
+        pending:    { count: loanCountMap['PENDING']     ?? 0, ...loanAmountMap['PENDING']     ?? { amount: '0.00', remainingBalance: '0.00', totalPaid: '0.00' } },
+        approved:   { count: loanCountMap['APPROVED']    ?? 0, ...loanAmountMap['APPROVED']    ?? { amount: '0.00', remainingBalance: '0.00', totalPaid: '0.00' } },
+        active:     { count: loanCountMap['ACTIVE']      ?? 0, ...loanAmountMap['ACTIVE']      ?? { amount: '0.00', remainingBalance: '0.00', totalPaid: '0.00' } },
+        inArrears:  { count: loanCountMap['IN_ARREARS']  ?? 0, ...loanAmountMap['IN_ARREARS']  ?? { amount: '0.00', remainingBalance: '0.00', totalPaid: '0.00' } },
+        paid:       { count: loanCountMap['PAID']        ?? 0, ...loanAmountMap['PAID']        ?? { amount: '0.00', remainingBalance: '0.00', totalPaid: '0.00' } },
+        defaulted:  { count: loanCountMap['DEFAULTED']   ?? 0, ...loanAmountMap['DEFAULTED']   ?? { amount: '0.00', remainingBalance: '0.00', totalPaid: '0.00' } },
+        writtenOff: { count: loanCountMap['WRITTEN_OFF'] ?? 0, ...loanAmountMap['WRITTEN_OFF'] ?? { amount: '0.00', remainingBalance: '0.00', totalPaid: '0.00' } },
+        canceled:   { count: loanCountMap['CANCELED']    ?? 0, ...loanAmountMap['CANCELED']    ?? { amount: '0.00', remainingBalance: '0.00', totalPaid: '0.00' } },
       },
       activePortfolio: {
         count: activeLoanPortfolio._count,

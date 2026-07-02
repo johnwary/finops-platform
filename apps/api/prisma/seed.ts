@@ -1033,6 +1033,7 @@ async function main() {
   await resetSeedOwnedRows();
   await seedBusinessFunds(admin.id);
   await seedBorrowersAndLoans(admin.id);
+  await seedDepositorsAndDeposits(admin.id);
   await seedWorkflowActivity(admin.id);
 
   console.log('\nSeed login credentials');

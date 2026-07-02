@@ -241,7 +241,7 @@ export function LoanDetailPage() {
             <SheetTitle>Disburse Loan</SheetTitle>
             <SheetDescription>Select disbursement method to activate this loan.</SheetDescription>
           </SheetHeader>
-          <DisburseForm loanId={data.id} onSuccess={() => setIsDisburseOpen(false)} />
+          <DisburseForm loanId={data.id} loanFee={data.loanFee} onSuccess={() => setIsDisburseOpen(false)} />
         </SheetContent>
       </Sheet>
 

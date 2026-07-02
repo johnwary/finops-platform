@@ -539,6 +539,7 @@ enum CapitalSource {
   DEPOSIT_WITHDRAWAL
   LOAN_DISBURSEMENT
   LOAN_PAYMENT
+  LOAN_FEE
 }
 
 enum ProvisionEventType {

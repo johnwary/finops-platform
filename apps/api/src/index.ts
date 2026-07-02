@@ -8,6 +8,7 @@ import { randomUUID } from 'crypto';
 import { toNodeHandler } from 'better-auth/node';
 import { logger } from './lib/logger.js';
 import { auth } from './lib/auth.js';
+import { error } from './lib/response.js';
 import { errorHandler } from './middleware/error.middleware.js';
 import { borrowersRouter } from './features/borrowers/borrowers.router.js';
 import { loansRouter } from './features/loans/loans.router.js';
@@ -59,7 +60,15 @@ app.use(pinoHttp({
 }));
 app.all('/api/auth/*splat', toNodeHandler(auth));
 app.use(express.json());
-app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 100 }));
+// Per-IP abuse guard. Offices share one NAT IP and each page load fires several
+// queries, so this must stay generous — it is not a per-user throttle.
+app.use(rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 2000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: error('RATE_LIMITED', 'Too many requests. Please try again later.', 429),
+}));
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
@@ -73,6 +82,11 @@ app.use('/api/v1/activity', activityRouter);
 app.use('/api/v1/company', companyRouter);
 app.use('/api/v1/deposits', depositsRouter);
 app.use('/api/v1/depositors', depositorsRouter);
+
+// Unknown API routes get the standard JSON error shape, not Express HTML.
+app.use('/api', (_req, res) => {
+  res.status(404).json(error('NOT_FOUND', 'Route not found.', 404));
+});
 
 app.use(errorHandler);
 

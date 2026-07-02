@@ -66,7 +66,17 @@ export async function createInvitation(data: CreateInvitationInput, actor: Actor
     return created;
   });
 
-  await sendInviteEmail(email, actor.name, invitation.token, invitation.role, invitation.expiresAt);
+  try {
+    await sendInviteEmail(email, actor.name, invitation.token, invitation.role, invitation.expiresAt);
+  } catch {
+    // Undelivered invite would block re-inviting this email for 7 days via the
+    // pending-invite conflict check — revoke it so the admin can just retry.
+    await prisma.invitation.update({
+      where: { id: invitation.id },
+      data: { status: 'REVOKED', revokedAt: new Date() },
+    });
+    throw new AppError('EMAIL_SEND_FAILED', 'Invitation email could not be sent. Please try again.', 502);
+  }
 
   return invitation;
 }
@@ -123,7 +133,7 @@ export async function validateAndStageInvite(token: string) {
 export async function listInvitations({ cursor, limit, status }: ListInvitationsInput) {
   const invitations = await prisma.invitation.findMany({
     where: status ? { status } : undefined,
-    orderBy: { createdAt: 'desc' },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     cursor: cursor ? { id: cursor } : undefined,
     skip: cursor ? 1 : 0,
     take: limit + 1,

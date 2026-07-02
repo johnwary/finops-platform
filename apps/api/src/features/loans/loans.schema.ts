@@ -31,6 +31,7 @@ export const approveLoanSchema = z.object({
 export const disburseLoanSchema = z.object({
   disbursementMethod: z.enum(['CASH', 'BANK_TRANSFER', 'GCASH', 'CHECK']),
   disbursedAt: dateStringSchema.optional(),
+  collectFee: z.boolean().default(true),
   notes: z.string().max(2000).trim().optional(),
 });
 
@@ -39,7 +40,7 @@ export const cancelLoanSchema = z.object({
 });
 
 export const recordPaymentSchema = z.object({
-  amount: z.coerce.number().positive(),
+  amount: z.coerce.number().positive().max(MAX_MONEY),
   paidAt: dateStringSchema.optional(),
   method: z.enum(['CASH', 'BANK_TRANSFER', 'GCASH', 'CHECK']),
   reference: z.string().max(255).trim().optional(),

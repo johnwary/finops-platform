@@ -116,7 +116,7 @@ export async function listDeposits({
 
   const deposits = await prisma.deposit.findMany({
     where,
-    orderBy: { createdAt: 'desc' },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     cursor: cursor ? { id: cursor } : undefined,
     skip: cursor ? 1 : 0,
     take: limit + 1,
@@ -156,11 +156,19 @@ export async function updateDeposit(id: string, data: UpdateDepositInput, actor:
   });
 }
 
+// Principal already returned through payouts must not be paid out again at
+// termination — only the unreturned remainder leaves the ledger.
+function unreturnedPrincipal(deposit: Deposit): Decimal {
+  const remaining = new Decimal(deposit.amount).minus(deposit.principalReturned);
+  return remaining.lessThan(0) ? new Decimal(0) : remaining;
+}
+
 export async function withdrawDeposit(id: string, data: WithdrawDepositInput, actor: Actor) {
   const now = new Date();
 
   return prisma.$transaction(async (tx) => {
     const deposit = await lockedActiveDeposit(tx, id, 'withdraw');
+    const principalOutflow = unreturnedPrincipal(deposit);
 
     const updated = await tx.deposit.update({
       where: { id },
@@ -168,21 +176,24 @@ export async function withdrawDeposit(id: string, data: WithdrawDepositInput, ac
         status: 'WITHDRAWN',
         hasBeenWithdrawn: true,
         withdrawnAt: now,
+        principalReturned: deposit.amount,
         notes: data.notes ?? deposit.notes,
       },
     });
 
-    // Capital outflow: principal returned to depositor
-    await tx.capitalEntry.create({
-      data: {
-        flowType: 'OUTFLOW',
-        source: 'DEPOSIT_WITHDRAWAL',
-        sourceId: id,
-        amount: deposit.amount,
-        description: `Deposit withdrawn by depositor ${deposit.depositorId}`,
-        createdById: actor.id,
-      },
-    });
+    // Capital outflow: remaining principal returned to depositor
+    if (principalOutflow.greaterThan(0)) {
+      await tx.capitalEntry.create({
+        data: {
+          flowType: 'OUTFLOW',
+          source: 'DEPOSIT_WITHDRAWAL',
+          sourceId: id,
+          amount: principalOutflow,
+          description: `Deposit withdrawn by depositor ${deposit.depositorId}`,
+          createdById: actor.id,
+        },
+      });
+    }
 
     await tx.activityLog.create({
       data: {
@@ -190,7 +201,7 @@ export async function withdrawDeposit(id: string, data: WithdrawDepositInput, ac
         category: 'AUDIT',
         action: 'DEPOSIT_WITHDRAWN',
         targetId: id,
-        metadata: { amount: deposit.amount },
+        metadata: { amount: deposit.amount, principalOutflow },
       },
     });
 
@@ -203,27 +214,31 @@ export async function closeDeposit(id: string, data: CloseDepositInput, actor: A
 
   return prisma.$transaction(async (tx) => {
     const deposit = await lockedActiveDeposit(tx, id, 'close');
+    const principalOutflow = unreturnedPrincipal(deposit);
 
     const updated = await tx.deposit.update({
       where: { id },
       data: {
         status: 'CLOSED',
         closedAt: now,
+        principalReturned: deposit.amount,
         notes: data.notes ?? deposit.notes,
       },
     });
 
-    // Capital outflow: principal returned at maturity
-    await tx.capitalEntry.create({
-      data: {
-        flowType: 'OUTFLOW',
-        source: 'DEPOSIT_WITHDRAWAL',
-        sourceId: id,
-        amount: deposit.amount,
-        description: `Deposit matured and closed for depositor ${deposit.depositorId}`,
-        createdById: actor.id,
-      },
-    });
+    // Capital outflow: remaining principal returned at maturity
+    if (principalOutflow.greaterThan(0)) {
+      await tx.capitalEntry.create({
+        data: {
+          flowType: 'OUTFLOW',
+          source: 'DEPOSIT_WITHDRAWAL',
+          sourceId: id,
+          amount: principalOutflow,
+          description: `Deposit matured and closed for depositor ${deposit.depositorId}`,
+          createdById: actor.id,
+        },
+      });
+    }
 
     await tx.activityLog.create({
       data: {
@@ -231,7 +246,7 @@ export async function closeDeposit(id: string, data: CloseDepositInput, actor: A
         category: 'AUDIT',
         action: 'DEPOSIT_CLOSED',
         targetId: id,
-        metadata: { amount: deposit.amount, totalPayoutPaid: deposit.totalPayoutPaid },
+        metadata: { amount: deposit.amount, principalOutflow, totalPayoutPaid: deposit.totalPayoutPaid },
       },
     });
 
@@ -250,6 +265,14 @@ export async function recordPayout(id: string, data: RecordPayoutInput, actor: A
     const newPrincipalReturned = new Decimal(deposit.principalReturned).plus(
       new Decimal(data.principalPortion),
     );
+
+    if (newPrincipalReturned.greaterThan(deposit.amount)) {
+      throw new AppError(
+        'PAYOUT_EXCEEDS_PRINCIPAL',
+        'Cumulative principal payouts would exceed the deposit principal.',
+        409,
+      );
+    }
 
     const payout = await tx.depositPayout.create({
       data: {

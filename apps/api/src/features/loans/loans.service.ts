@@ -397,7 +397,7 @@ export async function listLoans({ cursor, limit, borrowerId, status, search, typ
 
   const loans = await prisma.loan.findMany({
     where,
-    orderBy: { createdAt: 'desc' },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     cursor: cursor ? { id: cursor } : undefined,
     skip: cursor ? 1 : 0,
     take: limit + 1,
@@ -455,7 +455,6 @@ export async function disburseLoan(id: string, data: DisburseLoanInput, actor: A
     const loan = await lockedLoan(tx, id);
     assertLoanStatus(loan, ['APPROVED'], `Cannot disburse a loan with status ${loan.status}.`);
 
-    const endDate = addMonths(disbursedAt, loan.termMonths);
     const installments = buildInstallments(
       id,
       Number(loan.amount),
@@ -465,6 +464,9 @@ export async function disburseLoan(id: string, data: DisburseLoanInput, actor: A
       loan.repaymentStructure,
       disbursedAt,
     );
+    // End date = final installment due date, so it tracks the actual schedule
+    // for every payment frequency.
+    const endDate = installments[installments.length - 1]!.dueDate;
 
     const updated = await tx.loan.update({
       where: { id },
@@ -492,6 +494,25 @@ export async function disburseLoan(id: string, data: DisburseLoanInput, actor: A
       },
     });
 
+    // Optional upfront fee collected at disbursement — separate inflow so fee
+    // income stays visible in the ledger instead of netting the disbursement.
+    const feeCollected =
+      data.collectFee && loan.loanFee && new Decimal(loan.loanFee).greaterThan(0)
+        ? new Decimal(loan.loanFee)
+        : null;
+    if (feeCollected) {
+      await tx.capitalEntry.create({
+        data: {
+          flowType: 'INFLOW',
+          source: 'LOAN_FEE',
+          sourceId: id,
+          amount: feeCollected,
+          description: `Loan fee collected on disbursement of loan ${id}`,
+          createdById: actor.id,
+        },
+      });
+    }
+
     await tx.activityLog.create({
       data: {
         userId: actor.id,
@@ -501,6 +522,7 @@ export async function disburseLoan(id: string, data: DisburseLoanInput, actor: A
         metadata: {
           method: data.disbursementMethod,
           installmentsGenerated: installments.length,
+          feeCollected,
         },
       },
     });
@@ -937,7 +959,6 @@ export async function restructureLoan(id: string, data: RestructureLoanInput, ac
     const newTerm = data.termMonths !== undefined ? data.termMonths : loan.termMonths;
     const newFrequency = data.paymentFrequency ?? loan.paymentFrequency;
     const newStructure = data.repaymentStructure ?? loan.repaymentStructure;
-    const disbursedAt = loan.disbursedAt ?? new Date();
 
     if (
       newRate === Number(loan.interestRate) &&
@@ -982,7 +1003,9 @@ export async function restructureLoan(id: string, data: RestructureLoanInput, ac
 
     await tx.loanInstallment.createMany({ data: installments });
 
-    const newEndDate = addMonths(disbursedAt, newTerm);
+    // Schedule restarts today, so the end date is the last rebuilt installment's
+    // due date — not term months from original disbursement.
+    const newEndDate = installments[installments.length - 1]!.dueDate;
 
     const updated = await tx.loan.update({
       where: { id },

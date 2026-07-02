@@ -108,7 +108,7 @@ export async function listDepositors({ cursor, limit, search }: ListDepositorsIn
 
   const depositors = await prisma.depositor.findMany({
     where,
-    orderBy: { createdAt: 'desc' },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     cursor: cursor ? { id: cursor } : undefined,
     skip: cursor ? 1 : 0,
     take: limit + 1,

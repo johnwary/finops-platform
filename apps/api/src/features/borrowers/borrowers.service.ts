@@ -182,7 +182,7 @@ export async function listBorrowers({ cursor, limit, search, deleted }: ListBorr
 
   const borrowers = await prisma.borrower.findMany({
     where,
-    orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }, { createdAt: 'desc' }],
+    orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }, { createdAt: 'desc' }, { id: 'desc' }],
     cursor: cursor ? { id: cursor } : undefined,
     skip: cursor ? 1 : 0,
     take: limit + 1,

@@ -3,7 +3,7 @@ import type { ListActivityLogsInput } from './activity.schema.js';
 
 export function listActivityLogs({ limit }: ListActivityLogsInput) {
   return prisma.activityLog.findMany({
-    orderBy: { createdAt: 'desc' },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: limit,
     select: {
       id: true,
