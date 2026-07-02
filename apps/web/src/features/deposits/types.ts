@@ -20,6 +20,8 @@ export interface DepositPayout {
   paidAt: string
   method: PaymentMethod
   notes: string | null
+  reversedAt: string | null
+  reversalReason: string | null
   createdAt: string
 }
 

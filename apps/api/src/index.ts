@@ -18,6 +18,7 @@ import { activityRouter } from './features/activity/activity.router.js';
 import { companyRouter } from './features/company/company.router.js';
 import { depositsRouter } from './features/deposits/deposits.router.js';
 import { depositorsRouter } from './features/depositors/depositors.router.js';
+import { fundsRouter } from './features/funds/funds.router.js';
 import { startAutoDefaultScheduler } from './jobs/autoDefault.job.js';
 
 const app = express();
@@ -82,6 +83,7 @@ app.use('/api/v1/activity', activityRouter);
 app.use('/api/v1/company', companyRouter);
 app.use('/api/v1/deposits', depositsRouter);
 app.use('/api/v1/depositors', depositorsRouter);
+app.use('/api/v1/funds', fundsRouter);
 
 // Unknown API routes get the standard JSON error shape, not Express HTML.
 app.use('/api', (_req, res) => {

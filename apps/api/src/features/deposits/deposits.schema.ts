@@ -46,6 +46,12 @@ export const recordPayoutSchema = z
     { message: 'principalPortion + returnPortion must equal amount.', path: ['amount'] },
   );
 
+export const reversePayoutSchema = z.object({
+  reason: z.string().min(1).max(500).trim(),
+});
+
+export const payoutParamsSchema = z.object({ id: z.uuid(), payoutId: z.uuid() });
+
 export const listDepositsSchema = z.object({
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(25),
@@ -61,4 +67,5 @@ export type UpdateDepositInput = z.infer<typeof updateDepositSchema>;
 export type WithdrawDepositInput = z.infer<typeof withdrawDepositSchema>;
 export type CloseDepositInput = z.infer<typeof closeDepositSchema>;
 export type RecordPayoutInput = z.infer<typeof recordPayoutSchema>;
+export type ReversePayoutInput = z.infer<typeof reversePayoutSchema>;
 export type ListDepositsInput = z.infer<typeof listDepositsSchema>;

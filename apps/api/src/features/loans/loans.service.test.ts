@@ -13,10 +13,14 @@ const mocks = vi.hoisted(() => {
     },
     loanPayment: {
       create: vi.fn(),
+      findFirst: vi.fn(),
+      update: vi.fn(),
     },
     loanPaymentAllocation: {
       createMany: vi.fn(),
       findFirst: vi.fn(),
+      findMany: vi.fn(),
+      deleteMany: vi.fn(),
     },
     loanProvisionEvent: {
       create: vi.fn(),
@@ -28,6 +32,7 @@ const mocks = vi.hoisted(() => {
     },
     capitalEntry: {
       create: vi.fn(),
+      updateMany: vi.fn(),
     },
     activityLog: {
       create: vi.fn(),
@@ -66,12 +71,15 @@ import {
   createLoan,
   defaultLoan,
   disburseLoan,
+  lockLoan,
   markLoanArrears,
   markLoanCurrent,
   recordPayment,
   restoreLoan,
   restructureLoan,
+  reversePayment,
   softDeleteLoan,
+  unlockLoan,
   writeOffLoan,
 } from './loans.service.js';
 
@@ -834,6 +842,139 @@ describe('loans.service recordPayment penalty-first allocation', () => {
     expect(paymentData.penalties.toFixed(2)).toBe('1.00');
     expect(paymentData.interestPortion.toFixed(2)).toBe('10.00');
     expect(paymentData.principalPortion.toFixed(2)).toBe('50.00');
+  });
+});
+
+// ── reversePayment ────────────────────────────────────────────────────────────
+
+describe('loans.service reversePayment', () => {
+  const payment = {
+    id: 'pay-2',
+    loanId: 'loan-1',
+    amount: new Decimal(400),
+    principalPortion: new Decimal(350),
+    receiptNumber: 'RCPT-1',
+    reversedAt: null,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.tx.$queryRaw.mockResolvedValue([{ ...activeLoan, totalPaid: new Decimal(400), remainingBalance: new Decimal(650) }]);
+    mocks.tx.loanPayment.findFirst
+      .mockResolvedValueOnce(payment)  // lookup
+      .mockResolvedValueOnce(payment); // latest check
+    mocks.tx.loanPaymentAllocation.findMany.mockResolvedValue([{ installmentId: 'inst-1' }]);
+    mocks.tx.loanPaymentAllocation.deleteMany.mockResolvedValue({ count: 1 });
+    mocks.tx.loanInstallment.updateMany.mockResolvedValue({ count: 1 });
+    mocks.tx.loan.update.mockResolvedValue({});
+    mocks.tx.loanPayment.update.mockResolvedValue({ ...payment, reversedAt: new Date() });
+    mocks.tx.activityLog.create.mockResolvedValue({});
+  });
+
+  it('unwinds totals, marks payment and capital entry reversed', async () => {
+    await reversePayment('loan-1', 'pay-2', { reason: 'Typo' }, actor);
+
+    expect(mocks.tx.loanPaymentAllocation.deleteMany).toHaveBeenCalledWith({ where: { paymentId: 'pay-2' } });
+    expect(mocks.tx.loan.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          totalPaid: new Decimal(0),
+          remainingBalance: new Decimal(1000),
+        }),
+      }),
+    );
+    expect(mocks.tx.loanPayment.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ reversalReason: 'Typo', reversedById: 'user-1' }),
+      }),
+    );
+    expect(mocks.tx.capitalEntry.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ source: 'LOAN_PAYMENT', sourceId: 'pay-2' }),
+      }),
+    );
+  });
+
+  it('rejects a payment that is not the most recent', async () => {
+    mocks.tx.loanPayment.findFirst
+      .mockReset()
+      .mockResolvedValueOnce(payment)
+      .mockResolvedValueOnce({ ...payment, id: 'pay-3' }); // newer payment exists
+
+    await expect(
+      reversePayment('loan-1', 'pay-2', { reason: 'Typo' }, actor),
+    ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 });
+
+    expect(mocks.tx.loanPaymentAllocation.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('rejects an already-reversed payment', async () => {
+    mocks.tx.loanPayment.findFirst
+      .mockReset()
+      .mockResolvedValueOnce({ ...payment, reversedAt: new Date() });
+
+    await expect(
+      reversePayment('loan-1', 'pay-2', { reason: 'Typo' }, actor),
+    ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 });
+  });
+
+  it('reopens a PAID loan when principal balance returns above zero', async () => {
+    mocks.tx.$queryRaw.mockResolvedValue([
+      { ...baseLoan, status: 'PAID', totalPaid: new Decimal(1000), remainingBalance: new Decimal(0) },
+    ]);
+
+    await reversePayment('loan-1', 'pay-2', { reason: 'Typo' }, actor);
+
+    expect(mocks.tx.loan.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: 'ACTIVE', paidAt: null }),
+      }),
+    );
+  });
+});
+
+// ── lockLoan / unlockLoan ─────────────────────────────────────────────────────
+
+describe('loans.service lockLoan/unlockLoan', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.tx.loan.update.mockResolvedValue({});
+    mocks.tx.activityLog.create.mockResolvedValue({});
+  });
+
+  it('locks an unlocked loan and writes audit log', async () => {
+    mocks.tx.$queryRaw.mockResolvedValue([activeLoan]);
+
+    await lockLoan('loan-1', { reason: 'Disputed balance' }, actor);
+
+    expect(mocks.tx.loan.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { locked: true } }),
+    );
+    expect(mocks.tx.activityLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: 'LOAN_LOCKED' }) }),
+    );
+  });
+
+  it('rejects locking an already-locked loan', async () => {
+    mocks.tx.$queryRaw.mockResolvedValue([{ ...activeLoan, locked: true }]);
+
+    await expect(lockLoan('loan-1', {}, actor)).rejects.toMatchObject({ code: 'CONFLICT' });
+  });
+
+  it('unlocks a locked loan', async () => {
+    mocks.tx.$queryRaw.mockResolvedValue([{ ...activeLoan, locked: true }]);
+
+    await unlockLoan('loan-1', {}, actor);
+
+    expect(mocks.tx.loan.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { locked: false } }),
+    );
+  });
+
+  it('rejects unlocking a loan that is not locked', async () => {
+    mocks.tx.$queryRaw.mockResolvedValue([activeLoan]);
+
+    await expect(unlockLoan('loan-1', {}, actor)).rejects.toMatchObject({ code: 'CONFLICT' });
   });
 });
 

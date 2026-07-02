@@ -14,6 +14,8 @@ import type {
   DisburseLoanInput,
   CancelLoanInput,
   RecordPaymentInput,
+  ReversePaymentInput,
+  LockLoanInput,
   DefaultLoanInput,
   MarkArrearsInput,
   MarkCurrentInput,
@@ -732,6 +734,150 @@ export async function recordPayment(id: string, data: RecordPaymentInput, actor:
     });
 
     return payment;
+  });
+}
+
+export async function reversePayment(
+  loanId: string,
+  paymentId: string,
+  data: ReversePaymentInput,
+  actor: Actor,
+) {
+  const now = new Date();
+
+  return prisma.$transaction(async (tx) => {
+    const loan = await lockedLoan(tx, loanId);
+    assertLoanStatus(
+      loan,
+      ['ACTIVE', 'IN_ARREARS', 'PAID'],
+      `Cannot reverse a payment on a loan with status ${loan.status}.`,
+    );
+
+    const payment = await tx.loanPayment.findFirst({ where: { id: paymentId, loanId } });
+    if (!payment) throw new AppError('NOT_FOUND', 'Payment not found.', 404);
+    if (payment.reversedAt) {
+      throw new AppError('CONFLICT', 'Payment has already been reversed.', 409);
+    }
+
+    // LIFO-only: allocation math assumes earlier payments stand. Reverse newer
+    // payments first. See docs/business-rules.md.
+    const latest = await tx.loanPayment.findFirst({
+      where: { loanId, reversedAt: null },
+      orderBy: [{ paidAt: 'desc' }, { createdAt: 'desc' }],
+    });
+    if (latest?.id !== paymentId) {
+      throw new AppError(
+        'CONFLICT',
+        'Only the most recent payment can be reversed. Reverse newer payments first.',
+        409,
+      );
+    }
+
+    // Unwind allocations and reopen affected installments.
+    const allocations = await tx.loanPaymentAllocation.findMany({
+      where: { paymentId },
+      select: { installmentId: true },
+    });
+    const affectedIds = allocations.map((a) => a.installmentId);
+
+    await tx.loanPaymentAllocation.deleteMany({ where: { paymentId } });
+
+    if (affectedIds.length > 0) {
+      await tx.loanInstallment.updateMany({
+        where: { id: { in: affectedIds }, dueDate: { lt: now } },
+        data: { status: 'OVERDUE' },
+      });
+      await tx.loanInstallment.updateMany({
+        where: { id: { in: affectedIds }, dueDate: { gte: now } },
+        data: { status: 'SCHEDULED' },
+      });
+    }
+
+    const newTotalPaid = new Decimal(loan.totalPaid).minus(payment.amount);
+    const newRemainingBalance = new Decimal(loan.remainingBalance).plus(payment.principalPortion);
+    const reopens = loan.status === 'PAID' && newRemainingBalance.greaterThan(0);
+
+    await tx.loan.update({
+      where: { id: loanId },
+      data: {
+        totalPaid: newTotalPaid,
+        remainingBalance: newRemainingBalance,
+        ...(reopens ? { status: 'ACTIVE', paidAt: null } : {}),
+      },
+    });
+
+    const reversed = await tx.loanPayment.update({
+      where: { id: paymentId },
+      data: { reversedAt: now, reversedById: actor.id, reversalReason: data.reason },
+    });
+
+    // Exclusion model: mark the original capital entry reversed; reports
+    // filter reversedAt — no compensating entry (see docs/business-rules.md).
+    await tx.capitalEntry.updateMany({
+      where: { source: 'LOAN_PAYMENT', sourceId: paymentId, reversedAt: null },
+      data: { reversedAt: now, reversalReason: data.reason },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        userId: actor.id,
+        category: 'AUDIT',
+        action: 'LOAN_PAYMENT_REVERSED',
+        targetId: loanId,
+        metadata: {
+          paymentId,
+          receiptNumber: payment.receiptNumber,
+          amount: payment.amount,
+          principalPortion: payment.principalPortion,
+          reason: data.reason,
+          loanReopened: reopens,
+        },
+      },
+    });
+
+    return reversed;
+  });
+}
+
+export async function lockLoan(id: string, data: LockLoanInput, actor: Actor) {
+  return prisma.$transaction(async (tx) => {
+    const loan = await lockedLoan(tx, id);
+    if (loan.locked) throw new AppError('CONFLICT', 'Loan is already locked.', 409);
+
+    const updated = await tx.loan.update({ where: { id }, data: { locked: true } });
+
+    await tx.activityLog.create({
+      data: {
+        userId: actor.id,
+        category: 'AUDIT',
+        action: 'LOAN_LOCKED',
+        targetId: id,
+        metadata: { reason: data.reason ?? null },
+      },
+    });
+
+    return updated;
+  });
+}
+
+export async function unlockLoan(id: string, data: LockLoanInput, actor: Actor) {
+  return prisma.$transaction(async (tx) => {
+    const loan = await lockedLoan(tx, id);
+    if (!loan.locked) throw new AppError('CONFLICT', 'Loan is not locked.', 409);
+
+    const updated = await tx.loan.update({ where: { id }, data: { locked: false } });
+
+    await tx.activityLog.create({
+      data: {
+        userId: actor.id,
+        category: 'AUDIT',
+        action: 'LOAN_UNLOCKED',
+        targetId: id,
+        metadata: { reason: data.reason ?? null },
+      },
+    });
+
+    return updated;
   });
 }
 

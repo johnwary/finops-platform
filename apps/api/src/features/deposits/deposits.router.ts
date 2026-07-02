@@ -10,6 +10,7 @@ import {
   withdrawDepositController,
   closeDepositController,
   recordPayoutController,
+  reversePayoutController,
   deleteDepositController,
 } from './deposits.controller.js';
 import {
@@ -18,6 +19,8 @@ import {
   withdrawDepositSchema,
   closeDepositSchema,
   recordPayoutSchema,
+  reversePayoutSchema,
+  payoutParamsSchema,
   listDepositsSchema,
   depositParamsSchema,
 } from './deposits.schema.js';
@@ -77,6 +80,14 @@ depositsRouter.post(
   validate(depositParamsSchema, 'params'),
   validate(recordPayoutSchema),
   recordPayoutController,
+);
+
+depositsRouter.post(
+  '/:id/payouts/:payoutId/reverse',
+  requireRole('admin'),
+  validate(payoutParamsSchema, 'params'),
+  validate(reversePayoutSchema),
+  reversePayoutController,
 );
 
 depositsRouter.delete(

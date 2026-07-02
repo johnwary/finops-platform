@@ -67,7 +67,7 @@ export async function getSummary(input: PeriodInput) {
 
     // Collections (payments) in period
     prisma.loanPayment.aggregate({
-      where: { paidAt: { gte: since }, loan: { deletedAt: null } },
+      where: { paidAt: { gte: since }, reversedAt: null, loan: { deletedAt: null } },
       _sum: { amount: true, principalPortion: true, interestPortion: true },
       _count: true,
     }),

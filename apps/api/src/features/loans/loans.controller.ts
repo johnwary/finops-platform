@@ -7,6 +7,8 @@ import type {
   DisburseLoanInput,
   CancelLoanInput,
   RecordPaymentInput,
+  ReversePaymentInput,
+  LockLoanInput,
   DefaultLoanInput,
   MarkArrearsInput,
   MarkCurrentInput,
@@ -69,6 +71,29 @@ export async function recordPaymentController(req: Request, res: Response) {
     { id: req.user!.id },
   );
   res.status(201).json(success(payment));
+}
+
+export async function reversePaymentController(req: Request, res: Response) {
+  const { id, paymentId } = req.validatedParams as { id: string; paymentId: string };
+  const payment = await loansService.reversePayment(
+    id,
+    paymentId,
+    req.validatedBody as ReversePaymentInput,
+    { id: req.user!.id },
+  );
+  res.json(success(payment));
+}
+
+export async function lockLoanController(req: Request, res: Response) {
+  const { id } = req.validatedParams as { id: string };
+  const loan = await loansService.lockLoan(id, req.validatedBody as LockLoanInput, { id: req.user!.id });
+  res.json(success(loan));
+}
+
+export async function unlockLoanController(req: Request, res: Response) {
+  const { id } = req.validatedParams as { id: string };
+  const loan = await loansService.unlockLoan(id, req.validatedBody as LockLoanInput, { id: req.user!.id });
+  res.json(success(loan));
 }
 
 export async function defaultLoanController(req: Request, res: Response) {

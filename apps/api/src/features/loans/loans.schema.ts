@@ -47,6 +47,16 @@ export const recordPaymentSchema = z.object({
   notes: z.string().max(2000).trim().optional(),
 });
 
+export const reversePaymentSchema = z.object({
+  reason: z.string().min(1).max(500).trim(),
+});
+
+export const lockLoanSchema = z.object({
+  reason: z.string().max(500).trim().optional(),
+});
+
+export const paymentParamsSchema = z.object({ id: z.uuid(), paymentId: z.uuid() });
+
 export const listLoansSchema = z.object({
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(25),
@@ -100,6 +110,8 @@ export type ApproveLoanInput = z.infer<typeof approveLoanSchema>;
 export type DisburseLoanInput = z.infer<typeof disburseLoanSchema>;
 export type CancelLoanInput = z.infer<typeof cancelLoanSchema>;
 export type RecordPaymentInput = z.infer<typeof recordPaymentSchema>;
+export type ReversePaymentInput = z.infer<typeof reversePaymentSchema>;
+export type LockLoanInput = z.infer<typeof lockLoanSchema>;
 export type DefaultLoanInput = z.infer<typeof defaultLoanSchema>;
 export type MarkArrearsInput = z.infer<typeof markArrearsSchema>;
 export type MarkCurrentInput = z.infer<typeof markCurrentSchema>;

@@ -74,6 +74,8 @@ export interface LoanPayment {
   receiptNumber: string
   reference: string | null
   notes: string | null
+  reversedAt: string | null
+  reversalReason: string | null
   createdAt: string
   updatedAt: string
 }

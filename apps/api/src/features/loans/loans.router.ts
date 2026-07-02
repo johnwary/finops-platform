@@ -10,6 +10,9 @@ import {
   disburseLoanController,
   cancelLoanController,
   recordPaymentController,
+  reversePaymentController,
+  lockLoanController,
+  unlockLoanController,
   defaultLoanController,
   deleteLoanController,
   restoreLoanController,
@@ -25,6 +28,9 @@ import {
   disburseLoanSchema,
   cancelLoanSchema,
   recordPaymentSchema,
+  reversePaymentSchema,
+  lockLoanSchema,
+  paymentParamsSchema,
   defaultLoanSchema,
   markArrearsSchema,
   markCurrentSchema,
@@ -90,6 +96,30 @@ loansRouter.post(
   validate(loanParamsSchema, 'params'),
   validate(recordPaymentSchema),
   recordPaymentController,
+);
+
+loansRouter.post(
+  '/:id/payments/:paymentId/reverse',
+  requireRole('admin'),
+  validate(paymentParamsSchema, 'params'),
+  validate(reversePaymentSchema),
+  reversePaymentController,
+);
+
+loansRouter.post(
+  '/:id/lock',
+  requireRole('admin'),
+  validate(loanParamsSchema, 'params'),
+  validate(lockLoanSchema),
+  lockLoanController,
+);
+
+loansRouter.post(
+  '/:id/unlock',
+  requireRole('admin'),
+  validate(loanParamsSchema, 'params'),
+  validate(lockLoanSchema),
+  unlockLoanController,
 );
 
 loansRouter.post(

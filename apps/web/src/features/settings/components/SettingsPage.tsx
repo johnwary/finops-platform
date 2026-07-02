@@ -51,6 +51,7 @@ import {
 import { useSession } from '@/features/auth/hooks/useSession';
 import { useCompanyProfile, useUpdateCompanyProfile } from '@/features/company/hooks/useCompanyProfile';
 import type { CompanyProfile } from '@/features/company/types';
+import { BusinessFundsSection } from '@/features/funds/components/BusinessFundsSection';
 
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Admin',
@@ -86,6 +87,7 @@ export function SettingsPage() {
       </div>
       <Separator />
       <CompanyProfileSection />
+      <BusinessFundsSection />
       <InviteUserSection />
       <InvitationsTable />
       <UsersTable />

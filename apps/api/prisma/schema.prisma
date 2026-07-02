@@ -198,6 +198,9 @@ model LoanPayment {
   receiptNumber    String        @unique
   reference        String?
   notes            String?
+  reversedAt       DateTime?
+  reversedById     String?
+  reversalReason   String?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
@@ -205,6 +208,7 @@ model LoanPayment {
   allocations LoanPaymentAllocation[]
 
   @@index([loanId, paidAt(sort: Desc)])
+  @@index([reversedAt])
 }
 
 model LoanInstallment {
@@ -333,12 +337,16 @@ model DepositPayout {
   paidAt           DateTime      @default(now())
   method           PaymentMethod
   notes            String?
+  reversedAt       DateTime?
+  reversedById     String?
+  reversalReason   String?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
   deposit Deposit @relation(fields: [depositId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@index([depositId, paidAt(sort: Desc)])
+  @@index([reversedAt])
 }
 
 // ============================

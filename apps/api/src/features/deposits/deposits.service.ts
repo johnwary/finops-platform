@@ -9,6 +9,7 @@ import type {
   WithdrawDepositInput,
   CloseDepositInput,
   RecordPayoutInput,
+  ReversePayoutInput,
   ListDepositsInput,
 } from './deposits.schema.js';
 
@@ -322,6 +323,74 @@ export async function recordPayout(id: string, data: RecordPayoutInput, actor: A
     });
 
     return payout;
+  });
+}
+
+export async function reversePayout(
+  depositId: string,
+  payoutId: string,
+  data: ReversePayoutInput,
+  actor: Actor,
+) {
+  const now = new Date();
+
+  return prisma.$transaction(async (tx) => {
+    const deposit = await lockedActiveDeposit(tx, depositId, 'reverse a payout on');
+
+    const payout = await tx.depositPayout.findFirst({ where: { id: payoutId, depositId } });
+    if (!payout) throw new AppError('NOT_FOUND', 'Payout not found.', 404);
+    if (payout.reversedAt) {
+      throw new AppError('CONFLICT', 'Payout has already been reversed.', 409);
+    }
+
+    // LIFO-only, mirroring loan payment reversal. See docs/business-rules.md.
+    const latest = await tx.depositPayout.findFirst({
+      where: { depositId, reversedAt: null },
+      orderBy: [{ paidAt: 'desc' }, { createdAt: 'desc' }],
+    });
+    if (latest?.id !== payoutId) {
+      throw new AppError(
+        'CONFLICT',
+        'Only the most recent payout can be reversed. Reverse newer payouts first.',
+        409,
+      );
+    }
+
+    await tx.deposit.update({
+      where: { id: depositId },
+      data: {
+        totalPayoutPaid: new Decimal(deposit.totalPayoutPaid).minus(payout.amount),
+        principalReturned: new Decimal(deposit.principalReturned).minus(payout.principalPortion),
+      },
+    });
+
+    const reversed = await tx.depositPayout.update({
+      where: { id: payoutId },
+      data: { reversedAt: now, reversedById: actor.id, reversalReason: data.reason },
+    });
+
+    // Exclusion model: mark the original capital entry reversed (see docs/business-rules.md).
+    await tx.capitalEntry.updateMany({
+      where: { source: 'DEPOSIT_PAYOUT', sourceId: payoutId, reversedAt: null },
+      data: { reversedAt: now, reversalReason: data.reason },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        userId: actor.id,
+        category: 'AUDIT',
+        action: 'DEPOSIT_PAYOUT_REVERSED',
+        targetId: depositId,
+        metadata: {
+          payoutId,
+          amount: payout.amount,
+          principalPortion: payout.principalPortion,
+          reason: data.reason,
+        },
+      },
+    });
+
+    return reversed;
   });
 }
 

@@ -112,7 +112,7 @@ export function DepositDetailPage() {
               </span>
             )}
           </h2>
-          <DepositPayoutHistory payouts={data.payouts} />
+          <DepositPayoutHistory depositId={data.id} depositStatus={data.status} payouts={data.payouts} />
         </div>
       </div>
 

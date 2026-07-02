@@ -6,6 +6,7 @@ import type {
   WithdrawDepositInput,
   CloseDepositInput,
   RecordPayoutInput,
+  ReversePayoutInput,
   ListDepositsInput,
 } from './deposits.schema.js';
 import {
@@ -16,6 +17,7 @@ import {
   withdrawDeposit,
   closeDeposit,
   recordPayout,
+  reversePayout,
   softDeleteDeposit,
 } from './deposits.service.js';
 
@@ -101,6 +103,21 @@ export async function recordPayoutController(req: Request, res: Response, next: 
       { id: req.user!.id },
     );
     res.status(201).json(success(payout));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function reversePayoutController(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id, payoutId } = req.validatedParams as { id: string; payoutId: string };
+    const payout = await reversePayout(
+      id,
+      payoutId,
+      req.validatedBody as ReversePayoutInput,
+      { id: req.user!.id },
+    );
+    res.json(success(payout));
   } catch (err) {
     next(err);
   }

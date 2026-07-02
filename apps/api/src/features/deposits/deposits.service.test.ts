@@ -5,8 +5,8 @@ const mocks = vi.hoisted(() => {
   const tx = {
     $queryRaw: vi.fn(),
     deposit: { update: vi.fn() },
-    depositPayout: { create: vi.fn() },
-    capitalEntry: { create: vi.fn() },
+    depositPayout: { create: vi.fn(), findFirst: vi.fn(), update: vi.fn() },
+    capitalEntry: { create: vi.fn(), updateMany: vi.fn() },
     activityLog: { create: vi.fn() },
   };
   return {
@@ -19,7 +19,7 @@ const mocks = vi.hoisted(() => {
 
 vi.mock('../../lib/prisma', () => ({ prisma: mocks.prisma }));
 
-import { closeDeposit, recordPayout, withdrawDeposit } from './deposits.service.js';
+import { closeDeposit, recordPayout, reversePayout, withdrawDeposit } from './deposits.service.js';
 import { recordPayoutSchema } from './deposits.schema.js';
 
 const actor = { id: 'user-1' };
@@ -131,6 +131,58 @@ describe('deposit termination principal outflow', () => {
     expect(mocks.tx.activityLog.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ action: 'DEPOSIT_WITHDRAWN' }) }),
     );
+  });
+});
+
+describe('reversePayout', () => {
+  const payout = {
+    id: 'payout-1',
+    depositId: 'dep-1',
+    amount: new Decimal(1000),
+    principalPortion: new Decimal(600),
+    reversedAt: null,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.tx.$queryRaw.mockResolvedValue([
+      { ...activeDeposit, totalPayoutPaid: new Decimal(1000), principalReturned: new Decimal(600) },
+    ]);
+    mocks.tx.depositPayout.findFirst
+      .mockResolvedValueOnce(payout)
+      .mockResolvedValueOnce(payout);
+    mocks.tx.depositPayout.update.mockResolvedValue({ ...payout, reversedAt: new Date() });
+  });
+
+  it('unwinds deposit totals and marks payout + capital entry reversed', async () => {
+    await reversePayout('dep-1', 'payout-1', { reason: 'Typo' }, actor);
+
+    expect(mocks.tx.deposit.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          totalPayoutPaid: new Decimal(0),
+          principalReturned: new Decimal(0),
+        }),
+      }),
+    );
+    expect(mocks.tx.capitalEntry.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ source: 'DEPOSIT_PAYOUT', sourceId: 'payout-1' }),
+      }),
+    );
+  });
+
+  it('rejects a payout that is not the most recent', async () => {
+    mocks.tx.depositPayout.findFirst
+      .mockReset()
+      .mockResolvedValueOnce(payout)
+      .mockResolvedValueOnce({ ...payout, id: 'payout-2' });
+
+    await expect(
+      reversePayout('dep-1', 'payout-1', { reason: 'Typo' }, actor),
+    ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 });
+
+    expect(mocks.tx.deposit.update).not.toHaveBeenCalled();
   });
 });
 

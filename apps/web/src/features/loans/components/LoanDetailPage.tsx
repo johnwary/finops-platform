@@ -43,11 +43,14 @@ import { LoanStatusBadge } from '../components/LoanStatusBadge'
 import { RecordPaymentForm } from '../components/RecordPaymentForm'
 import { WriteOffForm } from '../components/WriteOffForm'
 import { RestructureForm } from '../components/RestructureForm'
+import { ReasonDialog } from '@/components/reason-dialog'
 import { useDefaultLoan } from '../hooks/useDefaultLoan'
 import { useDeleteLoan } from '../hooks/useDeleteLoan'
 import { useLoan } from '../hooks/useLoan'
+import { useLockLoan, useUnlockLoan } from '../hooks/useLockLoan'
 import { useMarkArrears } from '../hooks/useMarkArrears'
 import { useMarkCurrent } from '../hooks/useMarkCurrent'
+import { useReversePayment } from '../hooks/useReversePayment'
 import type { LoanDetail } from '../types'
 import {
   INSTALLMENT_STATUS_LABELS,
@@ -77,11 +80,14 @@ export function LoanDetailPage() {
   const [isMarkArrearsOpen, setIsMarkArrearsOpen] = useState(false)
   const [isMarkCurrentOpen, setIsMarkCurrentOpen] = useState(false)
   const [isRestructureOpen, setIsRestructureOpen] = useState(false)
+  const [isLockOpen, setIsLockOpen] = useState(false)
 
   const defaultLoan = useDefaultLoan()
   const deleteLoan = useDeleteLoan()
   const markArrears = useMarkArrears()
   const markCurrent = useMarkCurrent()
+  const lockLoan = useLockLoan()
+  const unlockLoan = useUnlockLoan()
 
   if (loan.isPending) {
     return (
@@ -118,7 +124,10 @@ export function LoanDetailPage() {
             {LOAN_TYPE_LABELS[data.type]} Loan
           </p>
           <h1 className="text-2xl font-semibold">{formatBorrowerName(data.borrower)}</h1>
-          <LoanStatusBadge status={data.status} />
+          <div className="flex items-center gap-2">
+            <LoanStatusBadge status={data.status} />
+            {data.locked && <Badge variant="destructive">Locked</Badge>}
+          </div>
         </div>
 
         <RequireRole role={['admin', 'manager']} fallback="hide">
@@ -178,6 +187,21 @@ export function LoanDetailPage() {
               </>
             )}
             <RequireRole role="admin" fallback="hide">
+              {(data.status === 'ACTIVE' || data.status === 'IN_ARREARS') &&
+                (data.locked ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={unlockLoan.isPending}
+                    onClick={() => unlockLoan.mutate({ id: data.id })}
+                  >
+                    Unlock
+                  </Button>
+                ) : (
+                  <Button size="sm" variant="outline" onClick={() => setIsLockOpen(true)}>
+                    Lock
+                  </Button>
+                ))}
               {(data.status === 'PENDING' || data.status === 'APPROVED') && (
                 <Button size="sm" variant="destructive" onClick={() => setIsDeleteOpen(true)}>
                   Delete
@@ -321,6 +345,18 @@ export function LoanDetailPage() {
         borrowerName={formatBorrowerName(data.borrower)}
         isPending={defaultLoan.isPending}
         onConfirm={() => defaultLoan.mutate({ id: data.id }, { onSuccess: () => setIsDefaultOpen(false) })}
+      />
+
+      <ReasonDialog
+        open={isLockOpen}
+        onOpenChange={setIsLockOpen}
+        title="Lock loan?"
+        description="Payments will be rejected until the loan is unlocked. Use for disputes, fraud review, or legal holds."
+        confirmLabel="Lock"
+        isPending={lockLoan.isPending}
+        onConfirm={(reason) =>
+          lockLoan.mutate({ id: data.id, reason }, { onSuccess: () => setIsLockOpen(false) })
+        }
       />
 
       <ConfirmLoanActionDialog
@@ -631,48 +667,94 @@ function printReceipt(payment: LoanDetail['loanPayments'][number], loan: LoanDet
 }
 
 function PaymentTable({ loan }: { loan: LoanDetail }) {
+  const reversePayment = useReversePayment(loan.id)
+  const [reverseTargetId, setReverseTargetId] = useState<string | null>(null)
+
   if (!loan.loanPayments.length) {
     return <p className="text-sm text-muted-foreground">No payments recorded yet.</p>
   }
 
   const hasPenalties = loan.loanPayments.some((p) => Number(p.penalties) > 0)
+  // Reversal is LIFO-only (matches API): only the newest non-reversed payment,
+  // and only while the loan is in a reversible state.
+  const canReverse = ['ACTIVE', 'IN_ARREARS', 'PAID'].includes(loan.status)
+  const latestReversibleId = canReverse
+    ? loan.loanPayments.find((p) => !p.reversedAt)?.id
+    : undefined
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Date Paid</TableHead>
-          <TableHead>Receipt</TableHead>
-          <TableHead>Amount</TableHead>
-          <TableHead>Principal</TableHead>
-          <TableHead>Interest</TableHead>
-          {hasPenalties && <TableHead>Penalties</TableHead>}
-          <TableHead>Method</TableHead>
-          <TableHead>Reference</TableHead>
-          <TableHead />
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {loan.loanPayments.map((payment) => (
-          <TableRow key={payment.id}>
-            <TableCell>{format(new Date(payment.paidAt), 'MMM d, yyyy')}</TableCell>
-            <TableCell className="font-medium tabular-nums">{payment.receiptNumber}</TableCell>
-            <TableCell className="tabular-nums">{formatPeso(payment.amount)}</TableCell>
-            <TableCell className="tabular-nums">{formatPeso(payment.principalPortion)}</TableCell>
-            <TableCell className="tabular-nums">{formatPeso(payment.interestPortion)}</TableCell>
-            {hasPenalties && (
-              <TableCell className="tabular-nums">{formatPeso(payment.penalties)}</TableCell>
-            )}
-            <TableCell>{PAYMENT_METHOD_LABELS[payment.method]}</TableCell>
-            <TableCell className="text-muted-foreground">{payment.reference ?? '—'}</TableCell>
-            <TableCell>
-              <Button variant="ghost" size="sm" onClick={() => printReceipt(payment, loan)}>
-                Print
-              </Button>
-            </TableCell>
+    <>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Date Paid</TableHead>
+            <TableHead>Receipt</TableHead>
+            <TableHead>Amount</TableHead>
+            <TableHead>Principal</TableHead>
+            <TableHead>Interest</TableHead>
+            {hasPenalties && <TableHead>Penalties</TableHead>}
+            <TableHead>Method</TableHead>
+            <TableHead>Reference</TableHead>
+            <TableHead />
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {loan.loanPayments.map((payment) => (
+            <TableRow key={payment.id} className={payment.reversedAt ? 'opacity-60' : ''}>
+              <TableCell>{format(new Date(payment.paidAt), 'MMM d, yyyy')}</TableCell>
+              <TableCell className="font-medium tabular-nums">{payment.receiptNumber}</TableCell>
+              <TableCell className="tabular-nums">{formatPeso(payment.amount)}</TableCell>
+              <TableCell className="tabular-nums">{formatPeso(payment.principalPortion)}</TableCell>
+              <TableCell className="tabular-nums">{formatPeso(payment.interestPortion)}</TableCell>
+              {hasPenalties && (
+                <TableCell className="tabular-nums">{formatPeso(payment.penalties)}</TableCell>
+              )}
+              <TableCell>{PAYMENT_METHOD_LABELS[payment.method]}</TableCell>
+              <TableCell className="text-muted-foreground">{payment.reference ?? '—'}</TableCell>
+              <TableCell>
+                {payment.reversedAt ? (
+                  <Badge variant="outline" title={payment.reversalReason ?? undefined}>
+                    Reversed
+                  </Badge>
+                ) : (
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="sm" onClick={() => printReceipt(payment, loan)}>
+                      Print
+                    </Button>
+                    {payment.id === latestReversibleId && (
+                      <RequireRole role="admin" fallback="hide">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive"
+                          onClick={() => setReverseTargetId(payment.id)}
+                        >
+                          Reverse
+                        </Button>
+                      </RequireRole>
+                    )}
+                  </div>
+                )}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+
+      <ReasonDialog
+        open={reverseTargetId !== null}
+        onOpenChange={(open) => !open && setReverseTargetId(null)}
+        title="Reverse this payment?"
+        description="This unwinds the payment from the loan balance, reopens affected installments, and removes it from the capital ledger. The record stays visible as reversed."
+        confirmLabel="Reverse Payment"
+        isPending={reversePayment.isPending}
+        onConfirm={(reason) =>
+          reversePayment.mutate(
+            { paymentId: reverseTargetId!, reason },
+            { onSuccess: () => setReverseTargetId(null) },
+          )
+        }
+      />
+    </>
   )
 }
