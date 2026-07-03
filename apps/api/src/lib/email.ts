@@ -1,5 +1,5 @@
 import { logger } from './logger.js';
-import { resend } from './resend.js';
+import { getResend } from './resend.js';
 
 const fromEmail = process.env.RESEND_FROM_EMAIL ?? 'noreply@example.com';
 const webUrl = process.env.WEB_URL ?? 'http://localhost:5173';
@@ -14,7 +14,7 @@ export async function sendInviteEmail(
   const inviteUrl = `${webUrl}/invite/accept?token=${token}`;
 
   try {
-    await resend.emails.send({
+    await getResend().emails.send({
       from: fromEmail,
       to,
       subject: 'You have been invited to Lending Management System',
@@ -33,7 +33,7 @@ export async function sendInviteEmail(
 
 export async function sendPasswordResetEmail(to: string, resetUrl: string, expiresAt: Date): Promise<void> {
   try {
-    await resend.emails.send({
+    await getResend().emails.send({
       from: fromEmail,
       to,
       subject: 'Reset your password',
@@ -52,7 +52,7 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string, expir
 
 export async function sendWelcomeEmail(to: string, name: string): Promise<void> {
   try {
-    await resend.emails.send({
+    await getResend().emails.send({
       from: fromEmail,
       to,
       subject: 'Welcome to Lending Management System',
