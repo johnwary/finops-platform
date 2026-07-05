@@ -8,4 +8,7 @@ allowBuilds:
   prisma: true
 overrides:
   '@hono/node-server': 1.19.14
+  esbuild: 0.28.1
+  ip-address: 10.1.1
+  qs: 6.15.2
   uuid: '>=14.0.0'
