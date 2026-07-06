@@ -563,6 +563,7 @@ const companyProfileSchema = z.object({
   email: z.string().trim().email({ message: 'Enter a valid email' }).max(200).optional().or(z.literal('')),
   website: z.string().trim().max(200).optional(),
   taxId: z.string().trim().max(100).optional(),
+  logoUrl: z.string().trim().url({ message: 'Enter a valid URL' }).max(500).optional().or(z.literal('')),
 })
 
 type CompanyProfileFormInput = z.infer<typeof companyProfileSchema>
@@ -586,6 +587,7 @@ function CompanyProfileSection() {
           email: profile.email ?? '',
           website: profile.website ?? '',
           taxId: profile.taxId ?? '',
+          logoUrl: profile.logoUrl ?? '',
         }
       : undefined,
   })
@@ -641,6 +643,11 @@ function CompanyProfileSection() {
                 <FieldLabel htmlFor="cp-taxid">TIN / Tax ID</FieldLabel>
                 <Input id="cp-taxid" {...register('taxId')} placeholder="123-456-789-000" />
                 <FieldError errors={[errors.taxId]} />
+              </Field>
+              <Field data-invalid={!!errors.logoUrl}>
+                <FieldLabel htmlFor="cp-logo">Logo URL</FieldLabel>
+                <Input id="cp-logo" {...register('logoUrl')} placeholder="https://company.com/logo.png" />
+                <FieldError errors={[errors.logoUrl]} />
               </Field>
               {update.error ? (
                 <Alert variant="destructive">

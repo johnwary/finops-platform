@@ -198,9 +198,9 @@ All state-changing operations write to `ActivityLog`. Same Prisma transaction as
 await tx.activityLog.create({
   data: {
     userId: actor.id,
+    category: 'AUDIT',
     action: 'LOAN_APPROVED',
-    entity: 'Loan',
-    entityId: loan.id,
+    targetId: loan.id,
     metadata: { previousStatus: 'PENDING', newStatus: 'APPROVED' },
   }
 })

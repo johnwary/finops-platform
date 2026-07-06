@@ -1,17 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({
-  prisma: {
-    companyProfile: {
-      findUnique: vi.fn(),
-      upsert: vi.fn(),
+const mocks = vi.hoisted(() => {
+  const tx = {
+    companyProfile: { upsert: vi.fn() },
+    activityLog: { create: vi.fn() },
+  };
+  return {
+    tx,
+    prisma: {
+      companyProfile: { findUnique: vi.fn() },
+      $transaction: vi.fn((callback: (tx: unknown) => unknown) => callback(tx)),
     },
-  },
-}));
+  };
+});
 
 vi.mock('../../lib/prisma', () => ({ prisma: mocks.prisma }));
 
 import { getCompanyProfile, upsertCompanyProfile } from './company.service.js';
+
+const actor = { id: 'user-1' };
 
 describe('company.service', () => {
   beforeEach(() => {
@@ -42,16 +49,31 @@ describe('company.service', () => {
 
   describe('upsertCompanyProfile', () => {
     it('upserts the "default" singleton with normalized empty fields', async () => {
-      mocks.prisma.companyProfile.upsert.mockResolvedValueOnce({ id: 'default', name: 'Acme' });
+      mocks.tx.companyProfile.upsert.mockResolvedValueOnce({ id: 'default', name: 'Acme' });
 
-      const result = await upsertCompanyProfile({ name: 'Acme', email: '' });
+      const result = await upsertCompanyProfile({ name: 'Acme', email: '' }, actor);
 
       expect(result).toMatchObject({ id: 'default', name: 'Acme' });
-      const call = mocks.prisma.companyProfile.upsert.mock.calls[0][0];
+      const call = mocks.tx.companyProfile.upsert.mock.calls[0][0];
       expect(call.where).toEqual({ id: 'default' });
       // empty string email/logoUrl coerced to null; optional fields default to null
       expect(call.update).toMatchObject({ name: 'Acme', email: null, address: null });
       expect(call.create).toMatchObject({ id: 'default', name: 'Acme', email: null });
+    });
+
+    it('writes an audit log in the same transaction', async () => {
+      mocks.tx.companyProfile.upsert.mockResolvedValueOnce({ id: 'default', name: 'Acme' });
+
+      await upsertCompanyProfile({ name: 'Acme' }, actor);
+
+      expect(mocks.tx.activityLog.create).toHaveBeenCalledWith({
+        data: {
+          userId: 'user-1',
+          category: 'AUDIT',
+          action: 'COMPANY_PROFILE_UPDATED',
+          targetId: 'default',
+        },
+      });
     });
   });
 });

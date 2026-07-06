@@ -9,6 +9,6 @@ export async function getCompanyController(req: Request, res: Response) {
 }
 
 export async function updateCompanyController(req: Request, res: Response) {
-  const profile = await upsertCompanyProfile(req.validatedBody as UpdateCompanyInput);
+  const profile = await upsertCompanyProfile(req.validatedBody as UpdateCompanyInput, { id: req.user!.id });
   res.json(success(profile));
 }
