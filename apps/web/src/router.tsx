@@ -2,6 +2,9 @@ import { Suspense, type ReactNode } from 'react'
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom'
 
 import { AppShell } from '@/components/layout/AppShell'
+import { NotFound } from '@/components/layout/NotFound'
+import { RouteError } from '@/components/layout/RouteError'
+import { Spinner } from '@/components/ui/spinner'
 import { ProtectedRoute } from '@/features/auth/components/ProtectedRoute'
 import { RequireRole } from '@/features/auth/components/RequireRole'
 import {
@@ -24,102 +27,121 @@ import {
 } from '@/route-pages'
 
 function page(element: ReactNode) {
-  return <Suspense fallback={null}>{element}</Suspense>
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-svh items-center justify-center">
+          <Spinner className="size-8 text-muted-foreground" />
+        </div>
+      }
+    >
+      {element}
+    </Suspense>
+  )
 }
 
 export const router = createBrowserRouter([
   {
-    path: '/',
-    element: <Navigate to="/dashboard" replace />,
-  },
-  {
-    path: '/login',
-    element: page(<LoginPage />),
-  },
-  {
-    path: '/invite/accept',
-    element: page(<InviteAcceptPage />),
-  },
-  {
-    path: '/forgot-password',
-    element: page(<ForgotPasswordPage />),
-  },
-  {
-    path: '/reset-password',
-    element: page(<ResetPasswordPage />),
-  },
-  {
-    element: <ProtectedRoute />,
+    errorElement: <RouteError />,
     children: [
       {
-        path: '/dashboard',
-        element: (
-          <AppShell>
-            <Outlet />
-          </AppShell>
-        ),
+        path: '/',
+        element: <Navigate to="/dashboard" replace />,
+      },
+      {
+        path: '/login',
+        element: page(<LoginPage />),
+      },
+      {
+        path: '/invite/accept',
+        element: page(<InviteAcceptPage />),
+      },
+      {
+        path: '/forgot-password',
+        element: page(<ForgotPasswordPage />),
+      },
+      {
+        path: '/reset-password',
+        element: page(<ResetPasswordPage />),
+      },
+      {
+        element: <ProtectedRoute />,
         children: [
           {
-            index: true,
-            element: page(<DashboardPage />),
-          },
-          {
-            path: 'settings',
-            element: page(
-              <RequireRole role="admin">
-                <SettingsPage />
-              </RequireRole>,
+            path: '/dashboard',
+            element: (
+              <AppShell>
+                <Outlet />
+              </AppShell>
             ),
-          },
-          {
-            path: 'loans',
-            element: page(<LoansListPage />),
-          },
-          {
-            path: 'loans/:id',
-            element: page(<LoanDetailPage />),
-          },
-          {
-            path: 'borrowers',
-            element: page(<BorrowersListPage />),
-          },
-          {
-            path: 'borrowers/:id',
-            element: page(<BorrowerDetailPage />),
-          },
-          {
-            path: 'deposits',
-            element: page(<DepositsListPage />),
-          },
-          {
-            path: 'deposits/:id',
-            element: page(<DepositDetailPage />),
-          },
-          {
-            path: 'depositors',
-            element: page(<DepositorsListPage />),
-          },
-          {
-            path: 'depositors/:id',
-            element: page(<DepositorDetailPage />),
-          },
-          {
-            path: 'collections',
-            element: page(
-              <RequireRole role={['admin', 'manager']}>
-                <CollectionsPage />
-              </RequireRole>,
-            ),
-          },
-          {
-            path: 'reports',
-            element: page(
-              <RequireRole role={['admin', 'manager']}>
-                <ReportsPage />
-              </RequireRole>,
-            ),
+            children: [
+              {
+                index: true,
+                element: page(<DashboardPage />),
+              },
+              {
+                path: 'settings',
+                element: page(
+                  <RequireRole role="admin">
+                    <SettingsPage />
+                  </RequireRole>,
+                ),
+              },
+              {
+                path: 'loans',
+                element: page(<LoansListPage />),
+              },
+              {
+                path: 'loans/:id',
+                element: page(<LoanDetailPage />),
+              },
+              {
+                path: 'borrowers',
+                element: page(<BorrowersListPage />),
+              },
+              {
+                path: 'borrowers/:id',
+                element: page(<BorrowerDetailPage />),
+              },
+              {
+                path: 'deposits',
+                element: page(<DepositsListPage />),
+              },
+              {
+                path: 'deposits/:id',
+                element: page(<DepositDetailPage />),
+              },
+              {
+                path: 'depositors',
+                element: page(<DepositorsListPage />),
+              },
+              {
+                path: 'depositors/:id',
+                element: page(<DepositorDetailPage />),
+              },
+              {
+                path: 'collections',
+                element: page(
+                  <RequireRole role={['admin', 'manager']}>
+                    <CollectionsPage />
+                  </RequireRole>,
+                ),
+              },
+              {
+                path: 'reports',
+                element: page(
+                  <RequireRole role={['admin', 'manager']}>
+                    <ReportsPage />
+                  </RequireRole>,
+                ),
+              },
+            ],
           },
         ],
+      },
+      {
+        path: '*',
+        element: <NotFound />,
       },
     ],
   },
