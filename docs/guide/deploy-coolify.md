@@ -20,9 +20,11 @@ Coolify → project → **+ New → Database → PostgreSQL** (16+).
 
 - Note the internal connection URL (`postgres://…@<container>:5432/…`). Use the internal
   URL, not the public one — don't expose 5432.
-- **Backups (non-negotiable for financial data):** database → Backups → schedule daily,
-  target an S3-compatible bucket (or at minimum local + off-VPS copy). Test one restore
-  before go-live.
+- **Backups (non-negotiable for financial data):** don't rely on ad-hoc manual dumps —
+  use the scripts in [`scripts/backup/`](../../scripts/backup/README.md). Add
+  `scripts/backup/backup.sh` as a daily Coolify **Scheduled Task** targeting an
+  S3-compatible bucket (setup line and env vars in that README). Run the restore drill
+  once before go-live.
 
 ## 2. API app
 
@@ -128,5 +130,6 @@ container restarts and retries — check API logs first.
   budget; bump in `apps/api/src/index.ts` if a large client hits 429s.
 - **Email:** invites and password resets fail loudly if Resend is misconfigured — a failed
   invite is auto-revoked so it can simply be re-sent after fixing the key.
-- **Restore drill:** quarterly, restore the latest backup to a scratch database and open
-  the app against it. A backup that's never been restored is a hope, not a backup.
+- **Restore drill:** quarterly, run `scripts/backup/restore.sh` against a scratch database
+  (`CONFIRM_RESTORE=yes`, see [`scripts/backup/README.md`](../../scripts/backup/README.md))
+  and open the app against it. A backup that's never been restored is a hope, not a backup.
