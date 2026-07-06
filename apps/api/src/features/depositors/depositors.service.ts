@@ -1,6 +1,7 @@
 import { prisma } from '../../lib/prisma.js';
 import { AppError } from '../../lib/response.js';
 import { normalizePhone } from '../../lib/phone.js';
+import { isUniqueViolation } from '../../lib/prisma-error.js';
 import type {
   CreateDepositorInput,
   UpdateDepositorInput,
@@ -9,15 +10,6 @@ import type {
 
 interface Actor {
   id: string;
-}
-
-function isUniqueViolation(err: unknown): boolean {
-  return (
-    typeof err === 'object' &&
-    err !== null &&
-    'code' in err &&
-    (err as { code: string }).code === 'P2002'
-  );
 }
 
 export async function createDepositor(data: CreateDepositorInput, actor: Actor) {
