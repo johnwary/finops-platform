@@ -1,8 +1,9 @@
 import { logger } from './logger.js';
 import { getResend } from './resend.js';
+import { env } from './env.js';
 
-const fromEmail = process.env.RESEND_FROM_EMAIL ?? 'noreply@example.com';
-const webUrl = process.env.WEB_URL ?? 'http://localhost:5173';
+const fromEmail = env.RESEND_FROM_EMAIL;
+const webUrl = env.WEB_URL;
 
 export async function sendInviteEmail(
   to: string,

@@ -6,6 +6,7 @@ import { rateLimit } from 'express-rate-limit';
 import { pinoHttp } from 'pino-http';
 import { randomUUID } from 'crypto';
 import { toNodeHandler } from 'better-auth/node';
+import { env } from './lib/env.js';
 import { logger } from './lib/logger.js';
 import { auth } from './lib/auth.js';
 import { error } from './lib/response.js';
@@ -22,11 +23,11 @@ import { fundsRouter } from './features/funds/funds.router.js';
 import { startAutoDefaultScheduler } from './jobs/autoDefault.job.js';
 
 const app = express();
-const API_PORT = process.env.API_PORT || 3000;
+const API_PORT = env.API_PORT;
 
 app.set('trust proxy', 1);
 app.use(helmet());
-app.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:5173', credentials: true }));
+app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
 app.use(pinoHttp({
   logger,
   genReqId(req, res) {
