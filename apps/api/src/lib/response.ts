@@ -23,10 +23,10 @@ export function success<T>(data: T) {
   return { data };
 }
 
-export function successList<T>(
-  data: T[],
-  meta: { nextCursor: string | null; hasMore: boolean; limit: number },
-) {
+export function successList<
+  T,
+  M extends { nextCursor: string | null; hasMore: boolean; limit: number },
+>(data: T[], meta: M) {
   return { data, meta };
 }
 

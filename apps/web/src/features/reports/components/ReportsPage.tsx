@@ -71,7 +71,10 @@ export function ReportsPage() {
 
   const isLoading = summary.isPending || overdue.isPending || par.isPending
   const isError = summary.isError || overdue.isError || par.isError
-  const overdueBalance = overdue.data?.data.reduce((sum, loan) => sum + Number(loan.remainingBalance), 0) ?? 0
+  // Overdue loans = the at-risk set (outstanding + has an overdue installment),
+  // so its total balance is PAR's atRiskBalance — aggregated server-side rather
+  // than summed from the paged overdue list (which would only cover one page).
+  const overdueBalance = par.data?.atRiskBalance ?? 0
 
   function handleExportStatus() {
     if (!summary.data) return

@@ -31,7 +31,7 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import { authClient } from '@/lib/auth-client';
-import type { Role } from '@/lib/auth-client';
+import { isRole, type Role } from '@/lib/auth-client';
 import {
   Table,
   TableBody,
@@ -193,7 +193,7 @@ function AuditLogsTable() {
     <Card>
       <CardHeader>
         <CardTitle>Audit Logs</CardTitle>
-        <CardDescription>Latest 100 system and user audit events.</CardDescription>
+        <CardDescription>System and user audit events.</CardDescription>
       </CardHeader>
       <CardContent>
         <AuditLogsTableContent activityLogs={activityLogs} />
@@ -227,48 +227,66 @@ function AuditLogsTableContent({ activityLogs }: { activityLogs: ReturnType<type
     );
   }
 
-  if (!activityLogs.data?.length) {
+  const logs = activityLogs.data?.pages.flatMap((page) => page.data) ?? [];
+
+  if (!logs.length) {
     return <p className="text-sm text-muted-foreground">No audit logs yet.</p>;
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Time</TableHead>
-          <TableHead>Actor</TableHead>
-          <TableHead>Action</TableHead>
-          <TableHead>Target</TableHead>
-          <TableHead>Metadata</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {activityLogs.data.map((log) => (
-          <TableRow key={log.id}>
-            <TableCell className="text-muted-foreground">
-              {new Date(log.createdAt).toLocaleString('en-PH')}
-            </TableCell>
-            <TableCell>
-              {log.user ? (
-                <div className="min-w-0">
-                  <p className="font-medium truncate">{log.user.name}</p>
-                  <p className="text-xs text-muted-foreground truncate">{log.user.email}</p>
-                </div>
-              ) : (
-                <Badge variant="outline">{log.actorType}</Badge>
-              )}
-            </TableCell>
-            <TableCell className="font-medium">{log.action}</TableCell>
-            <TableCell className="text-muted-foreground max-w-32 truncate">
-              {log.targetId ?? '—'}
-            </TableCell>
-            <TableCell className="text-xs text-muted-foreground max-w-sm truncate">
-              {metadataSummary(log.metadata)}
-            </TableCell>
+    <div className="flex flex-col gap-4">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Time</TableHead>
+            <TableHead>Actor</TableHead>
+            <TableHead>Action</TableHead>
+            <TableHead>Target</TableHead>
+            <TableHead>Metadata</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {logs.map((log) => (
+            <TableRow key={log.id}>
+              <TableCell className="text-muted-foreground">
+                {new Date(log.createdAt).toLocaleString('en-PH')}
+              </TableCell>
+              <TableCell>
+                {log.user ? (
+                  <div className="min-w-0">
+                    <p className="font-medium truncate">{log.user.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{log.user.email}</p>
+                  </div>
+                ) : (
+                  <Badge variant="outline">{log.actorType}</Badge>
+                )}
+              </TableCell>
+              <TableCell className="font-medium">{log.action}</TableCell>
+              <TableCell className="text-muted-foreground max-w-32 truncate">
+                {log.targetId ?? '—'}
+              </TableCell>
+              <TableCell className="text-xs text-muted-foreground max-w-sm truncate">
+                {metadataSummary(log.metadata)}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      {activityLogs.hasNextPage ? (
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-fit"
+          disabled={activityLogs.isFetchingNextPage}
+          onClick={() => activityLogs.fetchNextPage()}
+        >
+          {activityLogs.isFetchingNextPage ? (
+            <Spinner data-icon="inline-start" />
+          ) : null}
+          {activityLogs.isFetchingNextPage ? 'Loading…' : 'Load more'}
+        </Button>
+      ) : null}
+    </div>
   );
 }
 
@@ -479,7 +497,9 @@ function UsersTable() {
                         value={user.role ?? 'user'}
                         disabled={isSelf || isBusy}
                         onValueChange={(role) =>
-                          setRole.mutate({ userId: user.id, role: role as Role })
+                          isRole(role)
+                            ? setRole.mutate({ userId: user.id, role })
+                            : toast.error('Failed to update role.')
                         }
                       >
                         <SelectTrigger className="w-32 h-8">

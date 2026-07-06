@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { apiFetch } from '@/lib/api'
-import type { DashboardSummary, OverdueItem, PortfolioAtRisk, ReportPeriod } from '../types'
+import { apiFetch, apiFetchList } from '@/lib/api'
+import type { DashboardSummary, OverdueItem, OverdueMeta, PortfolioAtRisk, ReportPeriod } from '../types'
 
 export function useDashboardSummary(period: ReportPeriod) {
   return useQuery({
@@ -10,10 +10,16 @@ export function useDashboardSummary(period: ReportPeriod) {
   })
 }
 
+// Dashboard + Reports only need the first page and meta.total; the endpoint's
+// default page (100) covers that. Collections pages via useOverdueCollections.
 export function useOverdue() {
   return useQuery({
     queryKey: ['reports', 'overdue'],
-    queryFn: () => apiFetch<{ data: OverdueItem[]; meta: { total: number } }>('/api/v1/reports/overdue'),
+    queryFn: () =>
+      apiFetchList<OverdueItem>('/api/v1/reports/overdue').then((res) => ({
+        data: res.data,
+        meta: res.meta as OverdueMeta,
+      })),
     staleTime: 3 * 60 * 1000,
   })
 }

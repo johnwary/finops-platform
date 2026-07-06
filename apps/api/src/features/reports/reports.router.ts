@@ -7,7 +7,7 @@ import {
   overdueController,
   portfolioAtRiskController,
 } from './reports.controller.js';
-import { periodSchema } from './reports.schema.js';
+import { overdueSchema, periodSchema } from './reports.schema.js';
 
 export const reportsRouter = Router();
 
@@ -15,5 +15,5 @@ reportsRouter.use(requireAuth);
 reportsRouter.use(requireRole(['admin', 'manager']));
 
 reportsRouter.get('/summary', validate(periodSchema, 'query'), summaryController);
-reportsRouter.get('/overdue', overdueController);
+reportsRouter.get('/overdue', validate(overdueSchema, 'query'), overdueController);
 reportsRouter.get('/portfolio-at-risk', portfolioAtRiskController);

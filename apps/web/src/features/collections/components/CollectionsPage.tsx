@@ -1,13 +1,16 @@
+import { useState } from 'react'
 import { format } from 'date-fns'
 import { Download04Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { Link } from 'react-router-dom'
+import { toast } from 'sonner'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Spinner } from '@/components/ui/spinner'
 import {
   Table,
   TableBody,
@@ -18,8 +21,9 @@ import {
 } from '@/components/ui/table'
 import { downloadCsv } from '@/lib/csv'
 import { formatPeso } from '@/lib/format'
-import { useOverdue } from '@/features/dashboard/hooks/useDashboard'
+import { usePortfolioAtRisk } from '@/features/dashboard/hooks/useDashboard'
 import { LOAN_TYPE_LABELS } from '@/features/loans/utils'
+import { fetchAllOverdue, useOverdueCollections } from '../hooks/useOverdueCollections'
 
 const SKELETON_ROW_COUNT = 5
 const TABLE_COL_COUNT = 8
@@ -31,22 +35,32 @@ function riskVariant(daysPastDue: number): 'destructive' | 'secondary' | 'outlin
 }
 
 export function CollectionsPage() {
-  const overdue = useOverdue()
-  const rows = overdue.data?.data ?? []
-  const totalBalance = rows.reduce((sum, loan) => sum + Number(loan.remainingBalance), 0)
+  const overdue = useOverdueCollections()
+  const par = usePortfolioAtRisk()
+  const [isExporting, setIsExporting] = useState(false)
+  // meta.total is identical on every page — read it off the first.
+  const total = overdue.data?.pages[0]?.meta.total ?? 0
 
-  function handleExport() {
-    downloadCsv(`collections-${new Date().toISOString().slice(0, 10)}.csv`, rows.map((loan) => ({
-      borrower: loan.borrower.name,
-      phone: loan.borrower.phone,
-      email: loan.borrower.email,
-      type: LOAN_TYPE_LABELS[loan.type],
-      amount: loan.amount,
-      remainingBalance: loan.remainingBalance,
-      dueSince: loan.earliestOverdueDueDate?.slice(0, 10) ?? '',
-      daysPastDue: loan.daysPastDue,
-      disbursedAt: loan.disbursedAt?.slice(0, 10) ?? '',
-    })))
+  async function handleExport() {
+    setIsExporting(true)
+    try {
+      const all = await fetchAllOverdue()
+      downloadCsv(`collections-${new Date().toISOString().slice(0, 10)}.csv`, all.map((loan) => ({
+        borrower: loan.borrower.name,
+        phone: loan.borrower.phone,
+        email: loan.borrower.email,
+        type: LOAN_TYPE_LABELS[loan.type],
+        amount: loan.amount,
+        remainingBalance: loan.remainingBalance,
+        dueSince: loan.earliestOverdueDueDate?.slice(0, 10) ?? '',
+        daysPastDue: loan.daysPastDue,
+        disbursedAt: loan.disbursedAt?.slice(0, 10) ?? '',
+      })))
+    } catch {
+      toast.error('Failed to export overdue loans.')
+    } finally {
+      setIsExporting(false)
+    }
   }
 
   return (
@@ -56,9 +70,9 @@ export function CollectionsPage() {
           <h1 className="text-xl font-semibold">Collections</h1>
           <p className="text-sm text-muted-foreground">Overdue loan worklist</p>
         </div>
-        <Button type="button" variant="outline" onClick={handleExport} disabled={overdue.isPending || !rows.length}>
-          <HugeiconsIcon icon={Download04Icon} size={16} />
-          Export CSV
+        <Button type="button" variant="outline" onClick={handleExport} disabled={overdue.isPending || isExporting || !total}>
+          {isExporting ? <Spinner data-icon="inline-start" /> : <HugeiconsIcon icon={Download04Icon} size={16} />}
+          {isExporting ? 'Exporting…' : 'Export CSV'}
         </Button>
       </div>
 
@@ -69,17 +83,17 @@ export function CollectionsPage() {
             {overdue.isPending ? (
               <Skeleton className="h-6 w-20" />
             ) : (
-              <CardTitle className="text-xl tabular-nums">{overdue.data?.meta.total ?? 0}</CardTitle>
+              <CardTitle className="text-xl tabular-nums">{total}</CardTitle>
             )}
           </CardHeader>
         </Card>
         <Card>
           <CardHeader>
             <CardDescription>Outstanding overdue balance</CardDescription>
-            {overdue.isPending ? (
+            {par.isPending ? (
               <Skeleton className="h-6 w-32" />
             ) : (
-              <CardTitle className="text-xl tabular-nums">{formatPeso(totalBalance)}</CardTitle>
+              <CardTitle className="text-xl tabular-nums">{formatPeso(par.data?.atRiskBalance ?? 0)}</CardTitle>
             )}
           </CardHeader>
         </Card>
@@ -98,7 +112,9 @@ export function CollectionsPage() {
   )
 }
 
-function CollectionsTable({ overdue }: { overdue: ReturnType<typeof useOverdue> }) {
+function CollectionsTable({ overdue }: { overdue: ReturnType<typeof useOverdueCollections> }) {
+  const rows = overdue.data?.pages.flatMap((page) => page.data) ?? []
+
   if (overdue.isPending) {
     return (
       <Table>
@@ -137,11 +153,12 @@ function CollectionsTable({ overdue }: { overdue: ReturnType<typeof useOverdue> 
     )
   }
 
-  if (!overdue.data?.data.length) {
+  if (!rows.length) {
     return <p className="text-sm text-muted-foreground">No overdue loans.</p>
   }
 
   return (
+    <div className="flex flex-col gap-4">
     <Table>
       <TableHeader>
         <TableRow>
@@ -156,7 +173,7 @@ function CollectionsTable({ overdue }: { overdue: ReturnType<typeof useOverdue> 
         </TableRow>
       </TableHeader>
       <TableBody>
-        {overdue.data.data.map((loan) => (
+        {rows.map((loan) => (
           <TableRow key={loan.loanId}>
             <TableCell className="font-medium max-w-40 truncate">{loan.borrower.name}</TableCell>
             <TableCell>
@@ -185,5 +202,18 @@ function CollectionsTable({ overdue }: { overdue: ReturnType<typeof useOverdue> 
         ))}
       </TableBody>
     </Table>
+      {overdue.hasNextPage ? (
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-fit"
+          disabled={overdue.isFetchingNextPage}
+          onClick={() => overdue.fetchNextPage()}
+        >
+          {overdue.isFetchingNextPage ? <Spinner data-icon="inline-start" /> : null}
+          {overdue.isFetchingNextPage ? 'Loading…' : 'Load more'}
+        </Button>
+      ) : null}
+    </div>
   )
 }

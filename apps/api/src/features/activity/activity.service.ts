@@ -1,10 +1,12 @@
 import { prisma } from '../../lib/prisma.js';
 import type { ListActivityLogsInput } from './activity.schema.js';
 
-export function listActivityLogs({ limit }: ListActivityLogsInput) {
-  return prisma.activityLog.findMany({
+export async function listActivityLogs({ cursor, limit }: ListActivityLogsInput) {
+  const logs = await prisma.activityLog.findMany({
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-    take: limit,
+    cursor: cursor ? { id: cursor } : undefined,
+    skip: cursor ? 1 : 0,
+    take: limit + 1,
     select: {
       id: true,
       action: true,
@@ -22,4 +24,17 @@ export function listActivityLogs({ limit }: ListActivityLogsInput) {
       },
     },
   });
+
+  const hasMore = logs.length > limit;
+  const data = hasMore ? logs.slice(0, limit) : logs;
+  const nextCursor = hasMore ? data[data.length - 1]?.id ?? null : null;
+
+  return {
+    data,
+    meta: {
+      nextCursor,
+      hasMore,
+      limit,
+    },
+  };
 }

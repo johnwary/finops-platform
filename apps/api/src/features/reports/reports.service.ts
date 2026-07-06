@@ -2,7 +2,7 @@ import { Decimal } from '@prisma/client/runtime/client';
 import { prisma } from '../../lib/prisma.js';
 import { startOfManilaPeriod } from '../../lib/time.js';
 import { OUTSTANDING_LOAN_STATUSES } from '../../lib/lending.js';
-import type { PeriodInput } from './reports.schema.js';
+import type { OverdueInput, PeriodInput } from './reports.schema.js';
 
 function formatBorrowerName(b: { firstName: string; middleName?: string | null; lastName: string }): string {
   const first = b.middleName ? `${b.firstName} ${b.middleName}` : b.firstName;
@@ -177,36 +177,54 @@ export async function getSummary(input: PeriodInput) {
   };
 }
 
-export async function getOverdue() {
-  const loans = await prisma.loan.findMany({
-    where: {
-      status: { in: OUTSTANDING_LOAN_STATUSES },
-      deletedAt: null,
-      loanInstallments: { some: { status: 'OVERDUE' } },
-    },
-    include: {
-      borrower: {
-        select: {
-          id: true,
-          firstName: true,
-          middleName: true,
-          lastName: true,
-          email: true,
-          phone: true,
+export async function getOverdue({ cursor, limit }: OverdueInput) {
+  const where = {
+    status: { in: OUTSTANDING_LOAN_STATUSES },
+    deletedAt: null,
+    loanInstallments: { some: { status: 'OVERDUE' as const } },
+  };
+
+  const [loans, total] = await Promise.all([
+    prisma.loan.findMany({
+      where,
+      include: {
+        borrower: {
+          select: {
+            id: true,
+            firstName: true,
+            middleName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+          },
+        },
+        loanInstallments: {
+          where: { status: 'OVERDUE' },
+          orderBy: { dueDate: 'asc' },
+          take: 1,
         },
       },
-      loanInstallments: {
-        where: { status: 'OVERDUE' },
-        orderBy: { dueDate: 'asc' },
-        take: 1,
-      },
-    },
-    orderBy: { disbursedAt: 'asc' },
-  });
+      // Cursor pages on a stable DB key. DPD-descending is applied per-page
+      // below — not a DB order, so cross-page global "worst first" is not
+      // guaranteed. ponytail: fine while the default page (100) covers the
+      // typical overdue set; if the set routinely exceeds one page and a
+      // globally-sorted worklist matters, add an `earliestOverdueDueDate`
+      // column on Loan and order/cursor on that.
+      orderBy: [{ disbursedAt: 'asc' }, { id: 'asc' }],
+      cursor: cursor ? { id: cursor } : undefined,
+      skip: cursor ? 1 : 0,
+      take: limit + 1,
+    }),
+    prisma.loan.count({ where }),
+  ]);
+
+  const hasMore = loans.length > limit;
+  const page = hasMore ? loans.slice(0, limit) : loans;
+  const nextCursor = hasMore ? (page[page.length - 1]?.id ?? null) : null;
 
   const now = new Date();
 
-  const data = loans.map((loan) => {
+  const data = page.map((loan) => {
     const earliest = loan.loanInstallments[0];
     const dpd = earliest
       ? Math.max(0, Math.floor((now.getTime() - earliest.dueDate.getTime()) / 86_400_000))
@@ -229,10 +247,10 @@ export async function getOverdue() {
     };
   });
 
-  // Sort by DPD descending — worst first
+  // Sort by DPD descending — worst first (within this page)
   data.sort((a, b) => b.daysPastDue - a.daysPastDue);
 
-  return { data, meta: { total: data.length } };
+  return { data, meta: { nextCursor, hasMore, limit, total } };
 }
 
 export async function getPortfolioAtRisk() {

@@ -88,6 +88,13 @@ export interface OverdueItem {
   disbursedAt: string | null
 }
 
+export interface OverdueMeta {
+  nextCursor: string | null
+  hasMore: boolean
+  limit: number
+  total: number
+}
+
 export interface PortfolioAtRisk {
   totalPortfolioBalance: string
   totalPortfolioCount: number
