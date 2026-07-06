@@ -15,7 +15,8 @@ apps/api/
 ├── src/
 │   ├── index.ts             # App entry — middleware stack, route mounting, graceful shutdown
 │   ├── lib/
-│   │   ├── auth.ts          # better-auth instance (email/password + Google)
+│   │   ├── auth.ts          # better-auth instance (email/password only)
+│   │   ├── env.ts           # Zod-validated env — single source of env truth
 │   │   ├── prisma.ts        # Prisma client singleton
 │   │   ├── logger.ts        # Pino logger
 │   │   ├── resend.ts        # Resend client singleton
@@ -242,41 +243,54 @@ Run `prisma generate` after any schema change.
 
 ## Testing
 
-MVP scope: unit test services only.
-Test DB: SQLite in-memory (via Prisma `datasource` override in test env).
-No mocking Prisma — real queries against in-memory DB.
+Scope: unit test services only. Vitest, `globals: true`, `environment: 'node'`.
+`src/test/setup.ts` sets dummy env vars (DATABASE_URL, BETTER_AUTH_*, RESEND_*) so
+`env.ts` validation passes without a real `.env`.
 
-`vitest.config.ts` not yet created — must be created to wire up SQLite override:
-
-```ts
-// vitest.config.ts
-import { defineConfig } from 'vitest/config'
-export default defineConfig({
-  test: {
-    globals: true,
-    environment: 'node',
-    setupFiles: ['./src/test/setup.ts'],
-  },
-})
-```
+The Prisma singleton is mocked per test file — no DB, no real queries. Each test
+builds mocked models with `vi.hoisted`, then `vi.mock('../../lib/prisma')` to swap
+the singleton for the mock. `$transaction` is stubbed to run its callback against a
+mocked `tx`, so transactional service code runs unchanged against mock functions:
 
 ```ts
-// src/test/setup.ts
-process.env.DATABASE_URL = 'file::memory:?cache=shared'
+const mocks = vi.hoisted(() => {
+  const tx = {
+    loan: { create: vi.fn(), update: vi.fn(), findFirst: vi.fn() },
+    activityLog: { create: vi.fn() },
+    // ...one entry per model the service touches
+  };
+  return {
+    tx,
+    prisma: {
+      loan: { findFirst: vi.fn() },
+      $transaction: vi.fn((callback) => callback(tx)),
+    },
+  };
+});
+
+vi.mock('../../lib/prisma', () => ({ prisma: mocks.prisma }));
 ```
+
+Assert on the mock calls (e.g. `mocks.tx.activityLog.create` was called with the
+expected audit payload) and on the service return value.
 
 ## Environment Variables
 
-```
-NODE_ENV=development
-PORT=3000
-CORS_ORIGIN=http://localhost:5173
-DATABASE_URL=postgresql://user:password@localhost:5432/finops_db
-BETTER_AUTH_SECRET=
-BETTER_AUTH_URL=http://localhost:3000
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-RESEND_API_KEY=
-RESEND_FROM_EMAIL=noreply@yourdomain.com
-LOG_LEVEL=info
-```
+`src/lib/env.ts` is the single source of truth — Zod-validated at boot, throws on
+invalid config. Import `env` from there; never read `process.env` directly.
+In non-production, DATABASE_URL / BETTER_AUTH_SECRET / BETTER_AUTH_URL fall back to
+localhost defaults; in production they are required. See `.env.example`.
+
+| Var | Default (dev) | Notes |
+|-----|---------------|-------|
+| `NODE_ENV` | `development` | `development` \| `test` \| `production` |
+| `API_PORT` | `3000` | coerced to number |
+| `CORS_ORIGIN` | `http://localhost:5173` | |
+| `LOG_LEVEL` | `info` | pino levels + `silent` |
+| `DATABASE_URL` | localhost fallback | required in prod |
+| `BETTER_AUTH_SECRET` | dev fallback | required in prod |
+| `BETTER_AUTH_URL` | `http://localhost:3000` | required in prod |
+| `BETTER_AUTH_TRUSTED_ORIGINS` | — | optional, comma-separated |
+| `WEB_URL` | `http://localhost:5173` | |
+| `RESEND_API_KEY` | — | optional; email fails lazily if unset |
+| `RESEND_FROM_EMAIL` | `noreply@example.com` | |
