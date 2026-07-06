@@ -10,8 +10,8 @@ export class ApiError extends Error {
   status: number
   fields?: Record<string, string[]>
 
-  constructor(payload: ApiErrorPayload) {
-    super(payload.message)
+  constructor(payload: ApiErrorPayload, options?: ErrorOptions) {
+    super(payload.message, options)
     this.name = 'ApiError'
     this.code = payload.code
     this.status = payload.status
@@ -26,14 +26,22 @@ export function isConflictError(err: unknown): err is ApiError {
 const apiBaseUrl = import.meta.env.VITE_API_URL ?? ''
 
 async function apiFetchRaw(path: string, init: RequestInit = {}) {
-  const response = await fetch(`${apiBaseUrl}${path}`, {
-    ...init,
-    credentials: 'include',
-    headers: {
-      'content-type': 'application/json',
-      ...init.headers,
-    },
-  })
+  let response: Response
+  try {
+    response = await fetch(`${apiBaseUrl}${path}`, {
+      ...init,
+      credentials: 'include',
+      headers: {
+        'content-type': 'application/json',
+        ...init.headers,
+      },
+    })
+  } catch (cause) {
+    throw new ApiError(
+      { code: 'NETWORK_ERROR', message: 'Network error — check your connection.', status: 0 },
+      { cause },
+    )
+  }
 
   const payload = await response.json().catch(() => null)
 
@@ -52,6 +60,13 @@ async function apiFetchRaw(path: string, init: RequestInit = {}) {
 
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const payload = await apiFetchRaw(path, init)
+  if (payload?.data === undefined) {
+    throw new ApiError({
+      code: 'MALFORMED_RESPONSE',
+      message: 'Malformed response — missing data.',
+      status: 200,
+    })
+  }
   return payload.data as T
 }
 
@@ -66,6 +81,13 @@ export async function apiFetchList<T>(
   init: RequestInit = {},
 ): Promise<{ data: T[]; meta: ListMeta }> {
   const payload = await apiFetchRaw(path, init)
+  if (payload?.data === undefined) {
+    throw new ApiError({
+      code: 'MALFORMED_RESPONSE',
+      message: 'Malformed response — missing data.',
+      status: 200,
+    })
+  }
   return payload as { data: T[]; meta: ListMeta }
 }
 
