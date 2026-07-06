@@ -1,5 +1,16 @@
 import { format } from 'date-fns'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -36,6 +47,9 @@ interface LoanTableProps {
   onStatusChange: (status: LoanStatus | undefined) => void
   onTypeChange: (type: LoanType | undefined) => void
   onSearchChange: (search: string) => void
+  restoreAction?: (id: string) => void
+  isRestoring?: boolean
+  restoringId?: string
 }
 
 const LOAN_STATUSES: LoanStatus[] = ['PENDING', 'APPROVED', 'ACTIVE', 'PAID', 'CANCELED', 'DEFAULTED']
@@ -45,7 +59,7 @@ const ALL_TYPES_VALUE = 'ALL_TYPES'
 const SKELETON_ROW_COUNT = 5
 const TABLE_COL_COUNT = 9
 
-export function LoanTable({ loans, statusFilter, typeFilter, search, isSearchPending, onStatusChange, onTypeChange, onSearchChange }: LoanTableProps) {
+export function LoanTable({ loans, statusFilter, typeFilter, search, isSearchPending, onStatusChange, onTypeChange, onSearchChange, restoreAction, isRestoring, restoringId }: LoanTableProps) {
   const isRefetching = isSearchPending || (loans.isFetching && !loans.isPending)
 
   return (
@@ -89,12 +103,22 @@ export function LoanTable({ loans, statusFilter, typeFilter, search, isSearchPen
         {isRefetching && <Spinner className="text-muted-foreground" />}
       </div>
 
-      <LoanTableContent loans={loans} />
+      <LoanTableContent loans={loans} restoreAction={restoreAction} isRestoring={isRestoring} restoringId={restoringId} />
     </div>
   )
 }
 
-function LoanTableContent({ loans }: { loans: ReturnType<typeof useLoans> }) {
+interface LoanTableContentProps {
+  loans: ReturnType<typeof useLoans>
+  restoreAction?: (id: string) => void
+  isRestoring?: boolean
+  restoringId?: string
+}
+
+function LoanTableContent({ loans, restoreAction, isRestoring, restoringId }: LoanTableContentProps) {
+  const [pendingRestoreId, setPendingRestoreId] = useState<string | null>(null)
+  const pendingLoan = loans.data?.data.find((l) => l.id === pendingRestoreId)
+
   if (loans.isPending) {
     return (
       <Table>
@@ -139,41 +163,88 @@ function LoanTableContent({ loans }: { loans: ReturnType<typeof useLoans> }) {
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Borrower</TableHead>
-          <TableHead>Type</TableHead>
-          <TableHead>Amount</TableHead>
-          <TableHead>Rate</TableHead>
-          <TableHead>Term</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Remaining</TableHead>
-          <TableHead>Disbursed</TableHead>
-          <TableHead />
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {loans.data.data.map((loan) => (
-          <TableRow key={loan.id}>
-            <TableCell className="font-medium max-w-32 truncate">{formatBorrowerName(loan.borrower)}</TableCell>
-            <TableCell>{LOAN_TYPE_LABELS[loan.type]}</TableCell>
-            <TableCell className="tabular-nums">{formatPeso(loan.amount)}</TableCell>
-            <TableCell className="tabular-nums">{formatPercent(loan.interestRate)}</TableCell>
-            <TableCell>{loan.termMonths}mo</TableCell>
-            <TableCell><LoanStatusBadge status={loan.status} /></TableCell>
-            <TableCell className="tabular-nums">{formatPeso(loan.remainingBalance)}</TableCell>
-            <TableCell className="text-muted-foreground">
-              {loan.disbursedAt ? format(new Date(loan.disbursedAt), 'MMM d, yyyy') : '—'}
-            </TableCell>
-            <TableCell className="text-right">
-              <Button variant="ghost" size="sm" asChild>
-                <Link to={`/dashboard/loans/${loan.id}`}>View</Link>
-              </Button>
-            </TableCell>
+    <>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Borrower</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead>Amount</TableHead>
+            <TableHead>Rate</TableHead>
+            <TableHead>Term</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Remaining</TableHead>
+            <TableHead>Disbursed</TableHead>
+            <TableHead />
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {loans.data.data.map((loan) => (
+            <TableRow key={loan.id}>
+              <TableCell className="font-medium max-w-32 truncate">{formatBorrowerName(loan.borrower)}</TableCell>
+              <TableCell>{LOAN_TYPE_LABELS[loan.type]}</TableCell>
+              <TableCell className="tabular-nums">{formatPeso(loan.amount)}</TableCell>
+              <TableCell className="tabular-nums">{formatPercent(loan.interestRate)}</TableCell>
+              <TableCell>{loan.termMonths}mo</TableCell>
+              <TableCell><LoanStatusBadge status={loan.status} /></TableCell>
+              <TableCell className="tabular-nums">{formatPeso(loan.remainingBalance)}</TableCell>
+              <TableCell className="text-muted-foreground">
+                {loan.disbursedAt ? format(new Date(loan.disbursedAt), 'MMM d, yyyy') : '—'}
+              </TableCell>
+              <TableCell className="text-right">
+                {restoreAction ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isRestoring}
+                    onClick={() => setPendingRestoreId(loan.id)}
+                  >
+                    {isRestoring && restoringId === loan.id ? (
+                      <Spinner data-icon="inline-start" />
+                    ) : null}
+                    Restore
+                  </Button>
+                ) : (
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link to={`/dashboard/loans/${loan.id}`}>View</Link>
+                  </Button>
+                )}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+
+      <AlertDialog
+        open={!!pendingRestoreId}
+        onOpenChange={(open) => { if (!open) setPendingRestoreId(null) }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Restore loan?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingLoan
+                ? <>Restore the loan for <span className="font-semibold text-foreground">{formatBorrowerName(pendingLoan.borrower)}</span>? It will appear as an active loan again.</>
+                : 'This loan will be restored as active.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isRestoring}
+              onClick={() => {
+                if (pendingRestoreId && restoreAction) {
+                  restoreAction(pendingRestoreId)
+                  setPendingRestoreId(null)
+                }
+              }}
+            >
+              {isRestoring ? <Spinner data-icon="inline-start" /> : null}
+              Restore
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }

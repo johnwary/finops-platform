@@ -9,10 +9,11 @@ interface UseLoansParams {
   search?: string
   borrowerId?: string
   cursor?: string
+  deleted?: boolean
 }
 
 export function useLoans(params?: UseLoansParams) {
-  const qs = toSearchParams({ status: params?.status, type: params?.type, search: params?.search, borrowerId: params?.borrowerId, cursor: params?.cursor })
+  const qs = toSearchParams({ status: params?.status, type: params?.type, search: params?.search, borrowerId: params?.borrowerId, cursor: params?.cursor, deleted: params?.deleted })
 
   return useQuery({
     queryKey: ['loans', params],

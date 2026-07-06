@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import { requireAuth } from '../../middleware/auth.middleware.js';
+import { error } from '../../lib/response.js';
 import { requireRole } from '../../middleware/rbac.middleware.js';
 import { validate } from '../../middleware/validate.middleware.js';
+import type { ListLoansInput } from './loans.schema.js';
 import {
   createLoanController,
   getLoanController,
@@ -49,6 +51,13 @@ loansRouter.get(
   '/',
   requireRole(['admin', 'manager', 'user']),
   validate(listLoansSchema, 'query'),
+  (req, res, next) => {
+    if ((req.validatedQuery as ListLoansInput).deleted && req.user!.role !== 'admin') {
+      res.status(403).json(error('FORBIDDEN', 'Only admins can list deleted loans.', 403));
+      return;
+    }
+    next();
+  },
   listLoansController,
 );
 

@@ -68,6 +68,7 @@ export const listLoansSchema = z.object({
   type: z
     .enum(['SALARY', 'BUSINESS', 'PERSONAL', 'PURCHASE_ORDER', 'PENSION', 'INVESTMENT'])
     .optional(),
+  deleted: z.enum(['true', 'false']).transform((v) => v === 'true').default(false),
 });
 
 export const defaultLoanSchema = z.object({

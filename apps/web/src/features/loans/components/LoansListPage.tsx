@@ -11,20 +11,26 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { RequireRole } from '@/features/auth/components/RequireRole'
+import { useSession } from '@/features/auth/hooks/useSession'
 import { useDebounce } from '@/hooks/use-debounce'
 import { apiFetchList } from '@/lib/api'
 import { downloadCsv } from '@/lib/csv'
 import { CreateLoanForm } from '../components/CreateLoanForm'
 import { LoanTable } from '../components/LoanTable'
 import { useLoans } from '../hooks/useLoans'
+import { useRestoreLoan } from '../hooks/useRestoreLoan'
 import type { Loan, LoanStatus, LoanType } from '../types'
 import { formatBorrowerName } from '@/features/borrowers/utils'
 import { LOAN_STATUS_LABELS, LOAN_TYPE_LABELS } from '../utils'
 
 export function LoansListPage() {
+  const session = useSession()
+  const isAdmin = session.data?.user.role === 'admin'
+
   const [status, setStatus] = useState<LoanStatus | undefined>(undefined)
   const [type, setType] = useState<LoanType | undefined>(undefined)
   const [search, setSearch] = useState('')
+  const [showDeleted, setShowDeleted] = useState(false)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [pageIndex, setPageIndex] = useState(0)
@@ -37,12 +43,32 @@ export function LoansListPage() {
     type,
     search: debouncedSearch || undefined,
     cursor: pageCursors[pageIndex],
+    deleted: showDeleted || undefined,
   })
   const nextCursor = loans.data?.meta.nextCursor ?? null
+
+  const restoreLoan = useRestoreLoan()
 
   function resetPagination() {
     setPageIndex(0)
     setPageCursors([undefined])
+  }
+
+  function handleToggleDeleted() {
+    setShowDeleted((prev) => !prev)
+    setStatus(undefined)
+    setType(undefined)
+    setSearch('')
+    resetPagination()
+  }
+
+  function handleRestore(id: string) {
+    restoreLoan.mutate(id, {
+      onSuccess: () => {
+        setShowDeleted(false)
+        resetPagination()
+      },
+    })
   }
 
   function handleStatusChange(nextStatus: LoanStatus | undefined) {
@@ -110,12 +136,25 @@ export function LoansListPage() {
           <p className="text-sm text-muted-foreground">Manage borrower loans.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button type="button" variant="outline" onClick={handleExport} disabled={isExporting || loans.isPending || !loans.data?.data.length}>
-            <HugeiconsIcon icon={Download04Icon} size={16} />
-            Export CSV
-          </Button>
+          {isAdmin && (
+            <Button
+              variant={showDeleted ? 'secondary' : 'outline'}
+              size="sm"
+              onClick={handleToggleDeleted}
+            >
+              {showDeleted ? 'Show active' : 'Show deleted'}
+            </Button>
+          )}
+          {!showDeleted && (
+            <Button type="button" variant="outline" onClick={handleExport} disabled={isExporting || loans.isPending || !loans.data?.data.length}>
+              <HugeiconsIcon icon={Download04Icon} size={16} />
+              Export CSV
+            </Button>
+          )}
           <RequireRole role={['admin', 'manager']} fallback="hide">
-            <Button onClick={() => setIsCreateOpen(true)}>New Loan</Button>
+            {!showDeleted && (
+              <Button onClick={() => setIsCreateOpen(true)}>New Loan</Button>
+            )}
           </RequireRole>
         </div>
       </div>
@@ -129,6 +168,9 @@ export function LoansListPage() {
         onStatusChange={handleStatusChange}
         onTypeChange={handleTypeChange}
         onSearchChange={handleSearchChange}
+        restoreAction={showDeleted ? handleRestore : undefined}
+        isRestoring={restoreLoan.isPending}
+        restoringId={restoreLoan.variables}
       />
       {loans.data?.data?.length ? (
         <div className="flex items-center justify-end gap-2">

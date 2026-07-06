@@ -380,8 +380,8 @@ export async function getLoan(id: string) {
   return loan;
 }
 
-export async function listLoans({ cursor, limit, borrowerId, status, search, type }: ListLoansInput) {
-  const where: Record<string, unknown> = { deletedAt: null };
+export async function listLoans({ cursor, limit, borrowerId, status, search, type, deleted }: ListLoansInput) {
+  const where: Record<string, unknown> = { deletedAt: deleted ? { not: null } : null };
 
   if (borrowerId) where.borrowerId = borrowerId;
   if (status) where.status = status;
