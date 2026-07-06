@@ -2,8 +2,18 @@ import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { hashPassword } from 'better-auth/crypto';
 import { addMonths, subDays, subMonths } from 'date-fns';
-import { Decimal } from '@prisma/client/runtime/client';
 import { PrismaClient } from '../src/generated/prisma/client.js';
+
+// This seed drives the REAL service functions (createLoan, disburse, recordPayment,
+// createDeposit, recordPayout, …) instead of hand-crafting rows, so every ledger
+// entry, installment schedule, allocation, and audit log is shaped exactly as the
+// running app would produce it. Service functions hardcode createdAt/recordedAt to
+// now(); we backdate those afterwards with a raw UPDATE keyed off each record's
+// domain date, so reports show ~6 months of history. Dates that ARE service inputs
+// (applicationDate, approvedAt, disbursedAt, paidAt) are passed directly.
+//
+// Guarded to non-production; wipes app data first (User/Account preserved) so
+// re-seeding is idempotent.
 
 if (process.env.NODE_ENV === 'production') {
   console.error('Refusing to seed: NODE_ENV is production. Seeding overwrites real data.');
@@ -11,7 +21,6 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 const databaseUrl = process.env.DATABASE_URL;
-
 if (!databaseUrl) {
   console.error('DATABASE_URL is required.');
   process.exit(1);
@@ -20,59 +29,23 @@ if (!databaseUrl) {
 const adapter = new PrismaPg(databaseUrl);
 const prisma = new PrismaClient({ adapter });
 
-const ADMIN_ID = 'seed-user-admin';
-const STAFF_ID = 'seed-user-staff';
-const ADMIN_ACCOUNT_ID = 'seed-account-admin';
-const STAFF_ACCOUNT_ID = 'seed-account-staff';
+// The service layer imports the prisma SINGLETON from src/lib/prisma. To have the
+// services write to the same connection this script controls, we import them after
+// setting DATABASE_URL (already loaded via dotenv). They accept a plain Actor {id}.
+const loans = await import('../src/features/loans/loans.service.js');
+const deposits = await import('../src/features/deposits/deposits.service.js');
+const funds = await import('../src/features/funds/funds.service.js');
+const { markPastDueInstallmentsOverdue } = await import('../src/jobs/autoDefault.job.js');
 
-const ADMIN_EMAIL = (process.env.SEED_ADMIN_EMAIL ?? 'admin@example.com').toLowerCase();
-const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? 'changeme123';
-const ADMIN_NAME = process.env.SEED_ADMIN_NAME ?? 'Super Admin';
+const TODAY = new Date('2026-07-06T04:00:00.000Z'); // noon Manila, fixed anchor
 
-const STAFF_EMAIL = (process.env.SEED_STAFF_EMAIL ?? 'staff@example.com').toLowerCase();
-const STAFF_PASSWORD = process.env.SEED_STAFF_PASSWORD ?? 'changeme123';
-const STAFF_NAME = process.env.SEED_STAFF_NAME ?? 'Operations Staff';
-
-const BORROWER_IDS = {
-  clean: '00000000-0000-4000-8000-000000000101',
-  pending: '00000000-0000-4000-8000-000000000102',
-  approved: '00000000-0000-4000-8000-000000000103',
-  activeFresh: '00000000-0000-4000-8000-000000000104',
-  activePartial: '00000000-0000-4000-8000-000000000105',
-  defaulted: '00000000-0000-4000-8000-000000000106',
-} as const;
-
-const LOAN_IDS = {
-  pending: '00000000-0000-4000-8000-000000000201',
-  approved: '00000000-0000-4000-8000-000000000202',
-  activeFresh: '00000000-0000-4000-8000-000000000203',
-  activePartial: '00000000-0000-4000-8000-000000000204',
-  defaulted: '00000000-0000-4000-8000-000000000205',
-} as const;
-
-const DEPOSITOR_IDS = {
-  clean: 'seed-depositor-clean',
-  active: 'seed-depositor-active',
-  payout: 'seed-depositor-payout',
-  closed: 'seed-depositor-closed',
-} as const;
-
-const DEPOSIT_IDS = {
-  active: 'seed-deposit-active',
-  payout: 'seed-deposit-payout',
-  closed: 'seed-deposit-closed',
-} as const;
-
-const BUSINESS_FUND_IDS = {
-  initial: 'seed-business-fund-initial',
-  topUp: 'seed-business-fund-top-up',
-} as const;
-
-const loanIds = Object.values(LOAN_IDS);
-const borrowerIds = Object.values(BORROWER_IDS);
-const depositorIds = Object.values(DEPOSITOR_IDS);
-const depositIds = Object.values(DEPOSIT_IDS);
-const businessFundIds = Object.values(BUSINESS_FUND_IDS);
+const PASSWORD = 'password123';
+const USERS = [
+  { id: 'seed-user-owner', email: 'owner@finops.ph', name: 'Ricardo Dela Cruz', role: 'admin' },
+  { id: 'seed-user-manager', email: 'manager@finops.ph', name: 'Grace Villanueva', role: 'manager' },
+  { id: 'seed-user-staff1', email: 'liza@finops.ph', name: 'Liza Mendoza', role: 'user' },
+  { id: 'seed-user-staff2', email: 'paolo@finops.ph', name: 'Paolo Gutierrez', role: 'user' },
+] as const;
 
 function normalizePhone(phone: string): string {
   const digits = phone.replace(/\D/g, '');
@@ -81,964 +54,486 @@ function normalizePhone(phone: string): string {
   return digits;
 }
 
-function money(value: number | string): Decimal {
-  return new Decimal(value).toDecimalPlaces(2);
-}
+// ── wipe (preserve User/Account) ───────────────────────────────────────────────
 
-function rate(value: number | string): Decimal {
-  return new Decimal(value);
-}
-
-function installmentPayment(principal: number, monthlyRate: number, termMonths: number): number {
-  if (monthlyRate === 0) return principal / termMonths;
-  return (principal * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -termMonths));
-}
-
-function buildMonthlyInstallments({
-  loanId,
-  principal,
-  monthlyRate,
-  termMonths,
-  startDate,
-  statusForSequence = {},
-}: {
-  loanId: string;
-  principal: number;
-  monthlyRate: number;
-  termMonths: number;
-  startDate: Date;
-  statusForSequence?: Record<number, 'SCHEDULED' | 'PAID' | 'OVERDUE'>;
-}) {
-  let balance = principal;
-  const payment = installmentPayment(principal, monthlyRate, termMonths);
-
-  return Array.from({ length: termMonths }, (_, index) => {
-    const sequence = index + 1;
-    const interest = balance * monthlyRate;
-    const principalPortion = Math.min(payment - interest, balance);
-    balance -= principalPortion;
-
-    return {
-      id: `${loanId}-inst-${String(sequence).padStart(2, '0')}`,
-      loanId,
-      sequence,
-      dueDate: addMonths(startDate, sequence),
-      principal: money(principalPortion),
-      interest: money(interest),
-      status: statusForSequence[sequence] ?? 'SCHEDULED',
-    };
-  });
-}
-
-async function upsertCredentialAccount({
-  id,
-  userId,
-  email,
-  password,
-}: {
-  id: string;
-  userId: string;
-  email: string;
-  password: string;
-}) {
-  const hashed = await hashPassword(password);
-  const existing = await prisma.account.findFirst({
-    where: { providerId: 'credential', accountId: email },
-  });
-
-  if (existing) {
-    await prisma.account.update({
-      where: { id: existing.id },
-      data: { userId, password: hashed },
-    });
-    return;
-  }
-
-  await prisma.account.create({
-    data: {
-      id,
-      userId,
-      accountId: email,
-      providerId: 'credential',
-      password: hashed,
+async function clearAppData() {
+  await prisma.$transaction(
+    async (tx) => {
+      await tx.capitalEntry.updateMany({ data: { reversedByEntryId: null } });
+      await tx.invitation.deleteMany();
+      await tx.activityLog.deleteMany();
+      await tx.verification.deleteMany();
+      await tx.session.deleteMany();
+      await tx.loanPaymentAllocation.deleteMany();
+      await tx.loanPayment.deleteMany();
+      await tx.loanInstallment.deleteMany();
+      await tx.loanProvisionEvent.deleteMany();
+      await tx.loan.deleteMany();
+      await tx.borrower.deleteMany();
+      await tx.depositPayout.deleteMany();
+      await tx.deposit.deleteMany();
+      await tx.depositor.deleteMany();
+      await tx.capitalEntry.deleteMany();
+      await tx.businessFund.deleteMany();
+      await tx.companyProfile.deleteMany();
     },
-  });
+    { timeout: 30_000 },
+  );
 }
 
-async function resetSeedOwnedRows() {
-  await prisma.$transaction(async (tx) => {
-    const existingSeedPayments = await tx.loanPayment.findMany({
-      where: { OR: [{ loanId: { in: loanIds } }, { loanId: { startsWith: 'seed-loan-' } }] },
-      select: { id: true },
-    });
-    const existingSeedPayouts = await tx.depositPayout.findMany({
-      where: { depositId: { in: depositIds } },
-      select: { id: true },
-    });
-    const paymentIds = existingSeedPayments.map((payment) => payment.id);
-    const payoutIds = existingSeedPayouts.map((payout) => payout.id);
+// ── timestamp backdating ─────────────────────────────────────────────────────────
+// Services stamp createdAt/recordedAt = now(). Re-anchor them to the domain date so
+// the 6-month history is real from a reporting standpoint.
 
-    await tx.loanPaymentAllocation.deleteMany({
-      where: { payment: { OR: [{ loanId: { in: loanIds } }, { loanId: { startsWith: 'seed-loan-' } }] } },
-    });
-    await tx.loanPayment.deleteMany({
-      where: { OR: [{ loanId: { in: loanIds } }, { loanId: { startsWith: 'seed-loan-' } }] },
-    });
-    await tx.loanInstallment.deleteMany({
-      where: { OR: [{ loanId: { in: loanIds } }, { loanId: { startsWith: 'seed-loan-' } }] },
-    });
-    await tx.loanProvisionEvent.deleteMany({
-      where: { OR: [{ loanId: { in: loanIds } }, { loanId: { startsWith: 'seed-loan-' } }] },
-    });
-    await tx.depositPayout.deleteMany({ where: { depositId: { in: depositIds } } });
-    await tx.deposit.deleteMany({ where: { id: { in: depositIds } } });
-    await tx.depositor.deleteMany({ where: { id: { in: depositorIds } } });
-    await tx.capitalEntry.deleteMany({
-      where: {
-        OR: [
-          { id: { startsWith: 'seed-capital-' } },
-          {
-            sourceId: {
-              in: [...loanIds, ...paymentIds, ...depositIds, ...payoutIds, ...businessFundIds],
-            },
-          },
-          { sourceId: { startsWith: 'seed-loan-' } },
-          { sourceId: { startsWith: 'seed-deposit-' } },
-          { sourceId: { startsWith: 'seed-business-fund-' } },
-        ],
-      },
-    });
-    await tx.activityLog.deleteMany({
-      where: {
-        OR: [
-          { id: { startsWith: 'seed-activity-' } },
-          { targetId: { in: [...loanIds, ...depositIds] } },
-          { targetId: { startsWith: 'seed-loan-' } },
-          { targetId: { startsWith: 'seed-deposit-' } },
-        ],
-      },
-    });
-    await tx.loan.deleteMany({
-      where: { OR: [{ id: { in: loanIds } }, { id: { startsWith: 'seed-loan-' } }] },
-    });
-    await tx.borrower.deleteMany({
-      where: { OR: [{ id: { in: borrowerIds } }, { id: { startsWith: 'seed-borrower-' } }] },
-    });
-  });
+async function backdateCapitalEntry(source: string, sourceId: string, at: Date) {
+  await prisma.capitalEntry.updateMany({ where: { source, sourceId }, data: { recordedAt: at } });
 }
+async function backdateLoanPaymentCapital(paymentId: string, at: Date) {
+  await backdateCapitalEntry('LOAN_PAYMENT', paymentId, at);
+}
+async function backdateActivity(targetId: string, at: Date) {
+  await prisma.activityLog.updateMany({ where: { targetId }, data: { createdAt: at } });
+}
+
+// ── users ──────────────────────────────────────────────────────────────────────
 
 async function seedUsers() {
-  const admin = await prisma.user.upsert({
-    where: { email: ADMIN_EMAIL },
-    update: {
-      name: ADMIN_NAME,
-      role: 'admin',
-      emailVerified: true,
-      banned: false,
-    },
-    create: {
-      id: ADMIN_ID,
-      email: ADMIN_EMAIL,
-      name: ADMIN_NAME,
-      role: 'admin',
-      emailVerified: true,
-    },
-  });
-
-  const staff = await prisma.user.upsert({
-    where: { email: STAFF_EMAIL },
-    update: {
-      name: STAFF_NAME,
-      role: 'user',
-      emailVerified: true,
-      banned: false,
-    },
-    create: {
-      id: STAFF_ID,
-      email: STAFF_EMAIL,
-      name: STAFF_NAME,
-      role: 'user',
-      emailVerified: true,
-    },
-  });
-
-  await upsertCredentialAccount({
-    id: ADMIN_ACCOUNT_ID,
-    userId: admin.id,
-    email: ADMIN_EMAIL,
-    password: ADMIN_PASSWORD,
-  });
-  await upsertCredentialAccount({
-    id: STAFF_ACCOUNT_ID,
-    userId: staff.id,
-    email: STAFF_EMAIL,
-    password: STAFF_PASSWORD,
-  });
-
-  console.log(`Users: ${ADMIN_EMAIL} (admin), ${STAFF_EMAIL} (user)`);
-  return { admin, staff };
-}
-
-async function seedBorrowersAndLoans(adminId: string) {
-  const today = new Date();
-  const borrowers = [
-    {
-      id: BORROWER_IDS.clean,
-      firstName: 'Ana',
-      middleName: null,
-      lastName: 'Santos',
-      email: 'ana.santos.seed@example.com',
-      phone: '09170000001',
-      address: '101 Poblacion, Manila',
-      dateOfBirth: new Date('1988-03-14'),
-      gender: 'FEMALE' as const,
-      idType: 'NATIONAL_ID' as const,
-      idNumber: 'SEED-BOR-001',
-      occupation: 'Teacher',
-      incomeSource: 'EMPLOYMENT' as const,
-      monthlyIncome: money(42000),
-      notes: 'Workflow seed: borrower profile without loans.',
-    },
-    {
-      id: BORROWER_IDS.pending,
-      firstName: 'Jose',
-      middleName: null,
-      lastName: 'Reyes',
-      email: 'jose.reyes.seed@example.com',
-      phone: '09170000002',
-      address: '22 San Antonio, Quezon City',
-      dateOfBirth: new Date('1982-08-09'),
-      gender: 'MALE' as const,
-      idType: 'DRIVER_LICENSE' as const,
-      idNumber: 'SEED-BOR-002',
-      occupation: 'Delivery Driver',
-      incomeSource: 'EMPLOYMENT' as const,
-      monthlyIncome: money(36000),
-      notes: 'Workflow seed: pending loan approval.',
-    },
-    {
-      id: BORROWER_IDS.approved,
-      firstName: 'Maria',
-      middleName: null,
-      lastName: 'Cruz',
-      email: 'maria.cruz.seed@example.com',
-      phone: '09170000003',
-      address: '88 Santa Cruz, Pasig',
-      dateOfBirth: new Date('1990-11-21'),
-      gender: 'FEMALE' as const,
-      idType: 'PASSPORT' as const,
-      idNumber: 'SEED-BOR-003',
-      occupation: 'Online Seller',
-      incomeSource: 'BUSINESS' as const,
-      monthlyIncome: money(58000),
-      notes: 'Workflow seed: approved loan ready for disbursement.',
-    },
-    {
-      id: BORROWER_IDS.activeFresh,
-      firstName: 'Ramon',
-      middleName: null,
-      lastName: 'Garcia',
-      email: 'ramon.garcia.seed@example.com',
-      phone: '09170000004',
-      address: '45 Barangay 5, Taguig',
-      dateOfBirth: new Date('1979-01-05'),
-      gender: 'MALE' as const,
-      idType: 'NATIONAL_ID' as const,
-      idNumber: 'SEED-BOR-004',
-      occupation: 'Mechanic',
-      incomeSource: 'BUSINESS' as const,
-      monthlyIncome: money(51000),
-      notes: 'Workflow seed: active loan with no payments yet.',
-    },
-    {
-      id: BORROWER_IDS.activePartial,
-      firstName: 'Luz',
-      middleName: null,
-      lastName: 'Flores',
-      email: 'luz.flores.seed@example.com',
-      phone: '09170000005',
-      address: '7 Bagong Silang, Caloocan',
-      dateOfBirth: new Date('1985-06-30'),
-      gender: 'FEMALE' as const,
-      idType: 'NATIONAL_ID' as const,
-      idNumber: 'SEED-BOR-005',
-      occupation: 'Market Vendor',
-      incomeSource: 'BUSINESS' as const,
-      monthlyIncome: money(47000),
-      notes: 'Workflow seed: active loan with two paid installments.',
-    },
-    {
-      id: BORROWER_IDS.defaulted,
-      firstName: 'Roberto',
-      middleName: null,
-      lastName: 'Rivera',
-      email: 'roberto.rivera.seed@example.com',
-      phone: '09170000006',
-      address: '300 Barangay 10, Antipolo',
-      dateOfBirth: new Date('1974-12-18'),
-      gender: 'MALE' as const,
-      idType: 'DRIVER_LICENSE' as const,
-      idNumber: 'SEED-BOR-006',
-      occupation: 'Contractor',
-      incomeSource: 'OTHER' as const,
-      monthlyIncome: money(63000),
-      notes: 'Workflow seed: defaulted loan and provision test case.',
-    },
-  ];
-
-  for (const borrower of borrowers) {
-    await prisma.borrower.upsert({
-      where: { id: borrower.id },
-      update: {
-        ...borrower,
-        phoneNormalized: normalizePhone(borrower.phone),
-        deletedAt: null,
-      },
-      create: {
-        ...borrower,
-        phoneNormalized: normalizePhone(borrower.phone),
-      },
+  const hashed = await hashPassword(PASSWORD);
+  for (const u of USERS) {
+    await prisma.user.upsert({
+      where: { email: u.email },
+      update: { name: u.name, role: u.role, emailVerified: true, banned: false },
+      create: { id: u.id, email: u.email, name: u.name, role: u.role, emailVerified: true },
     });
-  }
-
-  const loanSeeds = [
-    {
-      id: LOAN_IDS.pending,
-      borrowerId: BORROWER_IDS.pending,
-      type: 'PERSONAL' as const,
-      amount: 25000,
-      interestRate: 0.03,
-      termMonths: 6,
-      startDate: today,
-      status: 'PENDING' as const,
-      loanFee: 500,
-      purpose: 'School expenses',
-      notes: 'Workflow seed: approve or cancel this loan.',
-    },
-    {
-      id: LOAN_IDS.approved,
-      borrowerId: BORROWER_IDS.approved,
-      type: 'BUSINESS' as const,
-      amount: 60000,
-      interestRate: 0.025,
-      termMonths: 12,
-      startDate: today,
-      status: 'APPROVED' as const,
-      loanFee: 800,
-      purpose: 'Inventory purchase',
-      notes: 'Workflow seed: disburse this loan.',
-    },
-    {
-      id: LOAN_IDS.activeFresh,
-      borrowerId: BORROWER_IDS.activeFresh,
-      type: 'SALARY' as const,
-      amount: 40000,
-      interestRate: 0.03,
-      termMonths: 8,
-      startDate: subMonths(today, 1),
-      status: 'ACTIVE' as const,
-      loanFee: 600,
-      purpose: 'Motorcycle repair',
-      notes: 'Workflow seed: record first payment.',
-    },
-    {
-      id: LOAN_IDS.activePartial,
-      borrowerId: BORROWER_IDS.activePartial,
-      type: 'BUSINESS' as const,
-      amount: 80000,
-      interestRate: 0.03,
-      termMonths: 12,
-      startDate: subMonths(today, 4),
-      status: 'ACTIVE' as const,
-      loanFee: 1000,
-      purpose: 'Stall expansion',
-      notes: 'Workflow seed: two installments are already paid.',
-    },
-    {
-      id: LOAN_IDS.defaulted,
-      borrowerId: BORROWER_IDS.defaulted,
-      type: 'PERSONAL' as const,
-      amount: 50000,
-      interestRate: 0.035,
-      termMonths: 10,
-      startDate: subMonths(today, 8),
-      status: 'DEFAULTED' as const,
-      loanFee: 750,
-      purpose: 'Emergency household expense',
-      notes: 'Workflow seed: default/provision scenario.',
-    },
-  ];
-
-  for (const seed of loanSeeds) {
-    const endDate = addMonths(seed.startDate, seed.termMonths);
-    const isDisbursed = seed.status === 'ACTIVE' || seed.status === 'DEFAULTED';
-
-    await prisma.loan.upsert({
-      where: { id: seed.id },
-      update: {
-        borrowerId: seed.borrowerId,
-        type: seed.type,
-        amount: money(seed.amount),
-        interestRate: rate(seed.interestRate),
-        termMonths: seed.termMonths,
-        status: seed.status,
-        applicationDate: seed.startDate,
-        endDate,
-        paymentFrequency: 'MONTHLY',
-        repaymentStructure: 'AMORTIZING',
-        remainingBalance: money(seed.amount),
-        totalPaid: money(0),
-        loanFee: money(seed.loanFee),
-        penaltyRate: rate(0.01),
-        purpose: seed.purpose,
-        notes: seed.notes,
-        approvedAt: seed.status === 'PENDING' ? null : subDays(seed.startDate, 3),
-        approvedById: seed.status === 'PENDING' ? null : adminId,
-        disbursedAt: isDisbursed ? seed.startDate : null,
-        disbursedById: isDisbursed ? adminId : null,
-        disbursementMethod: isDisbursed ? 'CASH' : null,
-        canceledAt: null,
-        canceledById: null,
-        cancellationReason: null,
-        defaultedAt: seed.status === 'DEFAULTED' ? subMonths(today, 1) : null,
-        paidAt: null,
-        deletedAt: null,
-        locked: false,
-      },
-      create: {
-        id: seed.id,
-        borrowerId: seed.borrowerId,
-        type: seed.type,
-        amount: money(seed.amount),
-        interestRate: rate(seed.interestRate),
-        termMonths: seed.termMonths,
-        status: seed.status,
-        applicationDate: seed.startDate,
-        endDate,
-        paymentFrequency: 'MONTHLY',
-        repaymentStructure: 'AMORTIZING',
-        remainingBalance: money(seed.amount),
-        loanFee: money(seed.loanFee),
-        penaltyRate: rate(0.01),
-        purpose: seed.purpose,
-        notes: seed.notes,
-        approvedAt: seed.status === 'PENDING' ? null : subDays(seed.startDate, 3),
-        approvedById: seed.status === 'PENDING' ? null : adminId,
-        disbursedAt: isDisbursed ? seed.startDate : null,
-        disbursedById: isDisbursed ? adminId : null,
-        disbursementMethod: isDisbursed ? 'CASH' : null,
-        defaultedAt: seed.status === 'DEFAULTED' ? subMonths(today, 1) : null,
-      },
+    const accountId = `${u.id}-account`;
+    const existing = await prisma.account.findFirst({
+      where: { providerId: 'credential', accountId: u.email },
     });
-
-    if (isDisbursed) {
-      await prisma.capitalEntry.create({
-        data: {
-          id: `seed-capital-${seed.id}-disbursement`,
-          flowType: 'OUTFLOW',
-          source: 'LOAN_DISBURSEMENT',
-          sourceId: seed.id,
-          amount: money(seed.amount),
-          description: `Seed loan disbursement: ${seed.purpose}`,
-          createdById: adminId,
-          recordedAt: seed.startDate,
-        },
+    if (existing) {
+      await prisma.account.update({ where: { id: existing.id }, data: { userId: u.id, password: hashed } });
+    } else {
+      await prisma.account.create({
+        data: { id: accountId, userId: u.id, accountId: u.email, providerId: 'credential', password: hashed },
       });
     }
   }
-
-  const activeFreshInstallments = buildMonthlyInstallments({
-    loanId: LOAN_IDS.activeFresh,
-    principal: 40000,
-    monthlyRate: 0.03,
-    termMonths: 8,
-    startDate: subMonths(today, 1),
-  });
-
-  const activePartialInstallments = buildMonthlyInstallments({
-    loanId: LOAN_IDS.activePartial,
-    principal: 80000,
-    monthlyRate: 0.03,
-    termMonths: 12,
-    startDate: subMonths(today, 4),
-    statusForSequence: { 1: 'PAID', 2: 'PAID', 3: 'OVERDUE', 4: 'OVERDUE' },
-  });
-
-  const defaultedInstallments = buildMonthlyInstallments({
-    loanId: LOAN_IDS.defaulted,
-    principal: 50000,
-    monthlyRate: 0.035,
-    termMonths: 10,
-    startDate: subMonths(today, 8),
-    statusForSequence: { 1: 'PAID', 2: 'OVERDUE', 3: 'OVERDUE', 4: 'OVERDUE' },
-  });
-
-  await prisma.loanInstallment.createMany({
-    data: [...activeFreshInstallments, ...activePartialInstallments, ...defaultedInstallments],
-  });
-
-  const paidInstallments = activePartialInstallments.filter((installment) =>
-    [1, 2].includes(installment.sequence),
-  );
-  let totalPaid = money(0);
-  let totalPrincipalPaid = money(0);
-
-  for (const installment of paidInstallments) {
-    const paymentId = `${LOAN_IDS.activePartial}-payment-${String(installment.sequence).padStart(2, '0')}`;
-    const amount = installment.principal.plus(installment.interest);
-    totalPaid = totalPaid.plus(amount);
-    totalPrincipalPaid = totalPrincipalPaid.plus(installment.principal);
-
-    await prisma.loanPayment.create({
-      data: {
-        id: paymentId,
-        loanId: LOAN_IDS.activePartial,
-        amount,
-        principalPortion: installment.principal,
-        interestPortion: installment.interest,
-        paidAt: installment.dueDate,
-        method: 'CASH',
-        receiptNumber: `RCPT-SEED-${installment.sequence.toString().padStart(2, '0')}`,
-        reference: `SEED-LPAY-${installment.sequence}`,
-        notes: 'Seed payment for partially paid active loan.',
-      },
-    });
-
-    await prisma.loanPaymentAllocation.create({
-      data: {
-        id: `${paymentId}-allocation`,
-        paymentId,
-        installmentId: installment.id,
-        principalApplied: installment.principal,
-        interestApplied: installment.interest,
-      },
-    });
-
-    await prisma.capitalEntry.create({
-      data: {
-        id: `seed-capital-${paymentId}`,
-        flowType: 'INFLOW',
-        source: 'LOAN_PAYMENT',
-        sourceId: paymentId,
-        amount,
-        description: `Seed loan payment: installment ${installment.sequence}`,
-        createdById: adminId,
-        recordedAt: installment.dueDate,
-      },
-    });
-  }
-
-  await prisma.loan.update({
-    where: { id: LOAN_IDS.activePartial },
-    data: {
-      totalPaid,
-      remainingBalance: money(80000).minus(totalPrincipalPaid),
-    },
-  });
-
-  const defaultedFirstInstallment = defaultedInstallments[0]!;
-  const defaultedPaymentAmount = defaultedFirstInstallment.principal.plus(
-    defaultedFirstInstallment.interest,
-  );
-
-  await prisma.loanPayment.create({
-    data: {
-      id: `${LOAN_IDS.defaulted}-payment-01`,
-      loanId: LOAN_IDS.defaulted,
-      amount: defaultedPaymentAmount,
-      principalPortion: defaultedFirstInstallment.principal,
-      interestPortion: defaultedFirstInstallment.interest,
-      paidAt: defaultedFirstInstallment.dueDate,
-      method: 'BANK_TRANSFER',
-      receiptNumber: 'RCPT-SEED-DEFAULTED-01',
-      reference: 'SEED-LPAY-DEFAULTED-1',
-      notes: 'Seed payment before default.',
-    },
-  });
-
-  await prisma.loanPaymentAllocation.create({
-    data: {
-      id: `${LOAN_IDS.defaulted}-payment-01-allocation`,
-      paymentId: `${LOAN_IDS.defaulted}-payment-01`,
-      installmentId: defaultedFirstInstallment.id,
-      principalApplied: defaultedFirstInstallment.principal,
-      interestApplied: defaultedFirstInstallment.interest,
-    },
-  });
-
-  await prisma.capitalEntry.create({
-    data: {
-      id: `seed-capital-${LOAN_IDS.defaulted}-payment-01`,
-      flowType: 'INFLOW',
-      source: 'LOAN_PAYMENT',
-      sourceId: `${LOAN_IDS.defaulted}-payment-01`,
-      amount: defaultedPaymentAmount,
-      description: 'Seed loan payment before default.',
-      createdById: adminId,
-      recordedAt: defaultedFirstInstallment.dueDate,
-    },
-  });
-
-  await prisma.loan.update({
-    where: { id: LOAN_IDS.defaulted },
-    data: {
-      totalPaid: defaultedPaymentAmount,
-      remainingBalance: money(50000).minus(defaultedFirstInstallment.principal),
-    },
-  });
-
-  await prisma.loanProvisionEvent.create({
-    data: {
-      id: `${LOAN_IDS.defaulted}-provision-01`,
-      loanId: LOAN_IDS.defaulted,
-      type: 'PROVISION',
-      bucket: 3,
-      amount: money(12500),
-      daysPastDue: 120,
-      basisAmount: money(50000).minus(defaultedFirstInstallment.principal),
-      provisionRate: rate(0.25),
-      reason: 'Seed provision for defaulted workflow test.',
-      createdAt: subDays(today, 10),
-    },
-  });
-
-  console.log(`Borrowers: ${borrowers.length}`);
-  console.log(`Loans: ${loanSeeds.length}`);
+  console.log(`Users: ${USERS.map((u) => u.email).join(', ')}`);
 }
 
-async function seedDepositorsAndDeposits(adminId: string) {
-  const today = new Date();
-  const depositors = [
-    {
-      id: DEPOSITOR_IDS.clean,
-      name: 'Carmen Lopez',
-      email: 'carmen.lopez.seed@example.com',
-      phone: '09280000001',
-      address: '19 Poblacion, Cebu',
-      dateOfBirth: new Date('1978-02-17'),
-      idType: 'NATIONAL_ID' as const,
-      idNumber: 'SEED-DEP-001',
-      notes: 'Workflow seed: depositor profile without deposits.',
-    },
-    {
-      id: DEPOSITOR_IDS.active,
-      name: 'Fernando Ramos',
-      email: 'fernando.ramos.seed@example.com',
-      phone: '09280000002',
-      address: '51 Barangay 1, Manila',
-      dateOfBirth: new Date('1969-04-24'),
-      idType: 'PASSPORT' as const,
-      idNumber: 'SEED-DEP-002',
-      notes: 'Workflow seed: active maturity-only deposit.',
-    },
-    {
-      id: DEPOSITOR_IDS.payout,
-      name: 'Cecilia Torres',
-      email: 'cecilia.torres.seed@example.com',
-      phone: '09280000003',
-      address: '64 San Antonio, Davao',
-      dateOfBirth: new Date('1981-10-02'),
-      idType: 'NATIONAL_ID' as const,
-      idNumber: 'SEED-DEP-003',
-      notes: 'Workflow seed: active deposit with payout history.',
-    },
-    {
-      id: DEPOSITOR_IDS.closed,
-      name: 'Manuel Bautista',
-      email: 'manuel.bautista.seed@example.com',
-      phone: '09280000004',
-      address: '12 Maynila, Zamboanga',
-      dateOfBirth: new Date('1972-09-12'),
-      idType: 'DRIVER_LICENSE' as const,
-      idNumber: 'SEED-DEP-004',
-      notes: 'Workflow seed: closed deposit.',
-    },
-  ];
+// ── company ──────────────────────────────────────────────────────────────────────
 
-  for (const depositor of depositors) {
-    await prisma.depositor.upsert({
-      where: { id: depositor.id },
-      update: {
-        ...depositor,
-        phoneNormalized: normalizePhone(depositor.phone),
-        deletedAt: null,
-      },
-      create: {
-        ...depositor,
-        phoneNormalized: normalizePhone(depositor.phone),
+async function seedCompany() {
+  await prisma.companyProfile.upsert({
+    where: { id: 'default' },
+    update: {},
+    create: {
+      id: 'default',
+      name: 'Metro Kabuhayan Lending Corp.',
+      address: 'Unit 4B, Cityland Tower, 6764 Ayala Ave, Makati City 1226',
+      phone: '(02) 8845 1200',
+      email: 'info@metrokabuhayan.ph',
+      website: 'https://metrokabuhayan.ph',
+      taxId: '009-482-771-000',
+    },
+  });
+  console.log('Company profile: Metro Kabuhayan Lending Corp.');
+}
+
+// ── borrowers ────────────────────────────────────────────────────────────────────
+
+type BorrowerSeed = {
+  id: string;
+  firstName: string;
+  middleName: string | null;
+  lastName: string;
+  phone: string;
+  address: string;
+  dateOfBirth: string;
+  gender: 'MALE' | 'FEMALE';
+  idType: 'NATIONAL_ID' | 'PASSPORT' | 'DRIVER_LICENSE';
+  occupation: string;
+  incomeSource: 'EMPLOYMENT' | 'BUSINESS' | 'PENSION' | 'OTHER';
+  monthlyIncome: number;
+};
+
+const BORROWERS: BorrowerSeed[] = [
+  { id: 'seed-bor-01', firstName: 'Ana', middleName: 'Reyes', lastName: 'Santos', phone: '09171234501', address: '25 Kalayaan Ave, Barangay Central, Quezon City', dateOfBirth: '1988-03-14', gender: 'FEMALE', idType: 'NATIONAL_ID', occupation: 'Public School Teacher', incomeSource: 'EMPLOYMENT', monthlyIncome: 38000 },
+  { id: 'seed-bor-02', firstName: 'Jose', middleName: null, lastName: 'Reyes', phone: '09281234502', address: '14 Aguinaldo St, Barangay San Antonio, Pasig City', dateOfBirth: '1982-08-09', gender: 'MALE', idType: 'DRIVER_LICENSE', occupation: 'Grab Driver', incomeSource: 'BUSINESS', monthlyIncome: 32000 },
+  { id: 'seed-bor-03', firstName: 'Maria', middleName: 'Cruz', lastName: 'Bautista', phone: '09391234503', address: '88 Boni Ave, Barangay Plainview, Mandaluyong City', dateOfBirth: '1990-11-21', gender: 'FEMALE', idType: 'NATIONAL_ID', occupation: 'Online Reseller', incomeSource: 'BUSINESS', monthlyIncome: 55000 },
+  { id: 'seed-bor-04', firstName: 'Ramon', middleName: 'Diaz', lastName: 'Garcia', phone: '09171234504', address: '45 C. Raymundo Ave, Barangay Maybunga, Pasig City', dateOfBirth: '1979-01-05', gender: 'MALE', idType: 'NATIONAL_ID', occupation: 'Auto Mechanic', incomeSource: 'BUSINESS', monthlyIncome: 48000 },
+  { id: 'seed-bor-05', firstName: 'Luz', middleName: null, lastName: 'Flores', phone: '09281234505', address: '7 Gen. Luna St, Barangay Bagong Silang, Caloocan City', dateOfBirth: '1985-06-30', gender: 'FEMALE', idType: 'NATIONAL_ID', occupation: 'Palengke Vendor', incomeSource: 'BUSINESS', monthlyIncome: 42000 },
+  { id: 'seed-bor-06', firstName: 'Roberto', middleName: 'Lim', lastName: 'Rivera', phone: '09391234506', address: '300 Sumulong Hwy, Barangay Mayamot, Antipolo City', dateOfBirth: '1974-12-18', gender: 'MALE', idType: 'DRIVER_LICENSE', occupation: 'Building Contractor', incomeSource: 'BUSINESS', monthlyIncome: 70000 },
+  { id: 'seed-bor-07', firstName: 'Carmela', middleName: 'Ong', lastName: 'Tan', phone: '09171234507', address: '112 Katipunan Ave, Barangay Loyola Heights, Quezon City', dateOfBirth: '1993-04-02', gender: 'FEMALE', idType: 'PASSPORT', occupation: 'Nurse', incomeSource: 'EMPLOYMENT', monthlyIncome: 45000 },
+  { id: 'seed-bor-08', firstName: 'Antonio', middleName: 'Cruz', lastName: 'Mercado', phone: '09281234508', address: '9 M.L. Quezon St, Barangay Ususan, Taguig City', dateOfBirth: '1968-09-27', gender: 'MALE', idType: 'NATIONAL_ID', occupation: 'Retired Government Employee', incomeSource: 'PENSION', monthlyIncome: 28000 },
+  { id: 'seed-bor-09', firstName: 'Divina', middleName: null, lastName: 'Aquino', phone: '09391234509', address: '63 Shaw Blvd, Barangay Kapitolyo, Pasig City', dateOfBirth: '1991-07-15', gender: 'FEMALE', idType: 'NATIONAL_ID', occupation: 'Sari-sari Store Owner', incomeSource: 'BUSINESS', monthlyIncome: 36000 },
+  { id: 'seed-bor-10', firstName: 'Ferdinand', middleName: 'Reyes', lastName: 'Domingo', phone: '09171234510', address: '5 Roxas Blvd, Barangay Malate, Manila', dateOfBirth: '1980-02-11', gender: 'MALE', idType: 'DRIVER_LICENSE', occupation: 'Jeepney Operator', incomeSource: 'BUSINESS', monthlyIncome: 52000 },
+  { id: 'seed-bor-11', firstName: 'Rosario', middleName: 'Villanueva', lastName: 'Castro', phone: '09281234511', address: '210 E. Rodriguez Ave, Barangay Kalusugan, Quezon City', dateOfBirth: '1987-10-08', gender: 'FEMALE', idType: 'NATIONAL_ID', occupation: 'Beauty Salon Owner', incomeSource: 'BUSINESS', monthlyIncome: 47000 },
+  { id: 'seed-bor-12', firstName: 'Enrique', middleName: null, lastName: 'Salvador', phone: '09391234512', address: '18 P. Burgos St, Barangay Poblacion, Makati City', dateOfBirth: '1976-05-19', gender: 'MALE', idType: 'NATIONAL_ID', occupation: 'Restaurant Owner', incomeSource: 'BUSINESS', monthlyIncome: 85000 },
+  { id: 'seed-bor-13', firstName: 'Teresita', middleName: 'Ramos', lastName: 'Navarro', phone: '09171234513', address: '77 Marcos Hwy, Barangay Santolan, Marikina City', dateOfBirth: '1972-11-30', gender: 'FEMALE', idType: 'NATIONAL_ID', occupation: 'Seamstress', incomeSource: 'BUSINESS', monthlyIncome: 30000 },
+  { id: 'seed-bor-14', firstName: 'Miguel', middleName: 'Santos', lastName: 'Pascual', phone: '09281234514', address: '32 Ortigas Ave, Barangay Greenhills, San Juan City', dateOfBirth: '1995-01-23', gender: 'MALE', idType: 'PASSPORT', occupation: 'IT Freelancer', incomeSource: 'EMPLOYMENT', monthlyIncome: 60000 },
+  { id: 'seed-bor-15', firstName: 'Beatriz', middleName: null, lastName: 'Gonzales', phone: '09391234515', address: '4 J.P. Rizal St, Barangay Comembo, Makati City', dateOfBirth: '1983-08-16', gender: 'FEMALE', idType: 'NATIONAL_ID', occupation: 'Laundry Shop Owner', incomeSource: 'BUSINESS', monthlyIncome: 40000 },
+];
+
+async function seedBorrowers() {
+  for (const b of BORROWERS) {
+    await prisma.borrower.create({
+      data: {
+        id: b.id,
+        firstName: b.firstName,
+        middleName: b.middleName,
+        lastName: b.lastName,
+        email: `${b.firstName}.${b.lastName}`.toLowerCase().replace(/[^a-z.]/g, '') + '@example.ph',
+        phone: b.phone,
+        phoneNormalized: normalizePhone(b.phone),
+        address: b.address,
+        dateOfBirth: new Date(b.dateOfBirth),
+        gender: b.gender,
+        idType: b.idType,
+        idNumber: `${b.idType === 'NATIONAL_ID' ? 'PSN' : b.idType === 'PASSPORT' ? 'P' : 'N'}${b.id.slice(-2)}-${Math.floor(1000 + Math.random() * 8999)}`,
+        occupation: b.occupation,
+        incomeSource: b.incomeSource,
+        monthlyIncome: b.monthlyIncome,
       },
     });
   }
+  console.log(`Borrowers: ${BORROWERS.length}`);
+}
 
-  const deposits = [
-    {
-      id: DEPOSIT_IDS.active,
-      depositorId: DEPOSITOR_IDS.active,
-      amount: 150000,
-      expectedReturnRate: 0.05,
-      termMonths: 12,
-      startDate: subMonths(today, 2),
-      status: 'ACTIVE' as const,
-      payoutType: 'MATURITY_ONLY' as const,
-      notes: 'Workflow seed: active deposit ready for payout/closure tests.',
-    },
-    {
-      id: DEPOSIT_IDS.payout,
-      depositorId: DEPOSITOR_IDS.payout,
-      amount: 250000,
-      expectedReturnRate: 0.02,
-      termMonths: 12,
-      startDate: subMonths(today, 4),
-      status: 'ACTIVE' as const,
-      payoutType: 'MONTHLY_INTEREST' as const,
-      notes: 'Workflow seed: active deposit with two recorded monthly payouts.',
-    },
-    {
-      id: DEPOSIT_IDS.closed,
-      depositorId: DEPOSITOR_IDS.closed,
-      amount: 100000,
-      expectedReturnRate: 0.06,
-      termMonths: 6,
-      startDate: subMonths(today, 8),
-      status: 'CLOSED' as const,
-      payoutType: 'MATURITY_ONLY' as const,
-      notes: 'Workflow seed: closed deposit with principal returned.',
-    },
-  ];
+// ── loans via services ───────────────────────────────────────────────────────────
 
-  for (const seed of deposits) {
-    const closedAt = seed.status === 'CLOSED' ? subMonths(today, 1) : null;
+type Actor = { id: string };
 
-    await prisma.deposit.upsert({
-      where: { id: seed.id },
-      update: {
-        depositorId: seed.depositorId,
-        amount: money(seed.amount),
-        expectedReturnRate: rate(seed.expectedReturnRate),
-        expectedReturnRatePeriod: 'MONTH',
-        termMonths: seed.termMonths,
-        startDate: seed.startDate,
-        endDate: addMonths(seed.startDate, seed.termMonths),
-        status: seed.status,
-        hasBeenWithdrawn: false,
-        depositType: 'REGULAR',
-        payoutType: seed.payoutType,
-        principalReturned: seed.status === 'CLOSED' ? money(seed.amount) : money(0),
-        totalPayoutPaid: money(0),
-        closedAt,
-        withdrawnAt: null,
-        notes: seed.notes,
-        reference: `SEED-${seed.id}`,
-        deletedAt: null,
-      },
-      create: {
-        id: seed.id,
-        depositorId: seed.depositorId,
-        amount: money(seed.amount),
-        expectedReturnRate: rate(seed.expectedReturnRate),
-        expectedReturnRatePeriod: 'MONTH',
-        termMonths: seed.termMonths,
-        startDate: seed.startDate,
-        endDate: addMonths(seed.startDate, seed.termMonths),
-        status: seed.status,
-        depositType: 'REGULAR',
-        payoutType: seed.payoutType,
-        principalReturned: seed.status === 'CLOSED' ? money(seed.amount) : money(0),
-        closedAt,
-        notes: seed.notes,
-        reference: `SEED-${seed.id}`,
-      },
+type LoanPlan = {
+  id: string; // human key for logs only
+  borrowerId: string;
+  type: 'SALARY' | 'BUSINESS' | 'PERSONAL' | 'PURCHASE_ORDER' | 'PENSION' | 'INVESTMENT';
+  amount: number;
+  interestRate: number; // monthly decimal
+  termMonths: number;
+  frequency: 'MONTHLY' | 'BIWEEKLY' | 'WEEKLY' | 'DAILY';
+  structure: 'AMORTIZING' | 'INTEREST_ONLY';
+  loanFee?: number;
+  penaltyRate?: number; // daily
+  purpose: string;
+  monthsAgo: number; // application/disbursement age
+  // lifecycle
+  stage: 'PENDING' | 'APPROVED' | 'ACTIVE' | 'PAID' | 'ARREARS' | 'DEFAULTED' | 'CANCELED' | 'REVERSED';
+  paymentsMade?: number; // number of on-time installments paid (approx, for MONTHLY)
+};
+
+// Build a schedule of loans covering the whole lifecycle. Owner/manager/staff act.
+const OWNER: Actor = { id: 'seed-user-owner' };
+const MANAGER: Actor = { id: 'seed-user-manager' };
+const STAFF1: Actor = { id: 'seed-user-staff1' };
+const STAFF2: Actor = { id: 'seed-user-staff2' };
+
+const LOAN_PLANS: LoanPlan[] = [
+  // Fully repaid loans (started ~6-7 months ago, short terms, all installments paid)
+  { id: 'L-paid-1', borrowerId: 'seed-bor-01', type: 'SALARY', amount: 30000, interestRate: 0.03, termMonths: 5, frequency: 'MONTHLY', structure: 'AMORTIZING', loanFee: 500, penaltyRate: 0.001, purpose: 'Tuition fees', monthsAgo: 6, stage: 'PAID' },
+  { id: 'L-paid-2', borrowerId: 'seed-bor-07', type: 'PERSONAL', amount: 20000, interestRate: 0.035, termMonths: 4, frequency: 'MONTHLY', structure: 'AMORTIZING', purpose: 'Medical expenses', monthsAgo: 6, stage: 'PAID' },
+
+  // Active, mid-repayment, on-time history
+  { id: 'L-active-1', borrowerId: 'seed-bor-03', type: 'BUSINESS', amount: 80000, interestRate: 0.03, termMonths: 12, frequency: 'MONTHLY', structure: 'AMORTIZING', loanFee: 1000, penaltyRate: 0.001, purpose: 'Inventory restock', monthsAgo: 4, stage: 'ACTIVE', paymentsMade: 4 },
+  { id: 'L-active-2', borrowerId: 'seed-bor-04', type: 'BUSINESS', amount: 50000, interestRate: 0.03, termMonths: 10, frequency: 'MONTHLY', structure: 'AMORTIZING', loanFee: 700, penaltyRate: 0.001, purpose: 'Shop equipment', monthsAgo: 3, stage: 'ACTIVE', paymentsMade: 3 },
+  { id: 'L-active-3', borrowerId: 'seed-bor-05', type: 'BUSINESS', amount: 40000, interestRate: 0.03, termMonths: 8, frequency: 'BIWEEKLY', structure: 'AMORTIZING', loanFee: 600, penaltyRate: 0.001, purpose: 'Stall expansion', monthsAgo: 2, stage: 'ACTIVE', paymentsMade: 3 },
+  { id: 'L-active-4', borrowerId: 'seed-bor-11', type: 'BUSINESS', amount: 60000, interestRate: 0.028, termMonths: 12, frequency: 'MONTHLY', structure: 'AMORTIZING', loanFee: 800, penaltyRate: 0.001, purpose: 'Salon renovation', monthsAgo: 3, stage: 'ACTIVE', paymentsMade: 3 },
+  { id: 'L-active-5', borrowerId: 'seed-bor-12', type: 'INVESTMENT', amount: 120000, interestRate: 0.025, termMonths: 12, frequency: 'MONTHLY', structure: 'INTEREST_ONLY', loanFee: 1500, penaltyRate: 0.001, purpose: 'Restaurant working capital', monthsAgo: 4, stage: 'ACTIVE', paymentsMade: 4 },
+  { id: 'L-active-6', borrowerId: 'seed-bor-14', type: 'PERSONAL', amount: 45000, interestRate: 0.03, termMonths: 6, frequency: 'MONTHLY', structure: 'AMORTIZING', purpose: 'Laptop upgrade', monthsAgo: 2, stage: 'ACTIVE', paymentsMade: 2 },
+  { id: 'L-active-7', borrowerId: 'seed-bor-15', type: 'BUSINESS', amount: 35000, interestRate: 0.032, termMonths: 8, frequency: 'MONTHLY', structure: 'AMORTIZING', loanFee: 500, penaltyRate: 0.001, purpose: 'Laundry machines', monthsAgo: 3, stage: 'ACTIVE', paymentsMade: 3 },
+  { id: 'L-active-8', borrowerId: 'seed-bor-08', type: 'PENSION', amount: 25000, interestRate: 0.03, termMonths: 6, frequency: 'MONTHLY', structure: 'AMORTIZING', purpose: 'Home repair', monthsAgo: 2, stage: 'ACTIVE', paymentsMade: 2 },
+
+  // In arrears: disbursed long enough ago that some installments are overdue and unpaid
+  { id: 'L-arrears-1', borrowerId: 'seed-bor-10', type: 'BUSINESS', amount: 70000, interestRate: 0.035, termMonths: 12, frequency: 'MONTHLY', structure: 'AMORTIZING', loanFee: 900, penaltyRate: 0.0015, purpose: 'Jeepney engine overhaul', monthsAgo: 5, stage: 'ARREARS', paymentsMade: 2 },
+  { id: 'L-arrears-2', borrowerId: 'seed-bor-13', type: 'PERSONAL', amount: 30000, interestRate: 0.035, termMonths: 8, frequency: 'MONTHLY', structure: 'AMORTIZING', penaltyRate: 0.0015, purpose: 'Family emergency', monthsAgo: 4, stage: 'ARREARS', paymentsMade: 1 },
+
+  // Reversed payment (LIFO): active loan, made 3 payments, latest reversed
+  { id: 'L-reversed', borrowerId: 'seed-bor-09', type: 'BUSINESS', amount: 40000, interestRate: 0.03, termMonths: 10, frequency: 'MONTHLY', structure: 'AMORTIZING', loanFee: 600, penaltyRate: 0.001, purpose: 'Store inventory', monthsAgo: 3, stage: 'REVERSED', paymentsMade: 3 },
+
+  // Defaulted: 90+ DPD, driven through the real auto-default job
+  { id: 'L-defaulted', borrowerId: 'seed-bor-06', type: 'PERSONAL', amount: 50000, interestRate: 0.04, termMonths: 10, frequency: 'MONTHLY', structure: 'AMORTIZING', loanFee: 750, penaltyRate: 0.002, purpose: 'Construction materials advance', monthsAgo: 7, stage: 'DEFAULTED', paymentsMade: 1 },
+
+  // Pipeline
+  { id: 'L-pending', borrowerId: 'seed-bor-02', type: 'PERSONAL', amount: 25000, interestRate: 0.03, termMonths: 6, frequency: 'MONTHLY', structure: 'AMORTIZING', loanFee: 500, purpose: 'Motorcycle down payment', monthsAgo: 0, stage: 'PENDING' },
+  { id: 'L-approved', borrowerId: 'seed-bor-03', type: 'BUSINESS', amount: 55000, interestRate: 0.028, termMonths: 12, frequency: 'MONTHLY', structure: 'AMORTIZING', loanFee: 800, purpose: 'Second branch stock', monthsAgo: 0, stage: 'APPROVED' },
+  { id: 'L-canceled', borrowerId: 'seed-bor-13', type: 'PERSONAL', amount: 15000, interestRate: 0.03, termMonths: 4, frequency: 'MONTHLY', structure: 'AMORTIZING', purpose: 'Appliance purchase', monthsAgo: 1, stage: 'CANCELED' },
+];
+
+const STAFF_POOL = [STAFF1, STAFF2, MANAGER];
+
+async function createAndAdvanceLoan(plan: LoanPlan, index: number) {
+  const staff = STAFF_POOL[index % STAFF_POOL.length]!;
+  const appDate = plan.monthsAgo > 0 ? subMonths(TODAY, plan.monthsAgo) : subDays(TODAY, 1);
+
+  const loan = await loans.createLoan(
+    {
+      borrowerId: plan.borrowerId,
+      type: plan.type,
+      amount: plan.amount,
+      interestRate: plan.interestRate,
+      termMonths: plan.termMonths,
+      applicationDate: appDate,
+      paymentFrequency: plan.frequency,
+      repaymentStructure: plan.structure,
+      loanFee: plan.loanFee,
+      penaltyRate: plan.penaltyRate,
+      purpose: plan.purpose,
+    },
+    staff,
+  );
+  await prisma.loan.update({ where: { id: loan.id }, data: { createdAt: appDate, applicationDate: appDate } });
+  await backdateActivity(loan.id, appDate);
+
+  if (plan.stage === 'PENDING') return loan.id;
+
+  // Approve (backdate approvedAt to just after application)
+  const approvedAt = plan.monthsAgo > 0 ? addMonths(appDate, 0) : appDate;
+  await loans.approveLoan(loan.id, { approvedAt: subDays(TODAY, plan.monthsAgo > 0 ? plan.monthsAgo * 30 - 2 : 0) }, MANAGER);
+  await prisma.loan.update({ where: { id: loan.id }, data: { approvedAt } });
+
+  if (plan.stage === 'APPROVED') return loan.id;
+  if (plan.stage === 'CANCELED') {
+    await loans.cancelLoan(loan.id, { cancellationReason: 'Borrower withdrew application before disbursement.' }, MANAGER);
+    await prisma.loan.update({ where: { id: loan.id }, data: { canceledAt: appDate } });
+    return loan.id;
+  }
+
+  // Disburse (installments generated from disbursedAt)
+  const disbursedAt = appDate;
+  await loans.disburseLoan(loan.id, { disbursementMethod: index % 2 ? 'BANK_TRANSFER' : 'CASH', disbursedAt, collectFee: !!plan.loanFee }, staff);
+  await prisma.loan.update({ where: { id: loan.id }, data: { disbursedAt } });
+  await backdateCapitalEntry('LOAN_DISBURSEMENT', loan.id, disbursedAt);
+  if (plan.loanFee) await backdateCapitalEntry('LOAN_FEE', loan.id, disbursedAt);
+
+  // Fetch installments to derive on-time payment amounts + dates
+  const installments = await prisma.loanInstallment.findMany({
+    where: { loanId: loan.id },
+    orderBy: { sequence: 'asc' },
+  });
+
+  const toPay = plan.stage === 'PAID' ? installments.length : (plan.paymentsMade ?? 0);
+  for (let i = 0; i < toPay && i < installments.length; i++) {
+    const inst = installments[i]!;
+    const amount = Number(inst.principal) + Number(inst.interest);
+    const paidAt = inst.dueDate <= TODAY ? inst.dueDate : subDays(TODAY, 1);
+    const payment = await loans.recordPayment(
+      loan.id,
+      { amount: Number(amount.toFixed(2)), paidAt, method: i % 2 ? 'GCASH' : 'CASH', reference: `OR-${loan.id.slice(0, 8)}-${i + 1}` },
+      staff,
+    );
+    await prisma.loanPayment.update({ where: { id: payment.id }, data: { createdAt: paidAt } });
+    await backdateLoanPaymentCapital(payment.id, paidAt);
+  }
+  await backdateActivity(loan.id, disbursedAt);
+
+  // Reversed-payment scenario: reverse the most recent payment (LIFO).
+  if (plan.stage === 'REVERSED') {
+    const latest = await prisma.loanPayment.findFirst({
+      where: { loanId: loan.id, reversedAt: null },
+      orderBy: [{ paidAt: 'desc' }, { createdAt: 'desc' }],
     });
-
-    await prisma.capitalEntry.create({
-      data: {
-        id: `seed-capital-${seed.id}-inflow`,
-        flowType: 'INFLOW',
-        source: 'DEPOSIT',
-        sourceId: seed.id,
-        amount: money(seed.amount),
-        description: `Seed deposit received: ${seed.id}`,
-        createdById: adminId,
-        recordedAt: seed.startDate,
-      },
-    });
-
-    if (seed.status === 'CLOSED') {
-      await prisma.capitalEntry.create({
-        data: {
-          id: `seed-capital-${seed.id}-withdrawal`,
-          flowType: 'OUTFLOW',
-          source: 'DEPOSIT_WITHDRAWAL',
-          sourceId: seed.id,
-          amount: money(seed.amount),
-          description: 'Seed closed deposit principal return.',
-          createdById: adminId,
-          recordedAt: closedAt ?? today,
-        },
-      });
+    if (latest) {
+      await loans.reversePayment(loan.id, latest.id, { reason: 'Duplicate entry — borrower paid once, keyed twice.' }, MANAGER);
     }
   }
 
-  const payoutSeed = deposits.find((deposit) => deposit.id === DEPOSIT_IDS.payout)!;
-  const payoutAmount = money(payoutSeed.amount * payoutSeed.expectedReturnRate);
-  let totalPayoutPaid = money(0);
+  return loan.id;
+}
 
-  for (const sequence of [1, 2]) {
-    const payoutId = `${DEPOSIT_IDS.payout}-payout-${String(sequence).padStart(2, '0')}`;
-    const paidAt = addMonths(payoutSeed.startDate, sequence);
-    totalPayoutPaid = totalPayoutPaid.plus(payoutAmount);
+async function seedLoans() {
+  const ids: Record<string, string> = {};
+  for (let i = 0; i < LOAN_PLANS.length; i++) {
+    const plan = LOAN_PLANS[i]!;
+    ids[plan.id] = await createAndAdvanceLoan(plan, i);
+  }
 
-    await prisma.depositPayout.create({
+  // Flip past-due unpaid installments to OVERDUE exactly as the daily job does.
+  const overdue = await markPastDueInstallmentsOverdue(TODAY);
+
+  // Arrears loans: mark IN_ARREARS (they now have OVERDUE installments).
+  for (const plan of LOAN_PLANS.filter((p) => p.stage === 'ARREARS')) {
+    await loans.markLoanArrears(ids[plan.id]!, { reason: 'Missed installments past due date.' }, MANAGER);
+  }
+
+  // Defaulted loan: it has 90+ DPD OVERDUE installments — run the real default path.
+  const defPlan = LOAN_PLANS.find((p) => p.stage === 'DEFAULTED')!;
+  await loans.defaultLoan(ids[defPlan.id]!, { reason: 'Auto-default: 90+ days past due.' }, OWNER);
+  const defDate = subDays(TODAY, 15);
+  await prisma.loan.update({ where: { id: ids[defPlan.id]! }, data: { defaultedAt: defDate } });
+  await prisma.loanProvisionEvent.updateMany({ where: { loanId: ids[defPlan.id]! }, data: { createdAt: defDate } });
+
+  console.log(`Loans: ${LOAN_PLANS.length} (${overdue} installments marked overdue)`);
+  return ids;
+}
+
+// ── depositors & deposits via services ───────────────────────────────────────────
+
+type DepositorSeed = { id: string; name: string; phone: string; address: string; dateOfBirth: string };
+const DEPOSITORS: DepositorSeed[] = [
+  { id: 'seed-dep-01', name: 'Carmen Lopez', phone: '09171230001', address: '19 Legaspi St, Barangay San Lorenzo, Makati City', dateOfBirth: '1978-02-17' },
+  { id: 'seed-dep-02', name: 'Fernando Ramos', phone: '09281230002', address: '51 Timog Ave, Barangay Sacred Heart, Quezon City', dateOfBirth: '1969-04-24' },
+  { id: 'seed-dep-03', name: 'Cecilia Torres', phone: '09391230003', address: '64 Wilson St, Barangay Greenhills, San Juan City', dateOfBirth: '1981-10-02' },
+  { id: 'seed-dep-04', name: 'Manuel Bautista', phone: '09171230004', address: '12 Mabini St, Barangay Poblacion, Mandaluyong City', dateOfBirth: '1972-09-12' },
+  { id: 'seed-dep-05', name: 'Lourdes Fernandez', phone: '09281230005', address: '8 Acacia Lane, Barangay Ugong, Valenzuela City', dateOfBirth: '1965-06-05' },
+];
+
+async function seedDepositors() {
+  for (const d of DEPOSITORS) {
+    await prisma.depositor.create({
       data: {
-        id: payoutId,
-        depositId: DEPOSIT_IDS.payout,
-        amount: payoutAmount,
-        returnPortion: payoutAmount,
-        principalPortion: money(0),
-        paidAt,
-        method: 'BANK_TRANSFER',
-        notes: 'Seed monthly interest payout.',
-      },
-    });
-
-    await prisma.capitalEntry.create({
-      data: {
-        id: `seed-capital-${payoutId}`,
-        flowType: 'OUTFLOW',
-        source: 'DEPOSIT_PAYOUT',
-        sourceId: payoutId,
-        amount: payoutAmount,
-        description: `Seed deposit monthly payout ${sequence}.`,
-        createdById: adminId,
-        recordedAt: paidAt,
+        id: d.id,
+        name: d.name,
+        email: d.name.toLowerCase().replace(/[^a-z]/g, '.') + '@example.ph',
+        phone: d.phone,
+        phoneNormalized: normalizePhone(d.phone),
+        address: d.address,
+        dateOfBirth: new Date(d.dateOfBirth),
+        idType: 'NATIONAL_ID',
+        idNumber: `PSN-${d.id.slice(-2)}-${Math.floor(1000 + Math.random() * 8999)}`,
       },
     });
   }
-
-  await prisma.deposit.update({
-    where: { id: DEPOSIT_IDS.payout },
-    data: { totalPayoutPaid },
-  });
-
-  console.log(`Depositors: ${depositors.length}`);
-  console.log(`Deposits: ${deposits.length}`);
+  console.log(`Depositors: ${DEPOSITORS.length}`);
 }
 
-async function seedBusinessFunds(adminId: string) {
-  const funds = [
-    {
-      id: BUSINESS_FUND_IDS.initial,
-      dateAdded: subMonths(new Date(), 12),
-      amount: 500000,
-      remarks: 'Seed initial business capital',
-    },
-    {
-      id: BUSINESS_FUND_IDS.topUp,
-      dateAdded: subMonths(new Date(), 3),
-      amount: 150000,
-      remarks: 'Seed operating capital top-up',
-    },
-  ];
+type DepositPlan = {
+  id: string;
+  depositorId: string;
+  amount: number;
+  rate: number; // monthly decimal
+  termMonths: number;
+  monthsAgo: number;
+  payoutType: 'MATURITY_ONLY' | 'SEMI_ANNUAL' | 'QUARTERLY' | 'MONTHLY_INTEREST';
+  stage: 'ACTIVE' | 'WITHDRAWN' | 'CLOSED' | 'REVERSED';
+};
 
-  for (const fund of funds) {
-    await prisma.businessFund.upsert({
-      where: { id: fund.id },
-      update: {
-        dateAdded: fund.dateAdded,
-        amount: money(fund.amount),
-        remarks: fund.remarks,
-        status: 'ACTIVE',
-      },
-      create: {
-        id: fund.id,
-        dateAdded: fund.dateAdded,
-        amount: money(fund.amount),
-        remarks: fund.remarks,
-        status: 'ACTIVE',
-      },
-    });
+const DEPOSIT_PLANS: DepositPlan[] = [
+  { id: 'D-monthly', depositorId: 'seed-dep-01', amount: 250000, rate: 0.015, termMonths: 12, monthsAgo: 4, payoutType: 'MONTHLY_INTEREST', stage: 'ACTIVE' },
+  { id: 'D-quarterly', depositorId: 'seed-dep-02', amount: 300000, rate: 0.045, termMonths: 12, monthsAgo: 6, payoutType: 'QUARTERLY', stage: 'REVERSED' },
+  { id: 'D-maturity', depositorId: 'seed-dep-03', amount: 150000, rate: 0.02, termMonths: 12, monthsAgo: 3, payoutType: 'MATURITY_ONLY', stage: 'ACTIVE' },
+  { id: 'D-monthly-2', depositorId: 'seed-dep-05', amount: 200000, rate: 0.012, termMonths: 12, monthsAgo: 5, payoutType: 'MONTHLY_INTEREST', stage: 'ACTIVE' },
+  { id: 'D-withdrawn', depositorId: 'seed-dep-04', amount: 100000, rate: 0.02, termMonths: 12, monthsAgo: 5, payoutType: 'MATURITY_ONLY', stage: 'WITHDRAWN' },
+  { id: 'D-closed', depositorId: 'seed-dep-03', amount: 120000, rate: 0.02, termMonths: 6, monthsAgo: 8, payoutType: 'QUARTERLY', stage: 'CLOSED' },
+];
 
-    await prisma.capitalEntry.upsert({
-      where: { id: `seed-capital-${fund.id}` },
-      update: {
-        flowType: 'INFLOW',
-        source: 'BUSINESS_CAPITAL',
-        sourceId: fund.id,
-        amount: money(fund.amount),
-        description: fund.remarks,
-        createdById: adminId,
-        recordedAt: fund.dateAdded,
-      },
-      create: {
-        id: `seed-capital-${fund.id}`,
-        flowType: 'INFLOW',
-        source: 'BUSINESS_CAPITAL',
-        sourceId: fund.id,
-        amount: money(fund.amount),
-        description: fund.remarks,
-        createdById: adminId,
-        recordedAt: fund.dateAdded,
-      },
-    });
+// Number of scheduled payouts to record for a given payout type over its elapsed life.
+function payoutSchedule(payoutType: string, monthsElapsed: number): number {
+  switch (payoutType) {
+    case 'MONTHLY_INTEREST':
+      return monthsElapsed;
+    case 'QUARTERLY':
+      return Math.floor(monthsElapsed / 3);
+    case 'SEMI_ANNUAL':
+      return Math.floor(monthsElapsed / 6);
+    default:
+      return 0; // MATURITY_ONLY
   }
-
-  console.log(`Business funds: ${funds.length}`);
 }
 
-async function seedWorkflowActivity(adminId: string) {
-  const activities = [
-    {
-      id: 'seed-activity-loan-pending-created',
-      action: 'LOAN_CREATED',
-      targetId: LOAN_IDS.pending,
-      metadata: { scenario: 'Pending loan ready for approval' },
-    },
-    {
-      id: 'seed-activity-loan-approved',
-      action: 'LOAN_APPROVED',
-      targetId: LOAN_IDS.approved,
-      metadata: { scenario: 'Approved loan ready for disbursement' },
-    },
-    {
-      id: 'seed-activity-loan-payment-recorded',
-      action: 'LOAN_PAYMENT_RECORDED',
-      targetId: LOAN_IDS.activePartial,
-      metadata: { scenario: 'Active loan with partial payment history' },
-    },
-    {
-      id: 'seed-activity-loan-defaulted',
-      action: 'LOAN_DEFAULTED',
-      targetId: LOAN_IDS.defaulted,
-      metadata: { scenario: 'Defaulted loan with provision event' },
-    },
-  ];
+async function seedDeposits() {
+  const ids: Record<string, string> = {};
+  for (let i = 0; i < DEPOSIT_PLANS.length; i++) {
+    const plan = DEPOSIT_PLANS[i]!;
+    const startDate = subMonths(TODAY, plan.monthsAgo);
+    const deposit = await deposits.createDeposit(
+      {
+        depositorId: plan.depositorId,
+        amount: plan.amount,
+        expectedReturnRate: plan.rate,
+        expectedReturnRatePeriod: 'MONTH',
+        termMonths: plan.termMonths,
+        startDate,
+        depositType: 'REGULAR',
+        payoutType: plan.payoutType,
+        reference: `DEP-${plan.id}`,
+      },
+      OWNER,
+    );
+    ids[plan.id] = deposit.id;
+    await prisma.deposit.update({ where: { id: deposit.id }, data: { createdAt: startDate } });
+    await backdateCapitalEntry('DEPOSIT', deposit.id, startDate);
+    await backdateActivity(deposit.id, startDate);
 
-  await prisma.activityLog.createMany({
-    data: activities.map((activity) => ({
-      ...activity,
-      userId: adminId,
-      actorType: 'USER' as const,
-      category: 'AUDIT' as const,
-      createdAt: new Date(),
-    })),
-  });
+    // Record interest-only payouts on the schedule (returnPortion = amount).
+    const count = payoutSchedule(plan.payoutType, plan.monthsAgo);
+    const periodMonths = plan.payoutType === 'QUARTERLY' ? 3 : plan.payoutType === 'SEMI_ANNUAL' ? 6 : 1;
+    const periodRate = plan.rate * periodMonths;
+    const payoutAmount = Number((plan.amount * periodRate).toFixed(2));
+    for (let s = 1; s <= count; s++) {
+      const paidAt = addMonths(startDate, s * periodMonths);
+      if (paidAt > TODAY) break;
+      const payout = await deposits.recordPayout(
+        deposit.id,
+        { amount: payoutAmount, principalPortion: 0, returnPortion: payoutAmount, paidAt, method: 'BANK_TRANSFER' },
+        OWNER,
+      );
+      await prisma.depositPayout.update({ where: { id: payout.id }, data: { createdAt: paidAt } });
+      await backdateCapitalEntry('DEPOSIT_PAYOUT', payout.id, paidAt);
+    }
+    await backdateActivity(deposit.id, startDate);
 
-  console.log(`Activity logs: ${activities.length}`);
+    if (plan.stage === 'REVERSED') {
+      const latest = await prisma.depositPayout.findFirst({
+        where: { depositId: deposit.id, reversedAt: null },
+        orderBy: [{ paidAt: 'desc' }, { createdAt: 'desc' }],
+      });
+      if (latest) {
+        await deposits.reversePayout(deposit.id, latest.id, { reason: 'Payout keyed to wrong depositor account.' }, OWNER);
+      }
+    }
+
+    if (plan.stage === 'WITHDRAWN') {
+      const withdrawnAt = subMonths(TODAY, 1);
+      await deposits.withdrawDeposit(deposit.id, { notes: 'Depositor requested early withdrawal.' }, OWNER);
+      await prisma.deposit.update({ where: { id: deposit.id }, data: { withdrawnAt } });
+      await backdateCapitalEntry('DEPOSIT_WITHDRAWAL', deposit.id, withdrawnAt);
+    }
+    if (plan.stage === 'CLOSED') {
+      const closedAt = subMonths(TODAY, 2);
+      await deposits.closeDeposit(deposit.id, { notes: 'Matured — principal returned in full.' }, OWNER);
+      await prisma.deposit.update({ where: { id: deposit.id }, data: { closedAt } });
+      await backdateCapitalEntry('DEPOSIT_WITHDRAWAL', deposit.id, closedAt);
+    }
+  }
+  console.log(`Deposits: ${DEPOSIT_PLANS.length}`);
+  return ids;
 }
+
+// ── business capital via service ───────────────────────────────────────────────
+
+async function seedFunds() {
+  const initial = await funds.createFund(
+    { amount: 3000000, dateAdded: subMonths(TODAY, 8), remarks: 'Initial owner capital infusion' },
+    OWNER,
+  );
+  await prisma.businessFund.update({ where: { id: initial.id }, data: { createdAt: subMonths(TODAY, 8) } });
+  await backdateCapitalEntry('BUSINESS_CAPITAL', initial.id, subMonths(TODAY, 8));
+
+  const topUp = await funds.createFund(
+    { amount: 1000000, dateAdded: subMonths(TODAY, 2), remarks: 'Operating capital top-up' },
+    OWNER,
+  );
+  await prisma.businessFund.update({ where: { id: topUp.id }, data: { createdAt: subMonths(TODAY, 2) } });
+  await backdateCapitalEntry('BUSINESS_CAPITAL', topUp.id, subMonths(TODAY, 2));
+
+  console.log('Business funds: 2 (₱3,000,000 initial + ₱1,000,000 top-up)');
+}
+
+// ── main ─────────────────────────────────────────────────────────────────────────
 
 async function main() {
-  console.log('Seeding deterministic workflow data...\n');
+  console.log('Seeding realistic lending operation (as of 2026-07-06)...\n');
 
-  const { admin } = await seedUsers();
-  await resetSeedOwnedRows();
-  await seedBusinessFunds(admin.id);
-  await seedBorrowersAndLoans(admin.id);
-  await seedDepositorsAndDeposits(admin.id);
-  await seedWorkflowActivity(admin.id);
+  await seedUsers();
+  await clearAppData();
+  await seedCompany();
+  await seedFunds();
+  await seedBorrowers();
+  await seedDepositors();
+  await seedLoans();
+  await seedDeposits();
 
-  console.log('\nSeed login credentials');
-  console.log(`Admin: ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`);
-  console.log(`Staff: ${STAFF_EMAIL} / ${STAFF_PASSWORD}`);
+  console.log('\n─── Login credentials (password for all: password123) ───');
+  for (const u of USERS) console.log(`  ${u.role.padEnd(8)} ${u.email}`);
   console.log('\nDone.');
 }
 
