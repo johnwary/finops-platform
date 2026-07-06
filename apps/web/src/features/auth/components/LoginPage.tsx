@@ -1,5 +1,5 @@
 import { Navigate } from 'react-router-dom'
-import { Card, CardContent } from '@/components/ui/card'
+import heroUrl from '../assets/login-image.jpg'
 import { FieldDescription } from '@/components/ui/field'
 import { Skeleton } from '@/components/ui/skeleton'
 import { LoginForm } from './LoginForm'
@@ -8,44 +8,39 @@ import { useSession } from '../hooks/useSession'
 export function LoginPage() {
   const { data, isPending } = useSession()
 
-  if (isPending) {
-    return (
-      <main className="flex min-h-svh flex-col items-center justify-center bg-muted p-6 md:p-10">
-        <div className="flex w-full max-w-sm flex-col gap-6 md:max-w-3xl">
-          <Card className="overflow-hidden p-0">
-            <CardContent className="grid p-0 md:grid-cols-2">
-              <div className="p-6 md:p-8">
-                <Skeleton className="mb-6 h-8 w-44 mx-auto" />
-                <div className="flex flex-col gap-4">
-                  <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-10 w-full" />
-                </div>
-              </div>
-              <Skeleton className="hidden md:block rounded-none" />
-            </CardContent>
-          </Card>
-        </div>
-      </main>
-    )
-  }
-
   if (data) {
     return <Navigate to="/dashboard" replace />
   }
 
   return (
-    <main className="flex min-h-svh flex-col items-center justify-center bg-muted p-6 md:p-10">
-      <div className="flex w-full max-w-sm flex-col gap-6 md:max-w-3xl">
-        <Card className="overflow-hidden p-0">
-          <CardContent className="grid p-0 md:grid-cols-2">
-            <LoginForm />
-          </CardContent>
-        </Card>
-        <FieldDescription className="px-6 text-center">
+    <main className="grid min-h-svh lg:grid-cols-2">
+      <div className="flex flex-col p-6 md:p-10">
+        <div className="flex flex-1 items-center justify-center">
+          <div className="w-full max-w-sm">
+            {isPending ? (
+              <div className="flex flex-col gap-4">
+                <Skeleton className="mx-auto mb-2 h-8 w-44" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ) : (
+              <LoginForm />
+            )}
+          </div>
+        </div>
+        <FieldDescription className="text-center">
           By continuing, you agree to use Lending Management System according to your
           organization&apos;s access policies.
         </FieldDescription>
+      </div>
+      <div className="relative hidden bg-muted lg:block">
+        <img
+          src={heroUrl}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.25] dark:grayscale"
+        />
+        <div className="absolute inset-0 bg-linear-to-br from-primary/55 via-accent/35 to-background/20 mix-blend-multiply dark:from-background/75 dark:via-primary/35 dark:to-accent/20 dark:mix-blend-normal" />
       </div>
     </main>
   )

@@ -2,7 +2,6 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { Link } from 'react-router-dom'
 
-import heroUrl from '../assets/login-image.jpg'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -32,11 +31,7 @@ export function LoginForm() {
   })
 
   return (
-    <>
-      <form
-        className="p-6 md:p-8"
-        onSubmit={handleSubmit((values) => login.mutate(values))}
-      >
+    <form onSubmit={handleSubmit((values) => login.mutate(values))}>
         <FieldGroup>
           <div className="flex flex-col items-center gap-2 text-center">
             <h1 className="text-2xl font-bold">Welcome back</h1>
@@ -92,14 +87,5 @@ export function LoginForm() {
           </FieldDescription>
         </FieldGroup>
       </form>
-      <div className="relative hidden bg-muted md:block">
-        <img
-          src={heroUrl}
-          alt=""
-          className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.25] dark:grayscale"
-        />
-        <div className="absolute inset-0 bg-linear-to-br from-primary/55 via-accent/35 to-background/20 mix-blend-multiply dark:from-background/75 dark:via-primary/35 dark:to-accent/20 dark:mix-blend-normal" />
-      </div>
-    </>
   )
 }
