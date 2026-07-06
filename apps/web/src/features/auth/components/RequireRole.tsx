@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Navigate } from 'react-router-dom'
-import type { Role } from '@/lib/auth-client'
+import { isRole, type Role } from '@/lib/auth-client'
 import { useSession } from '../hooks/useSession'
 
 interface RequireRoleProps {
@@ -12,7 +12,7 @@ interface RequireRoleProps {
 export function RequireRole({ role, children, fallback = 'redirect' }: RequireRoleProps) {
   const { data, isPending } = useSession()
   const allowedRoles = Array.isArray(role) ? role : [role]
-  const userRole = data?.user.role as Role | undefined
+  const userRole = isRole(data?.user.role) ? data.user.role : undefined
 
   if (isPending) {
     return null

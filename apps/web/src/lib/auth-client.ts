@@ -8,3 +8,9 @@ export const authClient = createAuthClient({
 
 export type Session = typeof authClient.$Infer.Session
 export type Role = 'admin' | 'manager' | 'user'
+
+const ROLES: readonly Role[] = ['admin', 'manager', 'user']
+
+export function isRole(value: unknown): value is Role {
+  return typeof value === 'string' && (ROLES as readonly string[]).includes(value)
+}
