@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from '@tanstack/react-query'
-import { apiFetchList } from '@/lib/api'
+import { apiFetchAllList, apiFetchList } from '@/lib/api'
 import type { OverdueItem, OverdueMeta } from '@/features/dashboard/types'
 
 const PAGE_LIMIT = 100
@@ -29,12 +29,6 @@ export function useOverdueCollections() {
 // what the worklist has loaded. Re-sorts worst-first across pages (per-page DPD
 // sort from the API isn't globally ordered).
 export async function fetchAllOverdue(): Promise<OverdueItem[]> {
-  const all: OverdueItem[] = []
-  let cursor = ''
-  do {
-    const page = await fetchOverduePage(cursor)
-    all.push(...page.data)
-    cursor = page.meta.nextCursor ?? ''
-  } while (cursor)
+  const all = await apiFetchAllList<OverdueItem>(`/api/v1/reports/overdue?limit=${PAGE_LIMIT}`)
   return all.sort((a, b) => b.daysPastDue - a.daysPastDue)
 }

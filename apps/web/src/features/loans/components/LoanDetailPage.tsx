@@ -54,6 +54,7 @@ import { useReversePayment } from '../hooks/useReversePayment'
 import type { LoanDetail } from '../types'
 import {
   INSTALLMENT_STATUS_LABELS,
+  LOAN_STATUS_LABELS,
   LOAN_TYPE_LABELS,
   PAYMENT_FREQUENCY_LABELS,
   PAYMENT_METHOD_LABELS,
@@ -130,86 +131,91 @@ export function LoanDetailPage() {
           </div>
         </div>
 
-        <RequireRole role={['admin', 'manager']} fallback="hide">
-          <div className="flex items-center gap-2 flex-wrap">
-            {data.status === 'PENDING' && (
-              <>
-                <Button size="sm" onClick={() => setIsApproveOpen(true)}>
-                  Approve
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setIsCancelOpen(true)}>Cancel</Button>
-              </>
-            )}
-            {data.status === 'APPROVED' && (
-              <>
-                <Button size="sm" onClick={() => setIsDisburseOpen(true)}>Disburse</Button>
-                <Button size="sm" variant="outline" onClick={() => setIsCancelOpen(true)}>Cancel</Button>
-              </>
-            )}
-            {data.status === 'ACTIVE' && (
-              <>
-                <Button size="sm" onClick={() => setIsPaymentOpen(true)}>Record Payment</Button>
-                <Button size="sm" variant="outline" onClick={() => setIsRestructureOpen(true)}>
-                  Restructure
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setIsMarkArrearsOpen(true)}>
-                  Mark In Arrears
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setIsDefaultOpen(true)}>
-                  Mark Default
-                </Button>
-              </>
-            )}
-            {data.status === 'IN_ARREARS' && (
-              <>
-                <Button size="sm" onClick={() => setIsPaymentOpen(true)}>Record Payment</Button>
-                <Button size="sm" variant="outline" onClick={() => setIsRestructureOpen(true)}>
-                  Restructure
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setIsMarkCurrentOpen(true)}>
-                  Mark Current
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setIsDefaultOpen(true)}>
-                  Mark Default
-                </Button>
-              </>
-            )}
-            {data.status === 'DEFAULTED' && (
-              <>
-                <Button size="sm" variant="outline" onClick={() => setIsRestructureOpen(true)}>
-                  Restructure
-                </Button>
-                <RequireRole role="admin" fallback="hide">
-                  <Button size="sm" variant="destructive" onClick={() => setIsWriteOffOpen(true)}>
-                    Write Off
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button size="sm" variant="outline" onClick={() => printStatementOfAccount(data)}>
+            Print SOA
+          </Button>
+          <RequireRole role={['admin', 'manager']} fallback="hide">
+            <div className="flex items-center gap-2 flex-wrap">
+              {data.status === 'PENDING' && (
+                <>
+                  <Button size="sm" onClick={() => setIsApproveOpen(true)}>
+                    Approve
                   </Button>
-                </RequireRole>
-              </>
-            )}
-            <RequireRole role="admin" fallback="hide">
-              {(data.status === 'ACTIVE' || data.status === 'IN_ARREARS') &&
-                (data.locked ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={unlockLoan.isPending}
-                    onClick={() => unlockLoan.mutate({ id: data.id })}
-                  >
-                    Unlock
-                  </Button>
-                ) : (
-                  <Button size="sm" variant="outline" onClick={() => setIsLockOpen(true)}>
-                    Lock
-                  </Button>
-                ))}
-              {(data.status === 'PENDING' || data.status === 'APPROVED') && (
-                <Button size="sm" variant="destructive" onClick={() => setIsDeleteOpen(true)}>
-                  Delete
-                </Button>
+                  <Button size="sm" variant="outline" onClick={() => setIsCancelOpen(true)}>Cancel</Button>
+                </>
               )}
-            </RequireRole>
-          </div>
-        </RequireRole>
+              {data.status === 'APPROVED' && (
+                <>
+                  <Button size="sm" onClick={() => setIsDisburseOpen(true)}>Disburse</Button>
+                  <Button size="sm" variant="outline" onClick={() => setIsCancelOpen(true)}>Cancel</Button>
+                </>
+              )}
+              {data.status === 'ACTIVE' && (
+                <>
+                  <Button size="sm" onClick={() => setIsPaymentOpen(true)}>Record Payment</Button>
+                  <Button size="sm" variant="outline" onClick={() => setIsRestructureOpen(true)}>
+                    Restructure
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setIsMarkArrearsOpen(true)}>
+                    Mark In Arrears
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setIsDefaultOpen(true)}>
+                    Mark Default
+                  </Button>
+                </>
+              )}
+              {data.status === 'IN_ARREARS' && (
+                <>
+                  <Button size="sm" onClick={() => setIsPaymentOpen(true)}>Record Payment</Button>
+                  <Button size="sm" variant="outline" onClick={() => setIsRestructureOpen(true)}>
+                    Restructure
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setIsMarkCurrentOpen(true)}>
+                    Mark Current
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setIsDefaultOpen(true)}>
+                    Mark Default
+                  </Button>
+                </>
+              )}
+              {data.status === 'DEFAULTED' && (
+                <>
+                  <Button size="sm" variant="outline" onClick={() => setIsRestructureOpen(true)}>
+                    Restructure
+                  </Button>
+                  <RequireRole role="admin" fallback="hide">
+                    <Button size="sm" variant="destructive" onClick={() => setIsWriteOffOpen(true)}>
+                      Write Off
+                    </Button>
+                  </RequireRole>
+                </>
+              )}
+              <RequireRole role="admin" fallback="hide">
+                {(data.status === 'ACTIVE' || data.status === 'IN_ARREARS') &&
+                  (data.locked ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={unlockLoan.isPending}
+                      onClick={() => unlockLoan.mutate({ id: data.id })}
+                    >
+                      Unlock
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="outline" onClick={() => setIsLockOpen(true)}>
+                      Lock
+                    </Button>
+                  ))}
+                {(data.status === 'PENDING' || data.status === 'APPROVED') && (
+                  <Button size="sm" variant="destructive" onClick={() => setIsDeleteOpen(true)}>
+                    Delete
+                  </Button>
+                )}
+              </RequireRole>
+            </div>
+          </RequireRole>
+        </div>
       </div>
 
       {/* Financial snapshot */}
@@ -592,6 +598,233 @@ function InstallmentTable({ loan }: { loan: LoanDetail }) {
         })}
       </TableBody>
     </Table>
+  )
+}
+
+function roundMoney(value: number) {
+  return Math.round(value * 100) / 100
+}
+
+function sumAllocationField(
+  allocations: LoanDetail['loanInstallments'][number]['allocations'],
+  field: 'principalApplied' | 'interestApplied' | 'penaltiesApplied',
+) {
+  return allocations?.reduce((sum, allocation) => sum + Number(allocation[field]), 0) ?? 0
+}
+
+function printStatementOfAccount(loan: LoanDetail) {
+  const w = window.open('', '_blank', 'width=960,height=900')
+  if (!w) return
+
+  const borrowerName = formatBorrowerName(loan.borrower)
+  const activePayments = loan.loanPayments.filter((payment) => !payment.reversedAt)
+  const principalPaid = activePayments.reduce((sum, payment) => sum + Number(payment.principalPortion), 0)
+  const interestPaid = activePayments.reduce((sum, payment) => sum + Number(payment.interestPortion), 0)
+  const penaltiesPaid = activePayments.reduce((sum, payment) => sum + Number(payment.penalties), 0)
+  const paymentTotal = activePayments.reduce((sum, payment) => sum + Number(payment.amount), 0)
+  const scheduledPrincipal = loan.loanInstallments.reduce(
+    (sum, installment) => sum + Number(installment.principal),
+    0,
+  ) || Number(loan.amount)
+  const scheduledInterest = loan.loanInstallments.reduce(
+    (sum, installment) => sum + Number(installment.interest),
+    0,
+  )
+
+  const d = w.document
+  d.write('<!DOCTYPE html><html><head></head><body></body></html>')
+  d.close()
+
+  const title = d.createElement('title')
+  title.textContent = `Statement of Account - ${borrowerName}`
+  d.head.appendChild(title)
+
+  const style = d.createElement('style')
+  style.textContent = `
+    @page { margin: 16mm; }
+    body { color: #111; font-family: sans-serif; font-size: 12px; line-height: 1.4; margin: 0 auto; max-width: 860px; padding: 32px; }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    h2 { border-bottom: 1px solid #ccc; font-size: 12px; letter-spacing: .08em; margin: 22px 0 8px; padding-bottom: 4px; text-transform: uppercase; }
+    p { margin: 0; }
+    .sub { color: #555; margin-bottom: 18px; }
+    .grid { display: grid; gap: 6px 28px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .item { display: flex; gap: 12px; justify-content: space-between; }
+    .label { color: #555; }
+    .value { font-weight: 600; text-align: right; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border-bottom: 1px solid #ddd; padding: 6px 5px; text-align: left; vertical-align: top; }
+    th { color: #555; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+    .amount { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+    .empty { color: #555; padding: 8px 0; }
+    .print-button { margin-top: 24px; }
+    @media print {
+      body { max-width: none; padding: 0; }
+      button { display: none; }
+      h2, table { break-inside: avoid; }
+    }
+  `
+  d.head.appendChild(style)
+
+  function formatDate(value: string | null) {
+    return value ? format(new Date(value), 'MMMM d, yyyy') : 'N/A'
+  }
+
+  function text(tag: string, content: string, className?: string) {
+    const el = d.createElement(tag)
+    el.textContent = content
+    if (className) el.className = className
+    return el
+  }
+
+  function item(label: string, value: string) {
+    const div = d.createElement('div')
+    div.className = 'item'
+    div.append(text('span', label, 'label'), text('span', value, 'value'))
+    return div
+  }
+
+  function section(titleText: string, content: HTMLElement) {
+    const sectionEl = d.createElement('section')
+    sectionEl.append(text('h2', titleText), content)
+    return sectionEl
+  }
+
+  function grid(...items: HTMLElement[]) {
+    const div = d.createElement('div')
+    div.className = 'grid'
+    div.append(...items)
+    return div
+  }
+
+  function cell(content: string, className?: string) {
+    const td = d.createElement('td')
+    td.textContent = content
+    if (className) td.className = className
+    return td
+  }
+
+  function dataTable(headers: string[], rows: string[][], numericColumns: number[] = []) {
+    if (!rows.length) return text('p', 'No records yet.', 'empty')
+
+    const t = d.createElement('table')
+    const thead = d.createElement('thead')
+    const headRow = d.createElement('tr')
+    headers.forEach((header, index) => {
+      const th = d.createElement('th')
+      th.textContent = header
+      if (numericColumns.includes(index)) th.className = 'amount'
+      headRow.appendChild(th)
+    })
+    thead.appendChild(headRow)
+
+    const tbody = d.createElement('tbody')
+    rows.forEach((row) => {
+      const tr = d.createElement('tr')
+      row.forEach((value, index) => tr.appendChild(cell(value, numericColumns.includes(index) ? 'amount' : undefined)))
+      tbody.appendChild(tr)
+    })
+
+    t.append(thead, tbody)
+    return t
+  }
+
+  const installmentRows = loan.loanInstallments.map((installment) => {
+    const principal = Number(installment.principal)
+    const interest = Number(installment.interest)
+    const paid = roundMoney(
+      sumAllocationField(installment.allocations, 'principalApplied') +
+        sumAllocationField(installment.allocations, 'interestApplied'),
+    )
+    const due = roundMoney(principal + interest)
+
+    return [
+      String(installment.sequence),
+      formatDate(installment.dueDate),
+      formatPeso(principal),
+      formatPeso(interest),
+      formatPeso(due),
+      formatPeso(paid),
+      formatPeso(Math.max(roundMoney(due - paid), 0)),
+      INSTALLMENT_STATUS_LABELS[resolveInstallmentStatus(installment)],
+    ]
+  })
+
+  const paymentRows = loan.loanPayments.map((payment) => [
+    formatDate(payment.paidAt),
+    payment.receiptNumber,
+    formatPeso(payment.amount),
+    formatPeso(payment.principalPortion),
+    formatPeso(payment.interestPortion),
+    formatPeso(payment.penalties),
+    PAYMENT_METHOD_LABELS[payment.method],
+    payment.reference ?? 'N/A',
+    payment.reversedAt ? `Reversed ${formatDate(payment.reversedAt)}` : 'Posted',
+  ])
+
+  d.body.append(
+    text('h1', 'Statement of Account'),
+    text('p', `Generated ${format(new Date(), 'MMMM d, yyyy h:mm a')}`, 'sub'),
+    section(
+      'Borrower Information',
+      grid(
+        item('Borrower', borrowerName),
+        item('Email', loan.borrower.email),
+        item('Phone', loan.borrower.phone),
+        item('Borrower ID', loan.borrower.id),
+      ),
+    ),
+    section(
+      'Loan Terms and Status',
+      grid(
+        item('Status', LOAN_STATUS_LABELS[loan.status]),
+        item('Loan Type', LOAN_TYPE_LABELS[loan.type]),
+        item('Principal Amount', formatPeso(loan.amount)),
+        item('Interest Rate', formatPercent(loan.interestRate)),
+        item('Term', `${loan.termMonths} months`),
+        item('Payment Frequency', PAYMENT_FREQUENCY_LABELS[loan.paymentFrequency]),
+        item('Repayment Structure', REPAYMENT_STRUCTURE_LABELS[loan.repaymentStructure]),
+        item('Application Date', formatDate(loan.applicationDate)),
+        item('Disbursed Date', formatDate(loan.disbursedAt)),
+        item('End Date', formatDate(loan.endDate)),
+        ...(loan.loanFee ? [item('Loan Fee', formatPeso(loan.loanFee))] : []),
+        ...(loan.penaltyRate ? [item('Penalty Rate', formatPercent(loan.penaltyRate))] : []),
+        ...(loan.purpose ? [item('Purpose', loan.purpose)] : []),
+      ),
+    ),
+    section(
+      'Account Totals',
+      grid(
+        item('Scheduled Principal', formatPeso(scheduledPrincipal)),
+        item('Scheduled Interest', formatPeso(scheduledInterest)),
+        item('Scheduled Total', formatPeso(roundMoney(scheduledPrincipal + scheduledInterest))),
+        item('Principal Paid', formatPeso(principalPaid)),
+        item('Interest Paid', formatPeso(interestPaid)),
+        item('Penalties Paid', formatPeso(penaltiesPaid)),
+        item('Total Payments', formatPeso(paymentTotal)),
+        item('Remaining Balance', formatPeso(loan.remainingBalance)),
+      ),
+    ),
+    section(
+      'Installment Schedule',
+      dataTable(
+        ['#', 'Due Date', 'Principal', 'Interest', 'Due', 'Paid', 'Outstanding', 'Status'],
+        installmentRows,
+        [2, 3, 4, 5, 6],
+      ),
+    ),
+    section(
+      'Payment History',
+      dataTable(
+        ['Date Paid', 'Receipt', 'Amount', 'Principal', 'Interest', 'Penalties', 'Method', 'Reference', 'Status'],
+        paymentRows,
+        [2, 3, 4, 5],
+      ),
+    ),
+    Object.assign(d.createElement('button'), {
+      className: 'print-button',
+      textContent: 'Print',
+      onclick: () => w.print(),
+    }),
   )
 }
 

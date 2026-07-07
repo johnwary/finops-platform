@@ -91,6 +91,28 @@ export async function apiFetchList<T>(
   return payload as { data: T[]; meta: ListMeta }
 }
 
+function withCursor(path: string, cursor: string | null) {
+  const [base, query = ''] = path.split('?')
+  const params = new URLSearchParams(query)
+  if (cursor) params.set('cursor', cursor)
+  const qs = params.toString()
+  return qs ? `${base}?${qs}` : base
+}
+
+// ponytail: browser export walks API pages; add server streaming when CSVs get too large.
+export async function apiFetchAllList<T>(path: string, init: RequestInit = {}): Promise<T[]> {
+  const all: T[] = []
+  let cursor: string | null = null
+
+  do {
+    const page: { data: T[]; meta: ListMeta } = await apiFetchList<T>(withCursor(path, cursor), init)
+    all.push(...page.data)
+    cursor = page.meta.nextCursor
+  } while (cursor)
+
+  return all
+}
+
 export async function apiFetchVoid(path: string, init: RequestInit = {}): Promise<void> {
   await apiFetchRaw(path, init)
 }

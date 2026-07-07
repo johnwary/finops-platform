@@ -13,7 +13,7 @@ import {
 import { RequireRole } from '@/features/auth/components/RequireRole'
 import { useSession } from '@/features/auth/hooks/useSession'
 import { useDebounce } from '@/hooks/use-debounce'
-import { apiFetchList } from '@/lib/api'
+import { apiFetchAllList } from '@/lib/api'
 import { downloadCsv } from '@/lib/csv'
 import { CreateLoanForm } from '../components/CreateLoanForm'
 import { LoanTable } from '../components/LoanTable'
@@ -108,9 +108,8 @@ export function LoansListPage() {
       if (type) query.set('type', type)
       if (debouncedSearch) query.set('search', debouncedSearch)
 
-      // ponytail: browser export caps at API max; add server streaming when customers need >100 rows.
-      const result = await apiFetchList<Loan>(`/api/v1/loans?${query}`)
-      downloadCsv(`loans-${new Date().toISOString().slice(0, 10)}.csv`, result.data.map((loan) => ({
+      const all = await apiFetchAllList<Loan>(`/api/v1/loans?${query}`)
+      downloadCsv(`loans-${new Date().toISOString().slice(0, 10)}.csv`, all.map((loan) => ({
         borrower: formatBorrowerName(loan.borrower),
         type: LOAN_TYPE_LABELS[loan.type],
         amount: loan.amount,
@@ -148,7 +147,7 @@ export function LoansListPage() {
           {!showDeleted && (
             <Button type="button" variant="outline" onClick={handleExport} disabled={isExporting || loans.isPending || !loans.data?.data.length}>
               <HugeiconsIcon icon={Download04Icon} size={16} />
-              Export CSV
+              {isExporting ? 'Exporting...' : 'Export CSV'}
             </Button>
           )}
           <RequireRole role={['admin', 'manager']} fallback="hide">
