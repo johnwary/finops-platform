@@ -22,6 +22,12 @@ import { depositorsRouter } from './features/depositors/depositors.router.js';
 import { fundsRouter } from './features/funds/funds.router.js';
 import { startAutoDefaultScheduler } from './jobs/autoDefault.job.js';
 
+// better-auth URLs can carry live tokens (e.g. reset-password/<token>) — never log them
+function redactAuthUrl(url: string) {
+  const path = url.split('?')[0];
+  return path.replace(/(\/reset-password\/)[^/]+/, '$1[redacted]');
+}
+
 const app = express();
 const API_PORT = env.API_PORT;
 
@@ -45,11 +51,12 @@ app.use(pinoHttp({
   wrapSerializers: false,
   serializers: {
     req(req) {
+      const isAuthRoute = req.url.startsWith('/api/auth/');
       return {
         id: req.id,
         method: req.method,
-        url: req.url,
-        query: req.query,
+        url: isAuthRoute ? redactAuthUrl(req.url) : req.url,
+        query: isAuthRoute ? undefined : req.query,
         remoteAddress: req.socket?.remoteAddress,
       };
     },
