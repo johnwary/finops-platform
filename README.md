@@ -10,7 +10,7 @@ A lending management system for small finance operations: it tracks borrowers an
 - **Depositors & Deposits** — investor records; deposits with expected return rate/period, term, and payout type; payout recording split into principal/return portions; withdraw/close returning remaining principal; admin payout reversal.
 - **Business capital** — owner capital contributions and withdrawals feeding Net Capital.
 - **Dashboard & Reports** — net capital, period collections/disbursements, loans by status, active portfolio, worst overdue loans; portfolio-by-status, period collections, and Portfolio at Risk reports with CSV export.
-- **Company profile** — business details used on receipts.
+- **Company profile** — business name, logo, and contact details for app identity/settings.
 - **Auth & RBAC** — invite-only signup (email link), email/password login, three roles (admin, manager, user) enforced server-side.
 - **Audit trail** — every state-changing action is logged; financial records are never hard-deleted, only reversed.
 
@@ -48,7 +48,7 @@ cp apps/api/.env.example apps/api/.env
 # 3. Create the schema and generate the Prisma client
 pnpm api:prisma:migrate
 
-# 4. Seed realistic sample data (borrowers, loans, users)
+# 4. Seed realistic sample data (borrowers, loans, depositors, deposits, users)
 pnpm api:prisma:seed
 
 # 5. Run both apps (API on :3000, web on :5173)
@@ -83,4 +83,3 @@ Deployed single-tenant per client on Coolify. See [docs/guide/deploy-coolify.md]
 ## Locale
 
 All amounts are in Philippine Peso (₱, `en-PH`, 2 decimals). All dates use `Asia/Manila` time — no user locale detection.
-```

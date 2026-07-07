@@ -101,7 +101,6 @@ POST /api/v1/loans/:id/approve
 POST /api/v1/loans/:id/disburse
 POST /api/v1/loans/:id/cancel
 POST /api/v1/loans/:id/payments     # record a payment
-POST /api/v1/deposits/:id/activate
 POST /api/v1/deposits/:id/close
 ```
 

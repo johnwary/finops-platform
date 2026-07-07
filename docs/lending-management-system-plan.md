@@ -2,7 +2,7 @@
 
 ## Summary
 
-Position the app as a Lending Management System for lending institutions. V1 is borrowers, loans, repayments, arrears/default handling, reports, users, and audit logs.
+Position the app as a Lending Management System for lending institutions. V1 is borrowers, loans, repayments, arrears/default handling, depositors, deposits, reports, users, backups, and audit logs.
 
 Keep the current stack: Express, Prisma, PostgreSQL, Zod, Vitest, Vite, React, TypeScript, Tailwind, shadcn-style UI, React Query, and pnpm.
 
@@ -12,31 +12,28 @@ Keep the current stack: Express, Prisma, PostgreSQL, Zod, Vitest, Vite, React, T
 - Loans
 - Loan approvals, disbursements, schedules, payments, arrears, defaults, and write-offs
 - Dashboard and lending reports
+- Depositors, deposits, payouts, withdrawals, and closes
 - Users, roles, invitations, and audit logs
-- Capital ledger for loan disbursements and repayments
+- Capital ledger for loan, deposit, payout, and owner-capital movements
+- PostgreSQL backup/restore scripts for Coolify scheduled tasks
 
 ## Deferred
 
-- Depositors
-- Deposits
-- Deposit payouts
-- Investor/savings workflows
-- App-level PostgreSQL backup/restore scripts; initial VPS deployments rely on provider snapshots/backups
 - Failed-login security audit logging; current small pass logs successful email/password login and forbidden API access
 
-These stay out of the product surface until paying customers ask for them.
+Deferred items stay out of the product surface until paying customers ask for them.
 
 ## Engineering Rules
 
 - Do not rewrite the stack.
 - Do not add new dependencies for product cleanup.
-- Keep dormant deposit schema/code until removal is worth a migration.
+- Extend the implemented deposit/depositor modules in place; do not rebuild them.
 - Prefer borrower and loan hardening over new modules.
 - Add one focused test for any non-trivial lending logic change.
 
 ## Next Priorities
 
-1. Add deposit/investor modules only as a paid expansion.
+1. Keep open business-policy items in `docs/business-rules.md` as conditional backlog until a client asks.
 
 ## Completed
 
@@ -60,6 +57,8 @@ These stay out of the product surface until paying customers ask for them.
 - Added an admin-only Settings audit log table for the latest audit events.
 - Added CSV exports for Loans, Collections, and the Portfolio by Status report.
 - Added a single-company profile/settings section for organization details.
+- Added depositor/deposit workflows with payouts, withdrawals, closes, and payout reversal.
+- Added PostgreSQL backup/restore scripts referenced by the Coolify deployment guide.
 
 ## Demo Flow
 

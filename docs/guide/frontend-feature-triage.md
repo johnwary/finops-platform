@@ -49,14 +49,14 @@ Before opening any file, answer these questions:
 
 Example:
 
-> "Deposits — managers and admins can see a list of deposits, open a deposit detail, activate a pending deposit, record a payout, and close an active deposit. Each action is a separate form in a sheet. The action buttons shown depend on the deposit's current status."
+> "Deposits — managers and admins can see a list of deposits, open a deposit detail, record a payout, withdraw early, and close an active deposit. Each action is a separate form in a sheet. The action buttons shown depend on the deposit's current status."
 
 This tells you:
 - List page + detail page needed
 - Status-driven action buttons (conditional rendering based on `deposit.status`)
-- Multiple transition forms: activate, payout, close
+- Multiple transition forms: payout, withdraw, close
 - RBAC: admin and manager only
-- Multiple hooks: `useDeposits`, `useDeposit`, `useActivateDeposit`, `useRecordDepositPayout`, `useCloseDeposit`
+- Multiple hooks: `useDeposits`, `useDeposit`, `useRecordPayout`, `useWithdrawDeposit`, `useCloseDeposit`
 
 If you cannot answer these questions, the feature is not ready to build.
 
@@ -87,8 +87,8 @@ Map out every endpoint the feature needs before writing types or hooks:
 GET    /api/v1/deposits           -> list hook, list page
 GET    /api/v1/deposits/:id       -> detail hook, detail page
 POST   /api/v1/deposits           -> create mutation, create form
-POST   /api/v1/deposits/:id/activate  -> transition mutation, activate form
-POST   /api/v1/deposits/:id/payout    -> transition mutation, payout form
+POST   /api/v1/deposits/:id/payouts   -> transition mutation, payout form
+POST   /api/v1/deposits/:id/withdraw  -> transition mutation, withdraw form
 POST   /api/v1/deposits/:id/close     -> transition mutation, close form
 ```
 
@@ -176,18 +176,23 @@ Frontend: occupation: z.string().trim().max(255).transform(val => val === '' ? u
 Each form gets its own schema. Transition forms are separate schemas:
 
 ```ts
-export const activateDepositSchema = z.object({
-  activatedAt: z.string().min(1, { message: 'Activation date required' }),
-})
-
-export const depositPayoutSchema = z.object({
+export const recordPayoutSchema = z.object({
   amount: z.number().positive({ message: 'Must be positive' }),
   payoutDate: z.string().min(1, { message: 'Payout date required' }),
   notes: z.string().trim().max(1000).transform(val => val === '' ? undefined : val).optional(),
 })
 
-export type ActivateDepositInput = z.infer<typeof activateDepositSchema>
-export type DepositPayoutInput = z.infer<typeof depositPayoutSchema>
+export const withdrawDepositSchema = z.object({
+  notes: z.string().trim().max(1000).transform(val => val === '' ? undefined : val).optional(),
+})
+
+export const closeDepositSchema = z.object({
+  notes: z.string().trim().max(1000).transform(val => val === '' ? undefined : val).optional(),
+})
+
+export type RecordPayoutInput = z.infer<typeof recordPayoutSchema>
+export type WithdrawDepositInput = z.infer<typeof withdrawDepositSchema>
+export type CloseDepositInput = z.infer<typeof closeDepositSchema>
 ```
 
 ### Outcomes
@@ -255,7 +260,7 @@ Look for:
 ```txt
 ['deposits']                       // all deposit lists
 ['deposits', { search, cursor }]   // filtered list
-['deposits', id]                   // one deposit detail
+['deposit', id]                    // one deposit detail
 ```
 
 Mutation `onSuccess` must invalidate both the list and detail keys so stale data refreshes immediately after a write.
@@ -335,14 +340,13 @@ const { register, handleSubmit, formState: { errors } } = useForm<CreateBorrower
 If the feature has a status field, components render different actions based on current status. This is not complex logic — it is just conditional rendering:
 
 ```tsx
-// Show activate button only if status is PENDING
-{deposit.status === 'PENDING' && canManage && (
-  <Button onClick={() => setActivateOpen(true)}>Activate</Button>
-)}
-
-// Show payout button only if status is ACTIVE
+// Show payout and terminal actions (withdraw, close) only if status is ACTIVE
 {deposit.status === 'ACTIVE' && canManage && (
-  <Button onClick={() => setPayoutOpen(true)}>Record Payout</Button>
+  <>
+    <Button onClick={() => setPayoutOpen(true)}>Record Payout</Button>
+    <Button onClick={() => setWithdrawOpen(true)}>Withdraw</Button>
+    <Button onClick={() => setCloseOpen(true)}>Close</Button>
+  </>
 )}
 ```
 
@@ -483,45 +487,32 @@ Run through this before writing any code:
 
 ---
 
-## Example: Deposits Feature — Full Build
+## Example: Deposits Feature — Existing Module
 
-**Plain language:** Admins and managers manage deposits. List page, detail page, create form, plus three transitions: activate, payout, close. Actions shown depend on deposit status.
+**Plain language:** Admins and managers manage deposits. List page, detail page, create form, plus payout, withdraw, close, and payout reversal actions. Actions shown depend on deposit status.
 
 **API contract check:**
-- `GET /api/v1/deposits` — list hook needed
-- `GET /api/v1/deposits/:id` — detail hook needed
-- `POST /api/v1/deposits` — create mutation + form needed
-- `POST /api/v1/deposits/:id/activate` — transition mutation + form needed
-- `POST /api/v1/deposits/:id/payout` — transition mutation + form needed
-- `POST /api/v1/deposits/:id/close` — transition mutation + form needed
+- `GET /api/v1/deposits` — list hook exists
+- `GET /api/v1/deposits/:id` — detail hook exists
+- `POST /api/v1/deposits` — create mutation + form exist
+- `POST /api/v1/deposits/:id/payouts` — payout mutation + form exist
+- `POST /api/v1/deposits/:id/withdraw` — withdraw mutation + form exist
+- `POST /api/v1/deposits/:id/close` — close mutation + form exist
+- `POST /api/v1/deposits/:id/payouts/:payoutId/reverse` — reverse payout mutation exists
 
-**types.ts:** No file exists. Create with `DepositListItem`, `Deposit`, `DepositStatus` enum.
+**types.ts:** Exists with `DepositListItem`, `Deposit`, `DepositDetail`, `DepositPayout`, and status/type unions.
 
-**schemas.ts:** No file exists. Create with `createDepositSchema`, `activateDepositSchema`, `depositPayoutSchema`, `closeDepositSchema`.
+**schemas.ts:** Exists with `createDepositSchema`, `recordPayoutSchema`, `withdrawDepositSchema`, and `closeDepositSchema`.
 
-**hooks/:** No folder exists. Create:
-- `useDeposits.ts` — query
-- `useDeposit.ts` — query
-- `useCreateDeposit.ts` — mutation
-- `useActivateDeposit.ts` — mutation
-- `useRecordDepositPayout.ts` — mutation
-- `useCloseDeposit.ts` — mutation
+**hooks/:** Exists with list/detail/create/payout/withdraw/close/reverse hooks.
 
-**components/:** No folder exists. Create:
-- `DepositsListPage.tsx`
-- `DepositDetailPage.tsx`
-- `DepositTable.tsx`
-- `DepositStatusBadge.tsx`
-- `CreateDepositForm.tsx`
-- `ActivateDepositForm.tsx`
-- `RecordDepositPayoutForm.tsx`
-- `CloseDepositForm.tsx`
+**components/:** Exists with list/detail/table/create/payout/withdraw/close/history components.
 
-**router.tsx:** Add `deposits` and `deposits/:id` routes under the dashboard children.
+**router.tsx:** `deposits` and `deposits/:id` routes are wired under the dashboard children.
 
-**nav-config.ts:** Add deposits nav entry once the list page is ready.
+**nav-config.ts:** Deposits and Depositors nav entries exist.
 
-**Result:** Full build. Follow `frontend-feature-guide.md` layer by layer.
+**Result:** Extend the existing module. Add only missing schema/hook/form/page pieces for the requested change.
 
 ---
 

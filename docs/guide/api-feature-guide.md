@@ -464,13 +464,13 @@ Some features have status fields that change as a result of deliberate business 
 
 ### Why Not PATCH?
 
-A generic `PATCH /deposits/:id { status: 'ACTIVE' }` has no guardrails. The client can set any status at any time. There is no place to enforce rules like "a deposit can only be activated if it is currently pending" or "a payout cannot be recorded on a closed deposit." Side effects (creating a payout record, updating balances, writing a specific audit log entry) have no natural home.
+A generic `PATCH /deposits/:id { status: 'CLOSED' }` has no guardrails. The client can set any status at any time. There is no place to enforce rules like "a payout cannot be recorded on a closed deposit" or "withdraw/close must return only remaining principal." Side effects (creating a payout record, updating balances, writing a specific audit log entry) have no natural home.
 
 State transition endpoints solve this:
 
 ```txt
-POST /api/v1/deposits/:id/activate
-POST /api/v1/deposits/:id/payout
+POST /api/v1/deposits/:id/payouts
+POST /api/v1/deposits/:id/withdraw
 POST /api/v1/deposits/:id/close
 ```
 
@@ -540,34 +540,34 @@ Each transition function does five things for financial flows:
 
 ```ts
 export async function withdrawDeposit(id: string, data: WithdrawDepositInput, actor: Actor) {
-  const deposit = await prisma.deposit.findFirst({ where: { id, deletedAt: null } })
-  if (!deposit) throw new AppError('NOT_FOUND', 'Deposit not found.', 404)
-
-  if (deposit.status !== 'ACTIVE') {
-    throw new AppError(
-      'DEPOSIT_INVALID_STATE',
-      `Cannot withdraw a deposit with status ${deposit.status}.`,
-      409,
-    )
-  }
-
   return prisma.$transaction(async (tx) => {
+    const deposit = await lockedActiveDeposit(tx, id, 'withdraw')
+    const principalOutflow = unreturnedPrincipal(deposit)
+
     const updated = await tx.deposit.update({
       where: { id },
-      data: { status: 'WITHDRAWN', withdrawnAt: new Date() },
-    })
-
-    // Capital outflow: principal returned to depositor
-    await tx.capitalEntry.create({
       data: {
-        flowType: 'OUTFLOW',
-        source: 'DEPOSIT_WITHDRAWAL',
-        sourceId: id,
-        amount: deposit.amount,
-        description: `Deposit withdrawn by depositor ${deposit.depositorId}`,
-        createdById: actor.id,
+        status: 'WITHDRAWN',
+        hasBeenWithdrawn: true,
+        withdrawnAt: new Date(),
+        principalReturned: deposit.amount,
+        notes: data.notes ?? deposit.notes,
       },
     })
+
+    // Capital outflow: only unreturned principal leaves the ledger.
+    if (principalOutflow.greaterThan(0)) {
+      await tx.capitalEntry.create({
+        data: {
+          flowType: 'OUTFLOW',
+          source: 'DEPOSIT_WITHDRAWAL',
+          sourceId: id,
+          amount: principalOutflow,
+          description: `Deposit withdrawn by depositor ${deposit.depositorId}`,
+          createdById: actor.id,
+        },
+      })
+    }
 
     await tx.activityLog.create({
       data: {
@@ -575,7 +575,7 @@ export async function withdrawDeposit(id: string, data: WithdrawDepositInput, ac
         category: 'AUDIT',
         action: 'DEPOSIT_WITHDRAWN',
         targetId: id,
-        metadata: { amount: deposit.amount },
+        metadata: { amount: deposit.amount, principalOutflow },
       },
     })
 
@@ -595,21 +595,22 @@ Key rules:
 ### Controller — Same Pattern as CRUD
 
 ```ts
-export const activateDepositController = async (req: Request, res: Response, next: NextFunction) => {
+export const withdrawDepositController = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.validatedParams as DepositParamsInput
-    const deposit = await service.activateDeposit(id, req.user!)
+    const body = req.validatedBody as WithdrawDepositInput
+    const deposit = await service.withdrawDeposit(id, body, req.user!)
     res.json(success(deposit))
   } catch (err) {
     next(err)
   }
 }
 
-export const recordDepositPayoutController = async (req: Request, res: Response, next: NextFunction) => {
+export const recordPayoutController = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.validatedParams as DepositParamsInput
-    const body = req.validatedBody as DepositPayoutInput
-    const payout = await service.recordDepositPayout(id, body, req.user!)
+    const body = req.validatedBody as RecordPayoutInput
+    const payout = await service.recordPayout(id, body, req.user!)
     res.status(201).json(success(payout))
   } catch (err) {
     next(err)
@@ -628,47 +629,40 @@ router.patch('/:id', ...)
 router.delete('/:id', ...)
 
 // State transition routes
-router.post('/:id/activate', requireRole(['admin', 'manager']), validate(depositParamsSchema, 'params'), controller.activateDepositController)
-router.post('/:id/payout', requireRole(['admin', 'manager']), validate(depositParamsSchema, 'params'), validate(depositPayoutSchema), controller.recordDepositPayoutController)
-router.post('/:id/close', requireRole('admin'), validate(depositParamsSchema, 'params'), controller.closeDepositController)
+router.post('/:id/payouts', requireRole(['admin', 'manager']), validate(depositParamsSchema, 'params'), validate(recordPayoutSchema), controller.recordPayoutController)
+router.post('/:id/withdraw', requireRole(['admin', 'manager']), validate(depositParamsSchema, 'params'), validate(withdrawDepositSchema), controller.withdrawDepositController)
+router.post('/:id/close', requireRole(['admin', 'manager']), validate(depositParamsSchema, 'params'), validate(closeDepositSchema), controller.closeDepositController)
 ```
 
-Transitions always use `POST`. They are events, not updates. The URL makes the action explicit: `/deposits/:id/activate` reads as "activate this deposit."
+Transitions always use `POST`. They are events, not updates. The URL makes the action explicit: `/deposits/:id/withdraw` reads as "withdraw this deposit."
 
 ### Transition Endpoint Reference (Deposits Example)
 
 | Method | Path | Allowed From | Role |
 |---|---|---|---|
-| `POST` | `/api/v1/deposits/:id/payout` | `ACTIVE` | admin, manager |
+| `POST` | `/api/v1/deposits/:id/payouts` | `ACTIVE` | admin, manager |
 | `POST` | `/api/v1/deposits/:id/withdraw` | `ACTIVE` | admin, manager |
-| `POST` | `/api/v1/deposits/:id/close` | `ACTIVE` | admin |
+| `POST` | `/api/v1/deposits/:id/close` | `ACTIVE` | admin, manager |
 
 ### Testing Transitions
 
 Test the guard logic explicitly — it is the most important behavior:
 
 ```ts
-describe('activateDeposit', () => {
-  it('activates a pending deposit and writes audit log', async () => {
-    const deposit = await createDeposit({ status: 'PENDING' })
-    const result = await activateDeposit(deposit.id, actor)
-    expect(result.status).toBe('ACTIVE')
+describe('withdrawDeposit', () => {
+  it('withdraws an active deposit and writes audit log', async () => {
+    const deposit = await createDeposit({ status: 'ACTIVE' })
+    const result = await withdrawDeposit(deposit.id, {}, actor)
+    expect(result.status).toBe('WITHDRAWN')
 
     const log = await prisma.activityLog.findFirst({ where: { targetId: deposit.id } })
-    expect(log?.action).toBe('DEPOSIT_ACTIVATED')
+    expect(log?.action).toBe('DEPOSIT_WITHDRAWN')
   })
 
-  it('throws INVALID_TRANSITION if deposit is already active', async () => {
-    const deposit = await createDeposit({ status: 'ACTIVE' })
-    await expect(activateDeposit(deposit.id, actor)).rejects.toMatchObject({
-      code: 'INVALID_TRANSITION',
-    })
-  })
-
-  it('throws INVALID_TRANSITION if deposit is closed', async () => {
+  it('throws DEPOSIT_INVALID_STATE if deposit is closed', async () => {
     const deposit = await createDeposit({ status: 'CLOSED' })
-    await expect(activateDeposit(deposit.id, actor)).rejects.toMatchObject({
-      code: 'INVALID_TRANSITION',
+    await expect(withdrawDeposit(deposit.id, {}, actor)).rejects.toMatchObject({
+      code: 'DEPOSIT_INVALID_STATE',
     })
   })
 })

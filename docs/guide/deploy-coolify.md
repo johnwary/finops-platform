@@ -99,7 +99,7 @@ it creates fake borrowers, loans, and deposits.
 
 Then log in at `https://app.yourdomain.com` and immediately:
 
-1. **Settings → Company Profile** — fill in (appears on receipts).
+1. **Settings → Company Profile** — fill in app name, logo, and contact details.
 2. **Settings → Business Capital** — record starting capital, or net capital reads wrong
    from day one.
 3. **Settings → Invite User** — invite staff with proper roles.

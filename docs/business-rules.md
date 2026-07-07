@@ -4,7 +4,7 @@ Living document. Two sections: **decisions baked into code** (with rationale, so
 re-litigated by accident) and **open questions** that need a client/owner answer before we
 build anything. Update this file whenever a rule changes.
 
-_Last updated: 2026-07-02_
+_Last updated: 2026-07-07_
 
 ---
 
@@ -89,12 +89,17 @@ outstanding principal, accruing from due date, no grace period, no cap.
 **Questions for client:** grace period days? Penalty cap (e.g., max 100% of installment)?
 Penalty on interest portion too, or principal only (current: principal only)?
 
-### 4. Statement of account / printable receipts
-**Current behavior:** receipt numbers are generated and stored; collections export to CSV.
-No printable SOA or receipt layout.
+### 4. Branded statement of account / receipt layout
+**Current behavior:** receipt numbers are generated and stored. The Payments tab can
+print a plain loan payment receipt with borrower/payment details. Company profile data is
+stored and shown in the app shell/settings, but is not printed on receipts. No printable
+SOA exists.
 
-**Question for client:** do you issue printed receipts / SOAs? If yes: which fields,
-letterhead (company profile already stores name/address/logo), thermal or A4?
+**Question for client:** do you need company-branded receipts or SOAs? If yes: which
+fields, letterhead/logo, thermal or A4?
+
+**If yes, we need:** add company profile fields/logo to the receipt renderer and/or build
+a printable SOA layout.
 
 ### 5. Deposit maturity visibility
 **Current behavior:** deposits store `endDate`; no "maturing soon" report or filter.

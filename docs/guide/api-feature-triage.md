@@ -34,12 +34,12 @@ Before opening any file, answer these questions:
 
 Write this out in one or two sentences. Example:
 
-> "Deposits — a borrower can place a deposit. It starts as pending, gets activated, earns periodic payouts, then closes at maturity. Admins and managers manage it. Payouts are recorded as immutable financial records."
+> "Deposits — a depositor places funds with the company. It is created directly as active, earns periodic payouts, then is withdrawn early or closed at maturity. Admins and managers manage it. Payouts are recorded as immutable financial records."
 
 This tells you:
 - There is a `Deposit` model with a status field
 - There is a `DepositPayout` child model (immutable)
-- There are state transitions: activate, payout, close
+- There are state transitions: payout, withdraw, close
 - CRUD + transitions needed, not just CRUD
 
 If you cannot answer these questions, the feature is not ready to build. Clarify the requirements first.
@@ -201,18 +201,17 @@ If you cannot check a box, answer it before writing code. Unknown inputs produce
 **Plain language:** A depositor places a deposit. It is created directly as `ACTIVE` — no pending step. While active it earns periodic payouts. It can be withdrawn early or closed at maturity. Admins and managers manage it. Payouts are immutable financial records.
 
 **Schema check:**
-- No `Deposit` model found.
-- No `DepositPayout` model found.
-- Decision: build from scratch.
+- `Depositor`, `Deposit`, and `DepositPayout` models exist.
+- Status enum is `ACTIVE | WITHDRAWN | CLOSED`. No `PENDING` — deposits go live immediately.
+- Decision: extend the existing schema only if the requested field is missing.
 
-**Router check:** No feature folder exists — nothing to check.
+**Router check:** `apps/api/src/features/deposits/deposits.router.ts` exists with list, get, create, patch, withdraw, close, payout, reverse payout, and delete routes.
 
-**Service check:** No feature folder exists — nothing to check.
+**Service check:** `deposits.service.ts` already handles creation, payout, withdrawal, close, reversal, capital entries, and audit logs.
 
-**Result:** Full build. Follow api-feature-guide.md Step 1 through Step 8.
-- Status enum: `ACTIVE | WITHDRAWN | CLOSED`. No `PENDING` — deposits go live immediately.
-- Transitions: `POST /:id/payout`, `POST /:id/withdraw`, `POST /:id/close` — all guard against non-`ACTIVE` status.
-- Every financial write (create, payout, withdraw, close) needs three records in one transaction: domain write + `CapitalEntry` + `ActivityLog`.
+**Result:** Extend the existing module. Do not rebuild it.
+- Transitions: `POST /:id/payouts`, `POST /:id/withdraw`, `POST /:id/close` — all guard against non-`ACTIVE` status.
+- Every new financial write still needs three records in one transaction: domain write + `CapitalEntry` + `ActivityLog`.
 
 ---
 

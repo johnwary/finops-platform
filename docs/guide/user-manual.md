@@ -163,7 +163,7 @@ on the dashboard — record starting capital here on day one, before disbursing 
 
 ## 8. Settings (admin)
 
-- **Company Profile** — name, address, contact, tax ID; used on receipts.
+- **Company Profile** — name, logo, address, contact, tax ID; shown in the app shell/settings, not on payment receipts today.
 - **Business Capital** — see §6.
 - **Invite User / Invitations** — send, track, revoke invites.
 - **Users** — change roles, ban/unban.
