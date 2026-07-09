@@ -45,14 +45,20 @@ export interface DepositKpis {
 export function computeDepositKpis(d: DepositKpiInput): DepositKpis {
   const amount = parseFloat(d.amount)
   const paidOut = parseFloat(d.totalPayoutPaid)
-  // WITHDRAWN/CLOSED deposits have their full principal returned. The API now
-  // sets principalReturned = amount on those transitions; this fallback keeps
-  // rows written before that fix displaying correctly.
-  const principalReturned = d.status === 'ACTIVE' ? parseFloat(d.principalReturned) : amount
+  // principalReturned column = sum of principal portions of DepositPayout rows only.
+  // The terminal principal return on withdraw/close is booked as a CapitalEntry, NOT a
+  // payout, so it never lands in totalPayoutPaid or the column.
+  const payoutPrincipal = parseFloat(d.principalReturned)
+  // Return Earned = interest actually paid out = every payout minus its principal part.
+  // Must use payout principal only; folding in the terminal principal makes it negative.
+  const returnEarned = paidOut - payoutPrincipal
+  // Principal returned to date: for terminated deposits the whole principal is back
+  // (terminal CapitalEntry not reflected in the column), so show the full amount.
+  const principalReturned = d.status === 'ACTIVE' ? payoutPrincipal : amount
   return {
     totalPaidOut: paidOut.toFixed(2),
     principalReturned: principalReturned.toFixed(2),
-    returnEarned: (paidOut - principalReturned).toFixed(2),
+    returnEarned: returnEarned.toFixed(2),
     principalRemaining: (amount - principalReturned).toFixed(2),
   }
 }

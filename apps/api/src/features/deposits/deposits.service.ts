@@ -177,7 +177,9 @@ export async function withdrawDeposit(id: string, data: WithdrawDepositInput, ac
         status: 'WITHDRAWN',
         hasBeenWithdrawn: true,
         withdrawnAt: now,
-        principalReturned: deposit.amount,
+        // principalReturned stays payout-only: the terminal principal return is the
+        // CapitalEntry below. Setting it to deposit.amount here breaks the frontend's
+        // returnEarned (= totalPayoutPaid - principalReturned) for terminated deposits.
         notes: data.notes ?? deposit.notes,
       },
     });
@@ -222,7 +224,7 @@ export async function closeDeposit(id: string, data: CloseDepositInput, actor: A
       data: {
         status: 'CLOSED',
         closedAt: now,
-        principalReturned: deposit.amount,
+        // principalReturned stays payout-only — see withdrawDeposit.
         notes: data.notes ?? deposit.notes,
       },
     });

@@ -51,7 +51,7 @@ import { useLockLoan, useUnlockLoan } from '../hooks/useLockLoan'
 import { useMarkArrears } from '../hooks/useMarkArrears'
 import { useMarkCurrent } from '../hooks/useMarkCurrent'
 import { useReversePayment } from '../hooks/useReversePayment'
-import type { LoanDetail } from '../types'
+import type { LoanDetail, LoanPayment } from '../types'
 import {
   INSTALLMENT_STATUS_LABELS,
   LOAN_STATUS_LABELS,
@@ -908,11 +908,18 @@ function PaymentTable({ loan }: { loan: LoanDetail }) {
   }
 
   const hasPenalties = loan.loanPayments.some((p) => Number(p.penalties) > 0)
-  // Reversal is LIFO-only (matches API): only the newest non-reversed payment,
-  // and only while the loan is in a reversible state.
+  // Reversal is LIFO-only (matches API): only the payment recorded last, i.e. the
+  // highest createdAt among non-reversed. The API keys LIFO on createdAt (recording
+  // order), NOT paidAt — the table below is sorted by paidAt for display, so we must
+  // pick by createdAt here or the button targets a payment the API rejects.
   const canReverse = ['ACTIVE', 'IN_ARREARS', 'PAID'].includes(loan.status)
   const latestReversibleId = canReverse
-    ? loan.loanPayments.find((p) => !p.reversedAt)?.id
+    ? loan.loanPayments
+        .filter((p) => !p.reversedAt)
+        .reduce<LoanPayment | undefined>(
+          (latest, p) => (!latest || p.createdAt > latest.createdAt ? p : latest),
+          undefined,
+        )?.id
     : undefined
 
   return (

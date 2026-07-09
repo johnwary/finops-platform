@@ -113,11 +113,9 @@ describe('deposit termination principal outflow', () => {
         }),
       }),
     );
-    expect(mocks.tx.deposit.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ principalReturned: new Decimal(100_000) }),
-      }),
-    );
+    // Column keeps payout-only semantics: termination must NOT clobber it to the
+    // full amount, or the frontend's returnEarned goes negative.
+    expect(mocks.tx.deposit.update.mock.calls[0][0].data).not.toHaveProperty('principalReturned');
   });
 
   it('withdraw skips the capital entry when principal was fully returned already', async () => {

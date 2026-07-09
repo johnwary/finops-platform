@@ -132,7 +132,7 @@ export async function validateAndStageInvite(token: string) {
 
 export async function listInvitations({ cursor, limit, status }: ListInvitationsInput) {
   const invitations = await prisma.invitation.findMany({
-    where: status ? { status } : undefined,
+    where: { deletedAt: null, ...(status ? { status } : {}) },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     cursor: cursor ? { id: cursor } : undefined,
     skip: cursor ? 1 : 0,

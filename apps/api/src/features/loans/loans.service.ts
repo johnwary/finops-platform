@@ -759,11 +759,13 @@ export async function reversePayment(
       throw new AppError('CONFLICT', 'Payment has already been reversed.', 409);
     }
 
-    // LIFO-only: allocation math assumes earlier payments stand. Reverse newer
-    // payments first. See docs/business-rules.md.
+    // LIFO-only: allocation math assumes earlier payments stand, so "latest" must
+    // be the payment applied last = highest createdAt (recording order), NOT paidAt.
+    // paidAt is caller-supplied and backdatable, so it does not reflect apply order.
+    // See docs/business-rules.md.
     const latest = await tx.loanPayment.findFirst({
       where: { loanId, reversedAt: null },
-      orderBy: [{ paidAt: 'desc' }, { createdAt: 'desc' }],
+      orderBy: { createdAt: 'desc' },
     });
     if (latest?.id !== paymentId) {
       throw new AppError(

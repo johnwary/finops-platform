@@ -908,6 +908,17 @@ describe('loans.service reversePayment', () => {
     expect(mocks.tx.loanPaymentAllocation.deleteMany).not.toHaveBeenCalled();
   });
 
+  it('picks the latest payment by recording order (createdAt), not caller-supplied paidAt', async () => {
+    await reversePayment('loan-1', 'pay-2', { reason: 'Typo' }, actor);
+
+    // LIFO must key on createdAt: paidAt is backdatable, so ordering by it can
+    // reverse a payment that was not applied last and corrupt allocation.
+    expect(mocks.tx.loanPayment.findFirst).toHaveBeenCalledWith({
+      where: { loanId: 'loan-1', reversedAt: null },
+      orderBy: { createdAt: 'desc' },
+    });
+  });
+
   it('rejects an already-reversed payment', async () => {
     mocks.tx.loanPayment.findFirst
       .mockReset()
