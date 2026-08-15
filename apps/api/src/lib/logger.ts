@@ -11,6 +11,14 @@ export const logger = pino({
     'req.body.phone',
     'req.body.email',
     'req.body.address',
+    // Nested payloads (e.g. req.body.borrower.idNumber) and arrays of them.
+    'req.body.*.password',
+    'req.body.*.idNumber',
+    'req.body.*.accountNumber',
+    'req.body.*.fullName',
+    'req.body.*.phone',
+    'req.body.*.email',
+    'req.body.*.address',
     'req.headers.authorization',
   ],
   transport:
