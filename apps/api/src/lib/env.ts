@@ -1,16 +1,29 @@
 import { z } from 'zod';
 
-const isProd = process.env.NODE_ENV === 'production';
+// NODE_ENV is validated by the schema below (enum, default 'development') —
+// we only branch on it here *after* that validation succeeds, so a missing
+// or misspelled value can never be mistaken for a safe non-prod environment.
+const nodeEnvResult = z
+  .enum(['development', 'test', 'production'])
+  .default('development')
+  .safeParse(process.env.NODE_ENV);
 
-// In production the three secrets are required. In dev/test we fall back to
-// harmless localhost defaults so `pnpm dev` and tests boot without a full .env.
+if (!nodeEnvResult.success) {
+  throw new Error(`Invalid environment variables:\n  - NODE_ENV: ${nodeEnvResult.error.issues[0].message}`);
+}
+
+const isProd = nodeEnvResult.data === 'production';
+
+// In production the secrets/URLs below are required — no fallback. In dev/test
+// we fall back to harmless localhost defaults so `pnpm dev` and tests boot
+// without a full .env.
 const requiredInProd = (devDefault: string) =>
   isProd ? z.string().min(1) : z.string().min(1).default(devDefault);
 
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   API_PORT: z.coerce.number().int().positive().default(3000),
-  CORS_ORIGIN: z.string().default('http://localhost:5173'),
+  CORS_ORIGIN: isProd ? z.string().url() : z.string().url().default('http://localhost:5173'),
   LOG_LEVEL: z
     .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
     .default('info'),
@@ -20,7 +33,7 @@ const schema = z.object({
   BETTER_AUTH_URL: requiredInProd('http://localhost:3000'),
   BETTER_AUTH_TRUSTED_ORIGINS: z.string().optional(),
 
-  WEB_URL: z.string().default('http://localhost:5173'),
+  WEB_URL: isProd ? z.string().url() : z.string().url().default('http://localhost:5173'),
 
   // Email sends fail lazily if unset (see resend.ts), so these are optional.
   RESEND_API_KEY: z.string().optional(),
