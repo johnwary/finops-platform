@@ -40,6 +40,9 @@ export const auth = betterAuth({
   session: {
     expiresIn: 60 * 60 * 24 * 2,
   },
+  advanced: {
+    useSecureCookies: env.NODE_ENV === 'production',
+  },
   plugins: [admin({ defaultRole: 'user', adminRoles: ['admin'] })],
   databaseHooks: {
     session: {
