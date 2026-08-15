@@ -17,6 +17,8 @@ RUN apk add --no-cache openssl
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=build /prod/api .
+RUN chown -R node:node /app
+USER node
 EXPOSE 3000
 # start = prisma migrate deploy && node dist/index.js
 CMD ["npm", "run", "start"]
