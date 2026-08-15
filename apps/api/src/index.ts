@@ -34,6 +34,7 @@ function redactAuthUrl(url: string) {
 type CreateAppOptions = {
   authHandler?: RequestHandler;
   rateLimit?: Partial<RateLimitOptions>;
+  authRateLimit?: Partial<RateLimitOptions>;
 };
 
 export function createApp(options: CreateAppOptions = {}) {
@@ -85,6 +86,18 @@ export function createApp(options: CreateAppOptions = {}) {
     message: error('RATE_LIMITED', 'Too many requests. Please try again later.', 429),
     ...options.rateLimit,
   }));
+  // Tighter per-IP limit on credential-guessing surfaces (sign-in, password reset).
+  app.use(
+    ['/api/auth/sign-in/email', '/api/auth/forget-password', '/api/auth/reset-password'],
+    rateLimit({
+      windowMs: 15 * 60 * 1000,
+      limit: 20,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: error('RATE_LIMITED', 'Too many attempts. Please try again later.', 429),
+      ...options.authRateLimit,
+    }),
+  );
   app.all('/api/auth/*splat', options.authHandler ?? toNodeHandler(auth));
   app.use(express.json());
 
