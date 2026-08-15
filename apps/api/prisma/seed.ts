@@ -26,6 +26,13 @@ if (!databaseUrl) {
   process.exit(1);
 }
 
+const LOCAL_DB_HOSTS = ['localhost', '127.0.0.1'];
+const dbHost = new URL(databaseUrl).hostname;
+if (!LOCAL_DB_HOSTS.includes(dbHost)) {
+  console.error(`Refusing to seed: DATABASE_URL points at non-local host "${dbHost}". Seeding wipes app data first.`);
+  process.exit(1);
+}
+
 const adapter = new PrismaPg(databaseUrl);
 const prisma = new PrismaClient({ adapter });
 

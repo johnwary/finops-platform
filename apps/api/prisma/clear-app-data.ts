@@ -3,10 +3,12 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client.js';
 
 const PRESERVED_TABLES = ['User', 'Account'] as const;
+const LOCAL_DB_HOSTS = ['localhost', '127.0.0.1'];
 
 const args = new Set(process.argv.slice(2));
 const shouldDelete = args.has('--yes');
 const allowProduction = args.has('--allow-production');
+const confirmedDbName = process.argv.find((arg) => arg.startsWith('--confirm-db='))?.slice('--confirm-db='.length);
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -15,9 +17,23 @@ if (!databaseUrl) {
   process.exit(1);
 }
 
-if (process.env.NODE_ENV === 'production' && !allowProduction) {
-  console.error('Refusing to clear data in production. Pass --allow-production to override.');
-  process.exit(1);
+const dbHost = new URL(databaseUrl).hostname;
+const dbName = new URL(databaseUrl).pathname.replace(/^\//, '');
+const isLocalDb = LOCAL_DB_HOSTS.includes(dbHost);
+
+if (!isLocalDb) {
+  if (!allowProduction) {
+    console.error(
+      `Refusing to clear data: DATABASE_URL points at non-local host "${dbHost}". Pass --allow-production to override.`,
+    );
+    process.exit(1);
+  }
+  if (confirmedDbName !== dbName) {
+    console.error(
+      `--allow-production requires --confirm-db=${dbName} (typed DB name) to proceed against a non-local host.`,
+    );
+    process.exit(1);
+  }
 }
 
 const adapter = new PrismaPg(databaseUrl);
