@@ -11,6 +11,7 @@ import { toNodeHandler } from 'better-auth/node';
 import type { Options as RateLimitOptions } from 'express-rate-limit';
 import { env } from './lib/env.js';
 import { logger } from './lib/logger.js';
+import { prisma } from './lib/prisma.js';
 import { auth } from './lib/auth.js';
 import { error } from './lib/response.js';
 import { errorHandler } from './middleware/error.middleware.js';
@@ -134,15 +135,21 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     startAutoDefaultScheduler();
   });
 
-  process.on('SIGTERM', () => {
-    logger.info('SIGTERM received, shutting down');
-    server.close(() => process.exit(0));
-  });
+  function shutdown(signal: string) {
+    logger.info(`${signal} received, shutting down`);
+    const forceExit = setTimeout(() => {
+      logger.warn('Graceful shutdown timed out, forcing exit');
+      process.exit(1);
+    }, 10_000);
+    server.close(async () => {
+      clearTimeout(forceExit);
+      await prisma.$disconnect();
+      process.exit(0);
+    });
+  }
 
-  process.on('SIGINT', () => {
-    logger.info('SIGINT received, shutting down');
-    server.close(() => process.exit(0));
-  });
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
 }
 
 export default app;
