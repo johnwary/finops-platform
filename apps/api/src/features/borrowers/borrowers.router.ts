@@ -24,9 +24,10 @@ import {
 
 export const borrowersRouter = Router();
 
+borrowersRouter.use(requireAuth);
+
 borrowersRouter.get(
   '/',
-  requireAuth,
   requireRole(['admin', 'manager', 'user']),
   validate(listBorrowersSchema, 'query'),
   (req, res, next) => {
@@ -42,7 +43,6 @@ borrowersRouter.get(
 
 borrowersRouter.get(
   '/:id',
-  requireAuth,
   requireRole(['admin', 'manager', 'user']),
   validate(borrowerParamsSchema, 'params'),
   devDelay(1500),
@@ -51,7 +51,6 @@ borrowersRouter.get(
 
 borrowersRouter.post(
   '/',
-  requireAuth,
   requireRole(['admin', 'manager']),
   validate(createBorrowerSchema),
   devDelay(1500),
@@ -60,7 +59,6 @@ borrowersRouter.post(
 
 borrowersRouter.patch(
   '/:id',
-  requireAuth,
   requireRole(['admin', 'manager']),
   validate(borrowerParamsSchema, 'params'),
   validate(updateBorrowerSchema),
@@ -70,7 +68,6 @@ borrowersRouter.patch(
 
 borrowersRouter.get(
   '/:id/activity',
-  requireAuth,
   requireRole(['admin', 'manager', 'user']),
   validate(borrowerParamsSchema, 'params'),
   validate(listBorrowerActivitySchema, 'query'),
@@ -80,7 +77,6 @@ borrowersRouter.get(
 
 borrowersRouter.post(
   '/:id/restore',
-  requireAuth,
   requireRole('admin'),
   validate(borrowerParamsSchema, 'params'),
   devDelay(1500),
@@ -89,7 +85,6 @@ borrowersRouter.post(
 
 borrowersRouter.delete(
   '/:id',
-  requireAuth,
   requireRole('admin'),
   validate(borrowerParamsSchema, 'params'),
   devDelay(1500),

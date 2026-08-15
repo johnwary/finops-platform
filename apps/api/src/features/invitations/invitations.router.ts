@@ -17,24 +17,26 @@ import {
 
 export const invitationsRouter = Router();
 
+// Public — validates an invite token before signup. Must be mounted before the
+// requireAuth guard below.
 invitationsRouter.post('/validate', validate(validateInviteTokenSchema), validateInviteController);
+
+invitationsRouter.use(requireAuth);
+
 invitationsRouter.post(
   '/',
-  requireAuth,
   requireRole('admin'),
   validate(createInvitationSchema),
   createInvitationController,
 );
 invitationsRouter.get(
   '/',
-  requireAuth,
   requireRole('admin'),
   validate(listInvitationsSchema, 'query'),
   listInvitationsController,
 );
 invitationsRouter.post(
   '/:id/revoke',
-  requireAuth,
   requireRole('admin'),
   validate(invitationParamsSchema, 'params'),
   revokeInvitationController,

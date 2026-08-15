@@ -7,9 +7,10 @@ import { listActivityLogsSchema } from './activity.schema.js';
 
 export const activityRouter = Router();
 
+activityRouter.use(requireAuth);
+
 activityRouter.get(
   '/',
-  requireAuth,
   requireRole('admin'),
   validate(listActivityLogsSchema, 'query'),
   listActivityLogsController,
