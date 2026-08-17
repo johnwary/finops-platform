@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { DisabledReasonTooltip } from '@/components/ui/disabled-reason-tooltip'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { SkeletonText } from '@/components/ui/skeleton'
@@ -112,7 +113,9 @@ export function BorrowerDetailPage() {
               Edit
             </Button>
             <RequireRole role="admin" fallback="hide">
-              <div className="flex flex-col items-end gap-0.5">
+              <DisabledReasonTooltip
+                reason={hasLoans ? "Can't delete - this borrower has existing loans." : undefined}
+              >
                 <Button
                   size="sm"
                   variant="destructive"
@@ -122,10 +125,7 @@ export function BorrowerDetailPage() {
                   {deleteBorrower.isPending ? <Spinner data-icon="inline-start" /> : null}
                   Delete
                 </Button>
-                {hasLoans && (
-                  <p className="text-xs text-muted-foreground">Has existing loans</p>
-                )}
-              </div>
+              </DisabledReasonTooltip>
             </RequireRole>
           </div>
         </RequireRole>
