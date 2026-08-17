@@ -35,6 +35,11 @@ const schema = z.object({
 
   WEB_URL: isProd ? z.string().url() : z.string().url().default('http://localhost:5173'),
 
+  // Parent domain for the session cookie (e.g. ".johwary.cloud") so it's sent
+  // from the web app's subdomain to the API's subdomain. Required in prod
+  // only when they're split across subdomains; same-origin/dev needs nothing.
+  COOKIE_DOMAIN: z.string().optional(),
+
   // Email sends fail lazily if unset (see resend.ts), so these are optional.
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().default('noreply@example.com'),

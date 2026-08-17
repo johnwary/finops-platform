@@ -42,6 +42,10 @@ export const auth = betterAuth({
   },
   advanced: {
     useSecureCookies: env.NODE_ENV === 'production',
+    ...(env.COOKIE_DOMAIN && {
+      crossSubDomainCookies: { enabled: true, domain: env.COOKIE_DOMAIN },
+      defaultCookieAttributes: { sameSite: 'none', secure: true },
+    }),
   },
   plugins: [admin({ defaultRole: 'user', adminRoles: ['admin'] })],
   databaseHooks: {

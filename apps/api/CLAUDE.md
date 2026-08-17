@@ -291,5 +291,6 @@ localhost defaults; in production they are required. See `.env.example`.
 | `BETTER_AUTH_URL` | `http://localhost:3000` | required in prod |
 | `BETTER_AUTH_TRUSTED_ORIGINS` | — | optional, comma-separated |
 | `WEB_URL` | `http://localhost:5173` | |
+| `COOKIE_DOMAIN` | — | optional; set only when web + API are on split subdomains in prod (e.g. `.example.com`), enables cross-subdomain session cookies |
 | `RESEND_API_KEY` | — | optional; email fails lazily if unset |
 | `RESEND_FROM_EMAIL` | `noreply@example.com` | |
