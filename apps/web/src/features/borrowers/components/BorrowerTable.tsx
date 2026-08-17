@@ -14,7 +14,7 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Skeleton } from '@/components/ui/skeleton'
+import { TableSkeletonBody } from '@/components/ui/table-skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import {
   Table,
@@ -37,7 +37,6 @@ interface BorrowerTableProps {
   restoringId?: string
 }
 
-const SKELETON_ROW_COUNT = 5
 const TABLE_COL_COUNT = 7
 
 export function BorrowerTable({
@@ -74,16 +73,18 @@ export function BorrowerTable({
   )
 }
 
+// Percentage widths, not fixed rem: under table-fixed a fixed total wider than the
+// container clips the last column instead of letting the table shrink to fit.
 function BorrowerTableColGroup() {
   return (
     <colgroup>
-      <col className="w-48" />
-      <col className="w-48" />
-      <col className="w-36" />
-      <col className="w-52" />
-      <col className="w-20" />
-      <col className="w-32" />
-      <col className="w-16" />
+      <col className="w-[19%]" />
+      <col className="w-[22%]" />
+      <col className="w-[14%]" />
+      <col className="w-[18%]" />
+      <col className="w-[7%]" />
+      <col className="w-[12%]" />
+      <col className="w-[8%]" />
     </colgroup>
   )
 }
@@ -120,17 +121,7 @@ function BorrowerTableContent({ borrowers, restoreAction, isRestoring, restoring
       <Table className="table-fixed">
         <BorrowerTableColGroup />
         <BorrowerTableHead />
-        <TableBody>
-          {Array.from({ length: SKELETON_ROW_COUNT }).map((_, i) => (
-            <TableRow key={i}>
-              {Array.from({ length: TABLE_COL_COUNT }).map((__, j) => (
-                <TableCell key={j}>
-                  <Skeleton className="h-4 w-full" />
-                </TableCell>
-              ))}
-            </TableRow>
-          ))}
-        </TableBody>
+        <TableSkeletonBody columnCount={TABLE_COL_COUNT} />
       </Table>
     )
   }
