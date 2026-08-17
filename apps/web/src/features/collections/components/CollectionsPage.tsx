@@ -9,7 +9,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
+import { SkeletonText } from '@/components/ui/skeleton'
+import { TableSkeletonBody } from '@/components/ui/table-skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import {
   Table,
@@ -25,7 +26,6 @@ import { usePortfolioAtRisk } from '@/features/dashboard/hooks/useDashboard'
 import { LOAN_TYPE_LABELS } from '@/features/loans/utils'
 import { fetchAllOverdue, useOverdueCollections } from '../hooks/useOverdueCollections'
 
-const SKELETON_ROW_COUNT = 5
 const TABLE_COL_COUNT = 8
 
 function riskVariant(daysPastDue: number): 'destructive' | 'secondary' | 'outline' {
@@ -80,21 +80,17 @@ export function CollectionsPage() {
         <Card>
           <CardHeader>
             <CardDescription>Overdue loans</CardDescription>
-            {overdue.isPending ? (
-              <Skeleton className="h-6 w-20" />
-            ) : (
-              <CardTitle className="text-xl tabular-nums">{total}</CardTitle>
-            )}
+            <CardTitle className="text-xl tabular-nums">
+              {overdue.isPending ? <SkeletonText width="3.5rem" /> : total}
+            </CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader>
             <CardDescription>Outstanding overdue balance</CardDescription>
-            {par.isPending ? (
-              <Skeleton className="h-6 w-32" />
-            ) : (
-              <CardTitle className="text-xl tabular-nums">{formatPeso(par.data?.atRiskBalance ?? 0)}</CardTitle>
-            )}
+            <CardTitle className="text-xl tabular-nums">
+              {par.isPending ? <SkeletonText width="8rem" /> : formatPeso(par.data?.atRiskBalance ?? 0)}
+            </CardTitle>
           </CardHeader>
         </Card>
       </div>
@@ -130,17 +126,7 @@ function CollectionsTable({ overdue }: { overdue: ReturnType<typeof useOverdueCo
             <TableHead />
           </TableRow>
         </TableHeader>
-        <TableBody>
-          {Array.from({ length: SKELETON_ROW_COUNT }).map((_, i) => (
-            <TableRow key={i}>
-              {Array.from({ length: TABLE_COL_COUNT }).map((__, j) => (
-                <TableCell key={j}>
-                  <Skeleton className="h-4 w-full" />
-                </TableCell>
-              ))}
-            </TableRow>
-          ))}
-        </TableBody>
+        <TableSkeletonBody columnCount={TABLE_COL_COUNT} />
       </Table>
     )
   }

@@ -6,7 +6,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
+import { SkeletonText } from '@/components/ui/skeleton'
+import { TableSkeletonBody } from '@/components/ui/table-skeleton'
 import {
   Table,
   TableBody,
@@ -52,12 +53,14 @@ function StatCard({
     <Card>
       <CardHeader>
         <CardDescription>{label}</CardDescription>
-        {isLoading ? (
-          <Skeleton className="h-6 w-32" />
-        ) : (
-          <CardTitle className="text-xl tabular-nums">{value}</CardTitle>
-        )}
-        {sub && !isLoading ? <p className="text-xs text-muted-foreground">{sub}</p> : null}
+        <CardTitle className="text-xl tabular-nums">
+          {isLoading ? <SkeletonText width="60%" /> : value}
+        </CardTitle>
+        {sub ? (
+          <p className="text-xs text-muted-foreground">
+            {isLoading ? <SkeletonText width="45%" /> : sub}
+          </p>
+        ) : null}
       </CardHeader>
     </Card>
   )
@@ -197,17 +200,11 @@ function StatusTable({ summary, isLoading }: { summary: DashboardSummary | undef
             <TableHead>Collected</TableHead>
           </TableRow>
         </TableHeader>
-        <TableBody>
-          {STATUS_ROWS.map((row) => (
-            <TableRow key={row.key}>
-              {Array.from({ length: 5 }).map((_, i) => (
-                <TableCell key={i}>
-                  <Skeleton className="h-4 w-full" />
-                </TableCell>
-              ))}
-            </TableRow>
-          ))}
-        </TableBody>
+        <TableSkeletonBody
+          columnCount={5}
+          rowCount={STATUS_ROWS.length}
+          hasActionColumn={false}
+        />
       </Table>
     )
   }
