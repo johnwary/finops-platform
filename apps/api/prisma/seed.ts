@@ -28,8 +28,11 @@ if (!databaseUrl) {
 
 const LOCAL_DB_HOSTS = ['localhost', '127.0.0.1'];
 const dbHost = new URL(databaseUrl).hostname;
-if (!LOCAL_DB_HOSTS.includes(dbHost)) {
-  console.error(`Refusing to seed: DATABASE_URL points at non-local host "${dbHost}". Seeding wipes app data first.`);
+if (!LOCAL_DB_HOSTS.includes(dbHost) && process.env.ALLOW_REMOTE_SEED !== '1') {
+  console.error(
+    `Refusing to seed: DATABASE_URL points at non-local host "${dbHost}". Seeding wipes app data first.\n` +
+      'Set ALLOW_REMOTE_SEED=1 to override for a one-off remote seed (only for a fresh/empty database).',
+  );
   process.exit(1);
 }
 
