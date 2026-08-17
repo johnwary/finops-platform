@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AppSidebar } from '@/components/layout/AppSidebar';
+import { DemoBanner } from '@/components/layout/DemoBanner';
 import { navMain, navProjects } from '@/components/layout/nav-config';
 
 export interface AppShellProps {
@@ -69,6 +70,7 @@ export function AppShell({ children }: AppShellProps) {
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset className="h-svh min-h-0 overflow-hidden">
+          <DemoBanner />
           <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
             <div className="flex w-full items-center gap-2 px-4 md:px-6">
               <SidebarTrigger className="-ml-1 self-center" />

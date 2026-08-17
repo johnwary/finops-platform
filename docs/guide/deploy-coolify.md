@@ -75,12 +75,13 @@ Deploy and confirm `https://api.yourdomain.com/health` returns `{"status":"ok"}`
 | Port | `80` |
 | Domain | `https://app.yourdomain.com` |
 
-One environment variable, marked as **Build Variable** (Vite inlines it at build time —
+Environment variables, marked as **Build Variables** (Vite inlines them at build time -
 a runtime-only var does nothing):
 
 | Var | Value |
 |---|---|
 | `VITE_API_URL` | `https://api.yourdomain.com` |
+| `VITE_DEMO_MODE` | `true` (optional - shows a "demo environment" banner; omit for real deployments) |
 
 ## 4. First admin (one-time)
 
