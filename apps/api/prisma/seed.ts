@@ -29,7 +29,8 @@ if (!databaseUrl) {
 
 const LOCAL_DB_HOSTS = ['localhost', '127.0.0.1'];
 const dbHost = new URL(databaseUrl).hostname;
-if (!LOCAL_DB_HOSTS.includes(dbHost) && process.env.ALLOW_REMOTE_SEED !== '1') {
+const isRemoteDb = !LOCAL_DB_HOSTS.includes(dbHost);
+if (isRemoteDb && process.env.ALLOW_REMOTE_SEED !== '1') {
   console.error(
     `Refusing to seed: DATABASE_URL points at non-local host "${dbHost}". Seeding wipes app data first.\n` +
       'Set ALLOW_REMOTE_SEED=1 to override for a one-off remote seed (only for a fresh/empty database).',
@@ -39,6 +40,22 @@ if (!LOCAL_DB_HOSTS.includes(dbHost) && process.env.ALLOW_REMOTE_SEED !== '1') {
 
 const adapter = new PrismaPg(databaseUrl);
 const prisma = new PrismaClient({ adapter });
+
+// ALLOW_REMOTE_SEED is documented as "fresh/empty database only", but nothing
+// enforced it - one stray run against a live deployment wiped its borrowers,
+// loans and deposits. On a remote DB the override now only unlocks an *empty*
+// one; wiping real records requires deleting them deliberately first.
+if (isRemoteDb) {
+  const existing = await prisma.borrower.count();
+  if (existing > 0) {
+    console.error(
+      `Refusing to seed: remote database "${dbHost}" already holds ${existing} borrower(s). ` +
+        'ALLOW_REMOTE_SEED is only for a fresh/empty database - seeding wipes app data first.',
+    );
+    await prisma.$disconnect();
+    process.exit(1);
+  }
+}
 
 // The service layer imports the prisma SINGLETON from src/lib/prisma. To have the
 // services write to the same connection this script controls, we import them after
@@ -106,7 +123,10 @@ async function clearAppData() {
       await tx.depositor.deleteMany();
       await tx.capitalEntry.deleteMany();
       await tx.businessFund.deleteMany();
-      await tx.companyProfile.deleteMany();
+      // CompanyProfile is real configuration, not demo data - an operator edits it
+      // through Settings. Wiping it here made every re-seed silently restore the
+      // hardcoded demo name; seedCompanyProfile() upserts with `update: {}` so an
+      // existing profile is left alone and a fresh DB still gets the demo one.
     },
     { timeout: 30_000 },
   );
