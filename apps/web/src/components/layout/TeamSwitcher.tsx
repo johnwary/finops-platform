@@ -10,17 +10,13 @@ export function TeamSwitcher() {
     <SidebarMenu>
       <SidebarMenuItem>
         <SidebarMenuButton size="lg" className="data-[state=open]:bg-sidebar-accent">
-          {profile?.logoUrl && !hasLogoError ? (
+          {profile?.logoUrl && !hasLogoError && (
             <img
               src={profile.logoUrl}
               alt=""
               className="size-8 shrink-0 rounded-md object-cover"
               onError={() => setHasLogoError(true)}
             />
-          ) : (
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
-              <span className="text-[11px] font-bold tracking-tight">FO</span>
-            </div>
           )}
           <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
             <span className="truncate font-semibold">{profile?.name || 'Lending'}</span>

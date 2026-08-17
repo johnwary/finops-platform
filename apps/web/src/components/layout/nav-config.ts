@@ -27,6 +27,5 @@ export const navProjects: NavProjectItem[] = [
     title: 'Settings',
     url: '/dashboard/settings',
     icon: Settings01Icon,
-    adminOnly: true,
   },
 ]

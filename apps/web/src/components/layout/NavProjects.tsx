@@ -16,7 +16,6 @@ export interface NavProjectItem {
   title: string
   url: string
   icon: IconSvgElement
-  adminOnly?: boolean
 }
 
 function ProjectMenuItem({ item }: { item: NavProjectItem }) {
@@ -38,21 +37,17 @@ function ProjectMenuItem({ item }: { item: NavProjectItem }) {
 
 export function NavProjects({ projects }: { projects: NavProjectItem[] }) {
   return (
-    <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-      <SidebarGroupLabel>Workspace</SidebarGroupLabel>
-      <SidebarGroupContent>
-        <SidebarMenu>
-          {projects.map((item) =>
-            item.adminOnly ? (
-              <RequireRole key={item.url} role="admin" fallback="hide">
-                <ProjectMenuItem item={item} />
-              </RequireRole>
-            ) : (
+    <RequireRole role="admin" fallback="hide">
+      <SidebarGroup className="group-data-[collapsible=icon]:hidden">
+        <SidebarGroupLabel>Workspace</SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            {projects.map((item) => (
               <ProjectMenuItem key={item.url} item={item} />
-            )
-          )}
-        </SidebarMenu>
-      </SidebarGroupContent>
-    </SidebarGroup>
+            ))}
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    </RequireRole>
   )
 }
