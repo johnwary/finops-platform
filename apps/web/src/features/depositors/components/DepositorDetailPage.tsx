@@ -14,7 +14,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Skeleton } from '@/components/ui/skeleton'
+import { DetailPageSkeleton } from '@/components/ui/detail-page-skeleton'
 import {
   Sheet,
   SheetContent,
@@ -43,13 +43,7 @@ export function DepositorDetailPage() {
   const deleteDepositor = useDeleteDepositor()
 
   if (depositor.isPending) {
-    return (
-      <div className="flex flex-col gap-6">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-48 w-full" />
-        <Skeleton className="h-48 w-full" />
-      </div>
-    )
+    return <DetailPageSkeleton />
   }
 
   if (depositor.isError) {

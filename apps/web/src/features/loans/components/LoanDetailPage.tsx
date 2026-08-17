@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Skeleton } from '@/components/ui/skeleton'
+import { DetailPageSkeleton } from '@/components/ui/detail-page-skeleton'
 import {
   Sheet,
   SheetContent,
@@ -91,14 +91,7 @@ export function LoanDetailPage() {
   const unlockLoan = useUnlockLoan()
 
   if (loan.isPending) {
-    return (
-      <div className="flex flex-col gap-6">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-20 w-full" />
-        <Skeleton className="h-48 w-full" />
-        <Skeleton className="h-64 w-full" />
-      </div>
-    )
+    return <DetailPageSkeleton cardCount={3} />
   }
 
   if (loan.isError) {

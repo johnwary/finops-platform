@@ -12,7 +12,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { Skeleton } from '@/components/ui/skeleton'
+import { DetailPageSkeleton } from '@/components/ui/detail-page-skeleton'
 import { RequireRole } from '@/features/auth/components/RequireRole'
 import { formatPeso, formatPercent } from '@/lib/format'
 import { CloseForm } from '../components/CloseForm'
@@ -48,14 +48,7 @@ export function DepositDetailPage() {
   const [isCloseOpen, setIsCloseOpen] = useState(false)
 
   if (deposit.isPending) {
-    return (
-      <div className="flex flex-col gap-6">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-20 w-full" />
-        <Skeleton className="h-48 w-full" />
-        <Skeleton className="h-64 w-full" />
-      </div>
-    )
+    return <DetailPageSkeleton cardCount={3} />
   }
 
   if (deposit.isError) {
