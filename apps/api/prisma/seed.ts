@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { createHash } from 'node:crypto';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { hashPassword } from 'better-auth/crypto';
 import { addMonths, subDays, subMonths } from 'date-fns';
@@ -64,6 +65,26 @@ function normalizePhone(phone: string): string {
   return digits;
 }
 
+// Seed rows are cross-referenced by readable keys ('seed-bor-01'), but every
+// :id route validates z.uuid() — a raw key makes the detail pages 422. Hash the
+// key into a stable v4-shaped UUID so the keys stay readable above, references
+// keep resolving, and re-seeding reproduces the same ids.
+function seedUuid(key: string): string {
+  const h = createHash('sha256').update(key).digest('hex');
+  const variant = ((parseInt(h[16]!, 16) & 0x3) | 0x8).toString(16);
+  return [h.slice(0, 8), h.slice(8, 12), `4${h.slice(13, 16)}`, `${variant}${h.slice(17, 20)}`, h.slice(20, 32)].join('-');
+}
+
+// Seed key -> actual User.id, filled by seedUsers(). Users are preserved across
+// re-seeds, so an existing account keeps an id that seedUuid() cannot derive.
+const SEED_USER_IDS = new Map<string, string>();
+
+function seedUserId(key: string): string {
+  const id = SEED_USER_IDS.get(key);
+  if (!id) throw new Error(`Seed user "${key}" not resolved — seedUsers() must run first.`);
+  return id;
+}
+
 // ── wipe (preserve User/Account) ───────────────────────────────────────────────
 
 async function clearAppData() {
@@ -110,20 +131,22 @@ async function backdateActivity(targetId: string, at: Date) {
 async function seedUsers() {
   const hashed = await hashPassword(PASSWORD);
   for (const u of USERS) {
-    await prisma.user.upsert({
+    // Upsert is keyed on email, so a pre-existing user keeps its own id (User and
+    // Account survive clearAppData). Use the id it returns, not the seed key.
+    const user = await prisma.user.upsert({
       where: { email: u.email },
       update: { name: u.name, role: u.role, emailVerified: true, banned: false },
-      create: { id: u.id, email: u.email, name: u.name, role: u.role, emailVerified: true },
+      create: { id: seedUuid(u.id), email: u.email, name: u.name, role: u.role, emailVerified: true },
     });
-    const accountId = `${u.id}-account`;
+    SEED_USER_IDS.set(u.id, user.id);
     const existing = await prisma.account.findFirst({
       where: { providerId: 'credential', accountId: u.email },
     });
     if (existing) {
-      await prisma.account.update({ where: { id: existing.id }, data: { userId: u.id, password: hashed } });
+      await prisma.account.update({ where: { id: existing.id }, data: { userId: user.id, password: hashed } });
     } else {
       await prisma.account.create({
-        data: { id: accountId, userId: u.id, accountId: u.email, providerId: 'credential', password: hashed },
+        data: { id: seedUuid(`${u.id}-account`), userId: user.id, accountId: u.email, providerId: 'credential', password: hashed },
       });
     }
   }
@@ -188,7 +211,7 @@ async function seedBorrowers() {
   for (const b of BORROWERS) {
     await prisma.borrower.create({
       data: {
-        id: b.id,
+        id: seedUuid(b.id),
         firstName: b.firstName,
         middleName: b.middleName,
         lastName: b.lastName,
@@ -232,10 +255,12 @@ type LoanPlan = {
 };
 
 // Build a schedule of loans covering the whole lifecycle. Owner/manager/staff act.
-const OWNER: Actor = { id: 'seed-user-owner' };
-const MANAGER: Actor = { id: 'seed-user-manager' };
-const STAFF1: Actor = { id: 'seed-user-staff1' };
-const STAFF2: Actor = { id: 'seed-user-staff2' };
+// Resolved lazily: seedUsers() fills SEED_USER_IDS, and an already-present user
+// keeps its own id, so the real id is only known once that has run.
+const OWNER = (): Actor => ({ id: seedUserId('seed-user-owner') });
+const MANAGER = (): Actor => ({ id: seedUserId('seed-user-manager') });
+const STAFF1 = (): Actor => ({ id: seedUserId('seed-user-staff1') });
+const STAFF2 = (): Actor => ({ id: seedUserId('seed-user-staff2') });
 
 const LOAN_PLANS: LoanPlan[] = [
   // Fully repaid loans (started ~6-7 months ago, short terms, all installments paid)
@@ -271,12 +296,12 @@ const LOAN_PLANS: LoanPlan[] = [
 const STAFF_POOL = [STAFF1, STAFF2, MANAGER];
 
 async function createAndAdvanceLoan(plan: LoanPlan, index: number) {
-  const staff = STAFF_POOL[index % STAFF_POOL.length]!;
+  const staff = STAFF_POOL[index % STAFF_POOL.length]!();
   const appDate = plan.monthsAgo > 0 ? subMonths(TODAY, plan.monthsAgo) : subDays(TODAY, 1);
 
   const loan = await loans.createLoan(
     {
-      borrowerId: plan.borrowerId,
+      borrowerId: seedUuid(plan.borrowerId),
       type: plan.type,
       amount: plan.amount,
       interestRate: plan.interestRate,
@@ -297,12 +322,12 @@ async function createAndAdvanceLoan(plan: LoanPlan, index: number) {
 
   // Approve (backdate approvedAt to just after application)
   const approvedAt = plan.monthsAgo > 0 ? addMonths(appDate, 0) : appDate;
-  await loans.approveLoan(loan.id, { approvedAt: subDays(TODAY, plan.monthsAgo > 0 ? plan.monthsAgo * 30 - 2 : 0) }, MANAGER);
+  await loans.approveLoan(loan.id, { approvedAt: subDays(TODAY, plan.monthsAgo > 0 ? plan.monthsAgo * 30 - 2 : 0) }, MANAGER());
   await prisma.loan.update({ where: { id: loan.id }, data: { approvedAt } });
 
   if (plan.stage === 'APPROVED') return loan.id;
   if (plan.stage === 'CANCELED') {
-    await loans.cancelLoan(loan.id, { cancellationReason: 'Borrower withdrew application before disbursement.' }, MANAGER);
+    await loans.cancelLoan(loan.id, { cancellationReason: 'Borrower withdrew application before disbursement.' }, MANAGER());
     await prisma.loan.update({ where: { id: loan.id }, data: { canceledAt: appDate } });
     return loan.id;
   }
@@ -342,7 +367,7 @@ async function createAndAdvanceLoan(plan: LoanPlan, index: number) {
       orderBy: [{ paidAt: 'desc' }, { createdAt: 'desc' }],
     });
     if (latest) {
-      await loans.reversePayment(loan.id, latest.id, { reason: 'Duplicate entry — borrower paid once, keyed twice.' }, MANAGER);
+      await loans.reversePayment(loan.id, latest.id, { reason: 'Duplicate entry — borrower paid once, keyed twice.' }, MANAGER());
     }
   }
 
@@ -361,12 +386,12 @@ async function seedLoans() {
 
   // Arrears loans: mark IN_ARREARS (they now have OVERDUE installments).
   for (const plan of LOAN_PLANS.filter((p) => p.stage === 'ARREARS')) {
-    await loans.markLoanArrears(ids[plan.id]!, { reason: 'Missed installments past due date.' }, MANAGER);
+    await loans.markLoanArrears(ids[plan.id]!, { reason: 'Missed installments past due date.' }, MANAGER());
   }
 
   // Defaulted loan: it has 90+ DPD OVERDUE installments — run the real default path.
   const defPlan = LOAN_PLANS.find((p) => p.stage === 'DEFAULTED')!;
-  await loans.defaultLoan(ids[defPlan.id]!, { reason: 'Auto-default: 90+ days past due.' }, OWNER);
+  await loans.defaultLoan(ids[defPlan.id]!, { reason: 'Auto-default: 90+ days past due.' }, OWNER());
   const defDate = subDays(TODAY, 15);
   await prisma.loan.update({ where: { id: ids[defPlan.id]! }, data: { defaultedAt: defDate } });
   await prisma.loanProvisionEvent.updateMany({ where: { loanId: ids[defPlan.id]! }, data: { createdAt: defDate } });
@@ -390,7 +415,7 @@ async function seedDepositors() {
   for (const d of DEPOSITORS) {
     await prisma.depositor.create({
       data: {
-        id: d.id,
+        id: seedUuid(d.id),
         name: d.name,
         email: d.name.toLowerCase().replace(/[^a-z]/g, '.') + '@example.ph',
         phone: d.phone,
@@ -446,7 +471,7 @@ async function seedDeposits() {
     const startDate = subMonths(TODAY, plan.monthsAgo);
     const deposit = await deposits.createDeposit(
       {
-        depositorId: plan.depositorId,
+        depositorId: seedUuid(plan.depositorId),
         amount: plan.amount,
         expectedReturnRate: plan.rate,
         expectedReturnRatePeriod: 'MONTH',
@@ -456,7 +481,7 @@ async function seedDeposits() {
         payoutType: plan.payoutType,
         reference: `DEP-${plan.id}`,
       },
-      OWNER,
+      OWNER(),
     );
     ids[plan.id] = deposit.id;
     await prisma.deposit.update({ where: { id: deposit.id }, data: { createdAt: startDate } });
@@ -474,7 +499,7 @@ async function seedDeposits() {
       const payout = await deposits.recordPayout(
         deposit.id,
         { amount: payoutAmount, principalPortion: 0, returnPortion: payoutAmount, paidAt, method: 'BANK_TRANSFER' },
-        OWNER,
+        OWNER(),
       );
       await prisma.depositPayout.update({ where: { id: payout.id }, data: { createdAt: paidAt } });
       await backdateCapitalEntry('DEPOSIT_PAYOUT', payout.id, paidAt);
@@ -487,19 +512,19 @@ async function seedDeposits() {
         orderBy: [{ paidAt: 'desc' }, { createdAt: 'desc' }],
       });
       if (latest) {
-        await deposits.reversePayout(deposit.id, latest.id, { reason: 'Payout keyed to wrong depositor account.' }, OWNER);
+        await deposits.reversePayout(deposit.id, latest.id, { reason: 'Payout keyed to wrong depositor account.' }, OWNER());
       }
     }
 
     if (plan.stage === 'WITHDRAWN') {
       const withdrawnAt = subMonths(TODAY, 1);
-      await deposits.withdrawDeposit(deposit.id, { notes: 'Depositor requested early withdrawal.' }, OWNER);
+      await deposits.withdrawDeposit(deposit.id, { notes: 'Depositor requested early withdrawal.' }, OWNER());
       await prisma.deposit.update({ where: { id: deposit.id }, data: { withdrawnAt } });
       await backdateCapitalEntry('DEPOSIT_WITHDRAWAL', deposit.id, withdrawnAt);
     }
     if (plan.stage === 'CLOSED') {
       const closedAt = subMonths(TODAY, 2);
-      await deposits.closeDeposit(deposit.id, { notes: 'Matured — principal returned in full.' }, OWNER);
+      await deposits.closeDeposit(deposit.id, { notes: 'Matured — principal returned in full.' }, OWNER());
       await prisma.deposit.update({ where: { id: deposit.id }, data: { closedAt } });
       await backdateCapitalEntry('DEPOSIT_WITHDRAWAL', deposit.id, closedAt);
     }
@@ -513,14 +538,14 @@ async function seedDeposits() {
 async function seedFunds() {
   const initial = await funds.createFund(
     { amount: 3000000, dateAdded: subMonths(TODAY, 8), remarks: 'Initial owner capital infusion' },
-    OWNER,
+    OWNER(),
   );
   await prisma.businessFund.update({ where: { id: initial.id }, data: { createdAt: subMonths(TODAY, 8) } });
   await backdateCapitalEntry('BUSINESS_CAPITAL', initial.id, subMonths(TODAY, 8));
 
   const topUp = await funds.createFund(
     { amount: 1000000, dateAdded: subMonths(TODAY, 2), remarks: 'Operating capital top-up' },
-    OWNER,
+    OWNER(),
   );
   await prisma.businessFund.update({ where: { id: topUp.id }, data: { createdAt: subMonths(TODAY, 2) } });
   await backdateCapitalEntry('BUSINESS_CAPITAL', topUp.id, subMonths(TODAY, 2));

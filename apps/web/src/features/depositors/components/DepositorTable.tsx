@@ -1,8 +1,9 @@
 import { format } from 'date-fns'
 import { Link } from 'react-router-dom'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Skeleton } from '@/components/ui/skeleton'
+import { TableSkeletonBody } from '@/components/ui/table-skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import {
   Table,
@@ -21,8 +22,7 @@ interface DepositorTableProps {
   onSearchChange: (search: string) => void
 }
 
-const SKELETON_ROW_COUNT = 5
-const TABLE_COL_COUNT = 5
+const TABLE_COL_COUNT = 6
 
 export function DepositorTable({
   depositors,
@@ -50,14 +50,17 @@ export function DepositorTable({
   )
 }
 
+// Percentage widths, not fixed rem: under table-fixed a fixed total wider than the
+// container clips the last column instead of letting the table shrink to fit.
 function DepositorTableColGroup() {
   return (
     <colgroup>
-      <col className="w-48" />
-      <col className="w-48" />
-      <col className="w-36" />
-      <col className="w-20" />
-      <col className="w-32" />
+      <col className="w-[24%]" />
+      <col className="w-[28%]" />
+      <col className="w-[17%]" />
+      <col className="w-[9%]" />
+      <col className="w-[14%]" />
+      <col className="w-[8%]" />
     </colgroup>
   )
 }
@@ -71,6 +74,7 @@ function DepositorTableHead() {
         <TableHead>Phone</TableHead>
         <TableHead>Deposits</TableHead>
         <TableHead>Created</TableHead>
+        <TableHead />
       </TableRow>
     </TableHeader>
   )
@@ -86,17 +90,7 @@ function DepositorTableContent({ depositors }: DepositorTableContentProps) {
       <Table className="table-fixed">
         <DepositorTableColGroup />
         <DepositorTableHead />
-        <TableBody>
-          {Array.from({ length: SKELETON_ROW_COUNT }).map((_, i) => (
-            <TableRow key={i}>
-              {Array.from({ length: TABLE_COL_COUNT }).map((__, j) => (
-                <TableCell key={j}>
-                  <Skeleton className="h-4 w-full" />
-                </TableCell>
-              ))}
-            </TableRow>
-          ))}
-        </TableBody>
+        <TableSkeletonBody columnCount={TABLE_COL_COUNT} />
       </Table>
     )
   }
@@ -120,16 +114,17 @@ function DepositorTableContent({ depositors }: DepositorTableContentProps) {
       <TableBody>
         {depositors.data.data.map((d) => (
           <TableRow key={d.id}>
-            <TableCell className="font-medium truncate">
-              <Link to={`/dashboard/depositors/${d.id}`} className="hover:underline">
-                {d.name}
-              </Link>
-            </TableCell>
+            <TableCell className="font-medium truncate">{d.name}</TableCell>
             <TableCell className="truncate">{d.email}</TableCell>
             <TableCell className="tabular-nums">{d.phone}</TableCell>
             <TableCell className="tabular-nums">{d.depositCount}</TableCell>
             <TableCell className="text-muted-foreground">
               {format(new Date(d.createdAt), 'MMM d, yyyy')}
+            </TableCell>
+            <TableCell className="text-right">
+              <Button variant="ghost" size="sm" asChild>
+                <Link to={`/dashboard/depositors/${d.id}`}>View</Link>
+              </Button>
             </TableCell>
           </TableRow>
         ))}

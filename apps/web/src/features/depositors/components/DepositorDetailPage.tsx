@@ -12,9 +12,10 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { DisabledReasonTooltip } from '@/components/ui/disabled-reason-tooltip'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Skeleton } from '@/components/ui/skeleton'
+import { DetailPageSkeleton } from '@/components/ui/detail-page-skeleton'
 import {
   Sheet,
   SheetContent,
@@ -43,13 +44,7 @@ export function DepositorDetailPage() {
   const deleteDepositor = useDeleteDepositor()
 
   if (depositor.isPending) {
-    return (
-      <div className="flex flex-col gap-6">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-48 w-full" />
-        <Skeleton className="h-48 w-full" />
-      </div>
-    )
+    return <DetailPageSkeleton />
   }
 
   if (depositor.isError) {
@@ -96,7 +91,9 @@ export function DepositorDetailPage() {
               Edit
             </Button>
             <RequireRole role="admin" fallback="hide">
-              <div className="flex flex-col items-end gap-0.5">
+              <DisabledReasonTooltip
+                reason={hasDeposits ? "Can't delete - this depositor has existing deposits." : undefined}
+              >
                 <Button
                   size="sm"
                   variant="destructive"
@@ -106,10 +103,7 @@ export function DepositorDetailPage() {
                   {deleteDepositor.isPending ? <Spinner data-icon="inline-start" /> : null}
                   Delete
                 </Button>
-                {hasDeposits && (
-                  <p className="text-xs text-muted-foreground">Has existing deposits</p>
-                )}
-              </div>
+              </DisabledReasonTooltip>
             </RequireRole>
           </div>
         </RequireRole>

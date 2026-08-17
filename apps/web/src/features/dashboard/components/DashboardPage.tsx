@@ -4,7 +4,7 @@ import { Navigate } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
+import { Skeleton, SkeletonText } from '@/components/ui/skeleton'
 import { formatNumber, formatPeso } from '@/lib/format'
 import { useSession } from '@/features/auth/hooks/useSession'
 import { useDashboardSummary, useOverdue, usePortfolioAtRisk } from '../hooks/useDashboard'
@@ -23,13 +23,13 @@ function StatCard({ label, value, sub, isLoading }: StatCardProps) {
     <Card>
       <CardHeader>
         <CardDescription>{label}</CardDescription>
-        {isLoading ? (
-          <Skeleton className="h-6 w-32 mt-1" />
-        ) : (
-          <CardTitle className="text-xl font-semibold tabular-nums">{value}</CardTitle>
-        )}
-        {sub && !isLoading && (
-          <p className="text-xs text-muted-foreground">{sub}</p>
+        <CardTitle className="text-xl font-semibold tabular-nums">
+          {isLoading ? <SkeletonText width="60%" /> : value}
+        </CardTitle>
+        {sub && (
+          <p className="text-xs text-muted-foreground">
+            {isLoading ? <SkeletonText width="45%" /> : sub}
+          </p>
         )}
       </CardHeader>
     </Card>
@@ -135,17 +135,19 @@ function ManagerDashboard() {
             <Card key={label}>
               <CardHeader>
                 <CardDescription>{label}</CardDescription>
+                <CardTitle className="text-lg tabular-nums">
+                  {summaryLoading ? (
+                    <SkeletonText width="2.5rem" />
+                  ) : (
+                    formatNumber(stat?.count ?? 0)
+                  )}
+                </CardTitle>
                 {summaryLoading ? (
-                  <Skeleton className="h-5 w-12 mt-1" />
+                  <Skeleton className="h-5 w-20 rounded-full" />
                 ) : (
-                  <>
-                    <CardTitle className="text-lg tabular-nums">
-                      {formatNumber(stat?.count ?? 0)}
-                    </CardTitle>
-                    <Badge variant={variant} className="w-fit">
-                      {formatPeso(stat?.amount ?? 0)}
-                    </Badge>
-                  </>
+                  <Badge variant={variant} className="w-fit">
+                    {formatPeso(stat?.amount ?? 0)}
+                  </Badge>
                 )}
               </CardHeader>
             </Card>
@@ -177,40 +179,43 @@ function ManagerDashboard() {
           <CardHeader>
             <CardDescription>Portfolio at Risk (PAR)</CardDescription>
             <div className="flex items-baseline gap-2 mt-1">
+              <span className="text-2xl font-semibold tabular-nums">
+                {parLoading ? (
+                  <SkeletonText width="4.5rem" />
+                ) : (
+                  `${par?.parRatio ?? '0.00'}%`
+                )}
+              </span>
               {parLoading ? (
-                <Skeleton className="h-7 w-20" />
+                <Skeleton className="h-5 w-16 shrink-0 rounded-full" />
               ) : (
-                <>
-                  <span className="text-2xl font-semibold tabular-nums">
-                    {par?.parRatio ?? '0.00'}%
-                  </span>
-                  <Badge variant={parVariant}>
-                    {parNum >= 10 ? 'High risk' : parNum >= 5 ? 'Watch' : 'Healthy'}
-                  </Badge>
-                </>
+                <Badge variant={parVariant}>
+                  {parNum >= 10 ? 'High risk' : parNum >= 5 ? 'Watch' : 'Healthy'}
+                </Badge>
               )}
             </div>
           </CardHeader>
           <CardContent>
-            {parLoading ? (
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-3/4" />
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <p className="text-muted-foreground">Total portfolio</p>
+                <p className="font-medium tabular-nums">
+                  {parLoading ? <SkeletonText width="80%" /> : formatPeso(par?.totalPortfolioBalance ?? 0)}
+                </p>
+                <p className="text-muted-foreground mt-0.5">
+                  {parLoading ? <SkeletonText width="55%" /> : `${formatNumber(par?.totalPortfolioCount ?? 0)} loans`}
+                </p>
               </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <div>
-                  <p className="text-muted-foreground">Total portfolio</p>
-                  <p className="font-medium tabular-nums">{formatPeso(par?.totalPortfolioBalance ?? 0)}</p>
-                  <p className="text-muted-foreground mt-0.5">{formatNumber(par?.totalPortfolioCount ?? 0)} loans</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">At risk balance</p>
-                  <p className="font-medium tabular-nums text-destructive">{formatPeso(par?.atRiskBalance ?? 0)}</p>
-                  <p className="text-muted-foreground mt-0.5">{formatNumber(par?.atRiskCount ?? 0)} loans</p>
-                </div>
+              <div>
+                <p className="text-muted-foreground">At risk balance</p>
+                <p className="font-medium tabular-nums text-destructive">
+                  {parLoading ? <SkeletonText width="80%" /> : formatPeso(par?.atRiskBalance ?? 0)}
+                </p>
+                <p className="text-muted-foreground mt-0.5">
+                  {parLoading ? <SkeletonText width="55%" /> : `${formatNumber(par?.atRiskCount ?? 0)} loans`}
+                </p>
               </div>
-            )}
+            </div>
           </CardContent>
         </Card>
 
@@ -218,18 +223,35 @@ function ManagerDashboard() {
         <Card>
           <CardHeader>
             <CardDescription>Overdue Loans</CardDescription>
-            {overdueLoading ? (
-              <Skeleton className="h-5 w-16 mt-1" />
-            ) : (
-              <CardTitle className="text-xl tabular-nums">
-                {formatNumber(overdueData?.meta.total ?? 0)}
-              </CardTitle>
-            )}
+            <CardTitle className="text-xl tabular-nums">
+              {overdueLoading ? (
+                <SkeletonText width="3rem" />
+              ) : (
+                formatNumber(overdueData?.meta.total ?? 0)
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {overdueLoading ? (
-              <div className="space-y-2">
-                {[1, 2, 3].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
+              <div className="flex flex-col gap-2">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center justify-between gap-2 text-xs">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium">
+                        <SkeletonText width="55%" />
+                      </p>
+                      <p className="text-muted-foreground">
+                        <SkeletonText width="35%" />
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <p className="font-medium tabular-nums">
+                        <SkeletonText width="5rem" />
+                      </p>
+                      <Skeleton className="h-5 w-14 rounded-full" />
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : !overdueData?.data.length ? (
               <p className="text-xs text-muted-foreground">No overdue loans.</p>

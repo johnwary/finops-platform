@@ -28,7 +28,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton, SkeletonText } from '@/components/ui/skeleton';
+import { TableSkeletonBody } from '@/components/ui/table-skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import { authClient } from '@/lib/auth-client';
 import { isRole, type Role } from '@/lib/auth-client';
@@ -211,11 +212,18 @@ function metadataSummary(metadata: unknown) {
 function AuditLogsTableContent({ activityLogs }: { activityLogs: ReturnType<typeof useActivityLogs> }) {
   if (activityLogs.isPending) {
     return (
-      <div className="flex flex-col gap-2">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Skeleton key={i} className="h-10 w-full" />
-        ))}
-      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Time</TableHead>
+            <TableHead>Actor</TableHead>
+            <TableHead>Action</TableHead>
+            <TableHead>Target</TableHead>
+            <TableHead>Metadata</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableSkeletonBody columnCount={5} hasActionColumn={false} />
+      </Table>
     );
   }
 
@@ -329,11 +337,19 @@ interface InvitationsTableContentProps {
 function InvitationsTableContent({ invitations, revokeIsPending, onRevoke }: InvitationsTableContentProps) {
   if (invitations.isPending) {
     return (
-      <div className="flex flex-col gap-2">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <Skeleton key={i} className="h-10 w-full" />
-        ))}
-      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Email</TableHead>
+            <TableHead>Role</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Invited by</TableHead>
+            <TableHead>Expires</TableHead>
+            <TableHead />
+          </TableRow>
+        </TableHeader>
+        <TableSkeletonBody columnCount={6} rowCount={3} />
+      </Table>
     );
   }
 
@@ -461,11 +477,19 @@ function UsersTable() {
       </CardHeader>
       <CardContent>
         {users.isPending ? (
-          <div className="flex flex-col gap-2">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-10 w-full" />
-            ))}
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Joined</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableSkeletonBody columnCount={6} rowCount={3} />
+          </Table>
         ) : users.isError ? (
           <Alert variant="destructive">
             <AlertDescription>Failed to load users.</AlertDescription>
@@ -556,6 +580,9 @@ function UsersTable() {
   )
 }
 
+// Fields rendered by the company profile form, used to size its loading state.
+const COMPANY_PROFILE_FIELD_COUNT = 7;
+
 const companyProfileSchema = z.object({
   name: z.string().trim().min(1, { message: 'Company name required' }).max(200),
   address: z.string().trim().max(500).optional(),
@@ -606,10 +633,15 @@ function CompanyProfileSection() {
       </CardHeader>
       <CardContent>
         {isPending ? (
-          <div className="flex flex-col gap-2">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-10 w-full" />
+          <div className="flex flex-col gap-4">
+            {Array.from({ length: COMPANY_PROFILE_FIELD_COUNT }).map((_, i) => (
+              <div key={i} className="flex flex-col gap-1.5">
+                <SkeletonText className="text-sm" width="6rem" />
+                {/* Matches the `h-7` Input each field renders. */}
+                <Skeleton className="h-7 w-full" />
+              </div>
             ))}
+            <Skeleton className="h-7 w-28" />
           </div>
         ) : (
           <form onSubmit={handleSubmit(handleSave)}>

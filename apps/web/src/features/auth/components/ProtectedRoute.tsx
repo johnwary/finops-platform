@@ -1,24 +1,17 @@
 import { Navigate, Outlet } from 'react-router-dom'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
+import { Spinner } from '@/components/ui/spinner'
 import { useSession } from '../hooks/useSession'
 
 export function ProtectedRoute() {
   const { data, isPending } = useSession()
 
+  // Matches the router's Suspense fallback: session resolution follows chunk
+  // loading, so reusing it reads as one continuous wait rather than two states.
   if (isPending) {
     return (
-      <main className="flex min-h-svh items-start justify-center bg-background p-6 pt-24">
-        <Card className="w-full max-w-2xl">
-          <CardHeader>
-            <Skeleton className="h-5 w-32" />
-            <Skeleton className="h-8 w-48" />
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-20 w-full" />
-          </CardContent>
-        </Card>
-      </main>
+      <div className="flex min-h-svh items-center justify-center">
+        <Spinner className="size-8 text-muted-foreground" />
+      </div>
     )
   }
 

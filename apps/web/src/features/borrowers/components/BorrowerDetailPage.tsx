@@ -12,9 +12,11 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { DisabledReasonTooltip } from '@/components/ui/disabled-reason-tooltip'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Skeleton } from '@/components/ui/skeleton'
+import { SkeletonText } from '@/components/ui/skeleton'
+import { DetailPageSkeleton } from '@/components/ui/detail-page-skeleton'
 import {
   Sheet,
   SheetContent,
@@ -58,13 +60,7 @@ export function BorrowerDetailPage() {
   const deleteBorrower = useDeleteBorrower()
 
   if (borrower.isPending) {
-    return (
-      <div className="flex flex-col gap-6">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-48 w-full" />
-        <Skeleton className="h-48 w-full" />
-      </div>
-    )
+    return <DetailPageSkeleton />
   }
 
   if (borrower.isError) {
@@ -117,7 +113,9 @@ export function BorrowerDetailPage() {
               Edit
             </Button>
             <RequireRole role="admin" fallback="hide">
-              <div className="flex flex-col items-end gap-0.5">
+              <DisabledReasonTooltip
+                reason={hasLoans ? "Can't delete - this borrower has existing loans." : undefined}
+              >
                 <Button
                   size="sm"
                   variant="destructive"
@@ -127,10 +125,7 @@ export function BorrowerDetailPage() {
                   {deleteBorrower.isPending ? <Spinner data-icon="inline-start" /> : null}
                   Delete
                 </Button>
-                {hasLoans && (
-                  <p className="text-xs text-muted-foreground">Has existing loans</p>
-                )}
-              </div>
+              </DisabledReasonTooltip>
             </RequireRole>
           </div>
         </RequireRole>
@@ -201,7 +196,10 @@ function BorrowerActivityLog({ activity }: { activity: ReturnType<typeof useBorr
     return (
       <div className="flex flex-col gap-2">
         {Array.from({ length: 3 }).map((_, i) => (
-          <Skeleton key={i} className="h-10 w-full" />
+          <div key={i} className="flex items-start justify-between gap-4 text-sm">
+            <SkeletonText width="9rem" />
+            <SkeletonText className="shrink-0" width="6rem" />
+          </div>
         ))}
       </div>
     )
