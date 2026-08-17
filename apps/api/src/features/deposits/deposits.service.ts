@@ -263,6 +263,15 @@ export async function recordPayout(id: string, data: RecordPayoutInput, actor: A
   return prisma.$transaction(async (tx) => {
     const deposit = await lockedActiveDeposit(tx, id, 'record payout on');
 
+    const paidAt = data.paidAt ?? new Date();
+    if (deposit.payoutType === 'MATURITY_ONLY' && deposit.endDate != null && paidAt < deposit.endDate) {
+      throw new AppError(
+        'DEPOSIT_PAYOUT_BEFORE_MATURITY',
+        'This deposit only pays out at maturity; it has not reached its end date yet.',
+        409,
+      );
+    }
+
     // Recompute from the locked row so concurrent payouts can't clobber the totals.
     const newTotalPayoutPaid = new Decimal(deposit.totalPayoutPaid).plus(payoutAmount);
     const newPrincipalReturned = new Decimal(deposit.principalReturned).plus(
@@ -283,7 +292,7 @@ export async function recordPayout(id: string, data: RecordPayoutInput, actor: A
         amount: payoutAmount,
         principalPortion: new Decimal(data.principalPortion),
         returnPortion: new Decimal(data.returnPortion),
-        paidAt: data.paidAt ?? new Date(),
+        paidAt,
         method: data.method,
         notes: data.notes,
       },

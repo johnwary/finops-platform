@@ -91,6 +91,49 @@ describe('recordPayout principal cap', () => {
   });
 });
 
+describe('recordPayout maturity-only gate', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.tx.depositPayout.create.mockResolvedValue({ id: 'payout-1' });
+  });
+
+  it('rejects an interim payout on a MATURITY_ONLY deposit before its end date', async () => {
+    mocks.tx.$queryRaw.mockResolvedValue([
+      { ...activeDeposit, payoutType: 'MATURITY_ONLY', endDate: new Date('2099-01-01') },
+    ]);
+
+    await expect(
+      recordPayout('dep-1', { amount: 100, principalPortion: 0, returnPortion: 100, method: 'CASH' }, actor),
+    ).rejects.toMatchObject({ code: 'DEPOSIT_PAYOUT_BEFORE_MATURITY', status: 409 });
+
+    expect(mocks.tx.depositPayout.create).not.toHaveBeenCalled();
+  });
+
+  it('allows a MATURITY_ONLY payout once paidAt reaches the end date', async () => {
+    mocks.tx.$queryRaw.mockResolvedValue([
+      { ...activeDeposit, payoutType: 'MATURITY_ONLY', endDate: new Date('2020-01-01') },
+    ]);
+
+    await recordPayout(
+      'dep-1',
+      { amount: 100, principalPortion: 0, returnPortion: 100, method: 'CASH', paidAt: new Date('2020-06-01') },
+      actor,
+    );
+
+    expect(mocks.tx.depositPayout.create).toHaveBeenCalled();
+  });
+
+  it('does not gate non-MATURITY_ONLY payout types', async () => {
+    mocks.tx.$queryRaw.mockResolvedValue([
+      { ...activeDeposit, payoutType: 'MONTHLY_INTEREST', endDate: new Date('2099-01-01') },
+    ]);
+
+    await recordPayout('dep-1', { amount: 100, principalPortion: 0, returnPortion: 100, method: 'CASH' }, actor);
+
+    expect(mocks.tx.depositPayout.create).toHaveBeenCalled();
+  });
+});
+
 describe('deposit termination principal outflow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
