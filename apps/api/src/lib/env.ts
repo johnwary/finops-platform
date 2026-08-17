@@ -43,6 +43,14 @@ const schema = z.object({
   // Email sends fail lazily if unset (see resend.ts), so these are optional.
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().default('noreply@example.com'),
+
+  // Demo deployments replay a fixed seed history — the auto-default job would
+  // re-age it against real time on every boot/midnight tick. Set 'true' to
+  // skip starting the scheduler entirely.
+  DISABLE_AUTO_DEFAULT_JOB: z
+    .string()
+    .optional()
+    .transform((v) => v === 'true'),
 });
 
 const parsed = schema.safeParse(process.env);

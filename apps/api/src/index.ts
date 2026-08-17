@@ -132,7 +132,11 @@ const API_PORT = env.API_PORT;
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const server = app.listen(API_PORT, () => {
     logger.info(`API running on port ${API_PORT}`);
-    startAutoDefaultScheduler();
+    if (env.DISABLE_AUTO_DEFAULT_JOB) {
+      logger.warn('DISABLE_AUTO_DEFAULT_JOB=true — auto-default scheduler not started');
+    } else {
+      startAutoDefaultScheduler();
+    }
   });
 
   function shutdown(signal: string) {

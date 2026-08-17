@@ -53,6 +53,7 @@ Environment variables:
 | `RESEND_API_KEY` | from Resend dashboard |
 | `RESEND_FROM_EMAIL` | verified sender, e.g. `noreply@yourdomain.com` |
 | `LOG_LEVEL` | `info` |
+| `DISABLE_AUTO_DEFAULT_JOB` | `true` (demo only - see note below; omit for real deployments) |
 
 Notes:
 
@@ -60,6 +61,12 @@ Notes:
 - Migrations run automatically on every boot: the container start command is
   `prisma migrate deploy && node dist/index.js`.
 - `trust proxy` is already set for one hop (Traefik).
+- **Demo deployments seeded with fake data:** the auto-default job runs once on every
+  boot (plus nightly) using real time - on a demo instance that's never receiving real
+  payments, this re-ages the static seed history and pushes every loan toward default on
+  every restart. Set `DISABLE_AUTO_DEFAULT_JOB=true` on demo instances and re-seed
+  (`ALLOW_REMOTE_SEED=1 pnpm --filter api prisma:seed`) whenever the data needs to look
+  fresh again. Leave unset for a real deployment - the job is required there.
 
 Deploy and confirm `https://api.yourdomain.com/health` returns `{"status":"ok"}`.
 
