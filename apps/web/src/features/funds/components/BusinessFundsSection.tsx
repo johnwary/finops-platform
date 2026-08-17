@@ -15,7 +15,7 @@ import {
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { NumericInput } from '@/components/ui/numeric-input'
-import { Skeleton } from '@/components/ui/skeleton'
+import { TableSkeletonBody } from '@/components/ui/table-skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import {
   Table,
@@ -106,7 +106,18 @@ export function BusinessFundsSection() {
         </form>
 
         {funds.isPending ? (
-          <Skeleton className="h-24 w-full" />
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Remarks</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableSkeletonBody columnCount={5} rowCount={3} />
+          </Table>
         ) : rows.length === 0 ? (
           <p className="text-sm text-muted-foreground">No capital entries yet.</p>
         ) : (

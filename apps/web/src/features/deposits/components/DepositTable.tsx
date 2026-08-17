@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Skeleton } from '@/components/ui/skeleton'
+import { TableSkeletonBody } from '@/components/ui/table-skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import {
   Table,
@@ -36,7 +36,6 @@ const DEPOSIT_STATUSES: DepositStatus[] = ['ACTIVE', 'WITHDRAWN', 'CLOSED']
 const DEPOSIT_TYPES: DepositType[] = ['SPECIAL', 'REGULAR']
 const ALL_STATUSES_VALUE = 'ALL_STATUSES'
 const ALL_TYPES_VALUE = 'ALL_TYPES'
-const SKELETON_ROW_COUNT = 5
 const TABLE_COL_COUNT = 7
 
 const STATUS_LABELS: Record<DepositStatus, string> = {
@@ -114,17 +113,7 @@ function DepositTableContent({ deposits }: { deposits: ReturnType<typeof useDepo
             <TableHead />
           </TableRow>
         </TableHeader>
-        <TableBody>
-          {Array.from({ length: SKELETON_ROW_COUNT }).map((_, i) => (
-            <TableRow key={i}>
-              {Array.from({ length: TABLE_COL_COUNT }).map((__, j) => (
-                <TableCell key={j}>
-                  <Skeleton className="h-4 w-full" />
-                </TableCell>
-              ))}
-            </TableRow>
-          ))}
-        </TableBody>
+        <TableSkeletonBody columnCount={TABLE_COL_COUNT} />
       </Table>
     )
   }

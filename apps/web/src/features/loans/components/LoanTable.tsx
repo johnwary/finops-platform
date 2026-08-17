@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Skeleton } from '@/components/ui/skeleton'
+import { TableSkeletonBody } from '@/components/ui/table-skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import {
   Table,
@@ -56,7 +56,6 @@ const LOAN_STATUSES: LoanStatus[] = ['PENDING', 'APPROVED', 'ACTIVE', 'PAID', 'C
 const LOAN_TYPES: LoanType[] = ['SALARY', 'BUSINESS', 'PERSONAL', 'PURCHASE_ORDER', 'PENSION', 'INVESTMENT']
 const ALL_STATUSES_VALUE = 'ALL_STATUSES'
 const ALL_TYPES_VALUE = 'ALL_TYPES'
-const SKELETON_ROW_COUNT = 5
 const TABLE_COL_COUNT = 9
 
 export function LoanTable({ loans, statusFilter, typeFilter, search, isSearchPending, onStatusChange, onTypeChange, onSearchChange, restoreAction, isRestoring, restoringId }: LoanTableProps) {
@@ -135,17 +134,7 @@ function LoanTableContent({ loans, restoreAction, isRestoring, restoringId }: Lo
             <TableHead />
           </TableRow>
         </TableHeader>
-        <TableBody>
-          {Array.from({ length: SKELETON_ROW_COUNT }).map((_, i) => (
-            <TableRow key={i}>
-              {Array.from({ length: TABLE_COL_COUNT }).map((__, j) => (
-                <TableCell key={j}>
-                  <Skeleton className="h-4 w-full" />
-                </TableCell>
-              ))}
-            </TableRow>
-          ))}
-        </TableBody>
+        <TableSkeletonBody columnCount={TABLE_COL_COUNT} />
       </Table>
     )
   }
