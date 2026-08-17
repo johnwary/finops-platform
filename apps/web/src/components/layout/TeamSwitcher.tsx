@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useCompanyProfile } from '@/features/company/hooks/useCompanyProfile'
 
 export function TeamSwitcher() {
-  const { data: profile } = useCompanyProfile()
+  const { data: profile, isPending } = useCompanyProfile()
   const [hasLogoError, setHasLogoError] = useState(false)
 
   return (
@@ -19,7 +20,11 @@ export function TeamSwitcher() {
             />
           )}
           <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
-            <span className="truncate font-semibold">{profile?.name || 'Lending'}</span>
+            {isPending ? (
+              <Skeleton className="h-4 w-24" />
+            ) : (
+              <span className="truncate font-semibold">{profile?.name || 'Lending'}</span>
+            )}
             <span className="truncate text-xs text-sidebar-foreground/60">Platform</span>
           </div>
         </SidebarMenuButton>
