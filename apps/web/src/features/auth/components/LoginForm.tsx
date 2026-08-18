@@ -1,6 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { Link } from 'react-router-dom'
+import { HugeiconsIcon } from '@hugeicons/react'
+import { UserIcon, LockIcon } from '@hugeicons/core-free-icons'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -38,31 +40,48 @@ export function LoginForm() {
         </div>
         <Field data-invalid={!!errors.email}>
           <FieldLabel htmlFor="email">Email</FieldLabel>
-          <Input
-            id="email"
-            type="email"
-            placeholder="admin@example.com"
-            autoComplete="email"
-            aria-invalid={!!errors.email}
-            {...register('email')}
-          />
+          <div className="relative">
+            <HugeiconsIcon
+              icon={UserIcon}
+              size={16}
+              className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
+            <Input
+              id="email"
+              type="email"
+              placeholder="admin@example.com"
+              autoComplete="email"
+              aria-invalid={!!errors.email}
+              className="pl-7"
+              {...register('email')}
+            />
+          </div>
           <FieldError errors={[errors.email]} />
         </Field>
         <Field data-invalid={!!errors.password}>
-          <div className="flex items-center justify-between">
-            <FieldLabel htmlFor="password">Password</FieldLabel>
-            <Link to="/forgot-password" className="text-sm underline underline-offset-4 text-muted-foreground">
-              Forgot password?
-            </Link>
+          <FieldLabel htmlFor="password">Password</FieldLabel>
+          <div className="relative">
+            <HugeiconsIcon
+              icon={LockIcon}
+              size={16}
+              className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
+            <Input
+              id="password"
+              type="password"
+              autoComplete="current-password"
+              aria-invalid={!!errors.password}
+              className="pl-7"
+              {...register('password')}
+            />
           </div>
-          <Input
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            aria-invalid={!!errors.password}
-            {...register('password')}
-          />
           <FieldError errors={[errors.password]} />
+          <Link
+            to="/forgot-password"
+            className="text-right text-xs text-muted-foreground underline underline-offset-4"
+          >
+            Forgot password?
+          </Link>
         </Field>
 
         {login.error ? (
