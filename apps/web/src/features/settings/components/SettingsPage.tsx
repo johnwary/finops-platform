@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -50,8 +51,10 @@ import {
   type CreateInvitationInput,
 } from '@/features/invitations/schemas';
 import { useSession } from '@/features/auth/hooks/useSession';
+import { CompanyLogo } from '@/features/company/components/CompanyLogo';
 import { useCompanyProfile, useUpdateCompanyProfile } from '@/features/company/hooks/useCompanyProfile';
 import type { CompanyProfile } from '@/features/company/types';
+import { getErrorMessage } from '@/lib/format';
 import { BusinessFundsSection } from '@/features/funds/components/BusinessFundsSection';
 
 const ROLE_LABELS: Record<string, string> = {
@@ -583,6 +586,24 @@ function UsersTable() {
 // Fields rendered by the company profile form, used to size its loading state.
 const COMPANY_PROFILE_FIELD_COUNT = 7;
 
+// The logo is base64-encoded into the profile row rather than uploaded to an
+// object store, so the ceiling is deliberately small: the data URI travels with
+// every company profile response. base64 inflates by ~4/3, which the API's
+// LOGO_DATA_URI_MAX_LENGTH accounts for.
+// ponytail: base64-in-DB suits one logo per install; move to S3 if per-record
+// images are ever needed.
+const LOGO_MAX_BYTES = 150 * 1024;
+const LOGO_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'];
+
+function readFileAsDataUri(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = () => reject(new Error('Could not read that file.'))
+    reader.readAsDataURL(file)
+  })
+}
+
 const companyProfileSchema = z.object({
   name: z.string().trim().min(1, { message: 'Company name required' }).max(200),
   address: z.string().trim().max(500).optional(),
@@ -590,7 +611,20 @@ const companyProfileSchema = z.object({
   email: z.string().trim().email({ message: 'Enter a valid email' }).max(200).optional().or(z.literal('')),
   website: z.string().trim().max(200).optional(),
   taxId: z.string().trim().max(100).optional(),
-  logoUrl: z.string().trim().url({ message: 'Enter a valid URL' }).max(500).optional().or(z.literal('')),
+  // Either an externally hosted image or an inline data URI from the upload
+  // field; the API applies the same rule (see company.schema.ts) - same
+  // http(s)-only scheme allowlist, replicated here to match exactly.
+  logoUrl: z
+    .string()
+    .trim()
+    .refine(
+      (v) =>
+        v.startsWith('data:image/') ||
+        (z.string().url().max(500).safeParse(v).success && /^https?:\/\//i.test(v)),
+      { message: 'Enter a valid image URL' },
+    )
+    .optional()
+    .or(z.literal('')),
 })
 
 type CompanyProfileFormInput = z.infer<typeof companyProfileSchema>
@@ -603,6 +637,10 @@ function CompanyProfileSection() {
     register,
     handleSubmit,
     reset,
+    setValue,
+    setError,
+    clearErrors,
+    control,
     formState: { errors, isDirty },
   } = useForm<CompanyProfileFormInput>({
     resolver: zodResolver(companyProfileSchema),
@@ -619,8 +657,50 @@ function CompanyProfileSection() {
       : undefined,
   })
 
+  const nameValue = useWatch({ control, name: 'name' })
+  const logoValue = useWatch({ control, name: 'logoUrl' })
+  // Bumped on every successful save so CompanyLogo retries the image load -
+  // otherwise resaving the same logoUrl after a transient failure stays
+  // stuck showing the fallback initial.
+  const [logoAttempt, setLogoAttempt] = useState(0)
+
+  async function handleLogoChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    // Clearing the picker must not wipe an already-saved logo.
+    if (!file) return
+    // Reset the input so re-picking the same file after an error still fires.
+    event.target.value = ''
+    // A rejection from the previous pick would otherwise sit under the new one.
+    clearErrors('logoUrl')
+
+    if (!LOGO_ACCEPTED_TYPES.includes(file.type)) {
+      setError('logoUrl', { message: 'Use a PNG, JPG, WebP or SVG image.' })
+      return
+    }
+    if (file.size > LOGO_MAX_BYTES) {
+      setError('logoUrl', {
+        message: `That image is ${Math.round(file.size / 1024)} KB. Keep it under ${LOGO_MAX_BYTES / 1024} KB.`,
+      })
+      return
+    }
+
+    try {
+      setValue('logoUrl', await readFileAsDataUri(file), {
+        shouldDirty: true,
+        shouldValidate: true,
+      })
+    } catch (err) {
+      setError('logoUrl', { message: getErrorMessage(err, 'Could not read that file.') })
+    }
+  }
+
   function handleSave(values: CompanyProfileFormInput) {
-    update.mutate(values as Partial<CompanyProfile>, { onSuccess: () => reset(values) })
+    update.mutate(values as Partial<CompanyProfile>, {
+      onSuccess: () => {
+        reset(values)
+        setLogoAttempt((n) => n + 1)
+      },
+    })
   }
 
   return (
@@ -677,8 +757,51 @@ function CompanyProfileSection() {
                 <FieldError errors={[errors.taxId]} />
               </Field>
               <Field data-invalid={!!errors.logoUrl}>
-                <FieldLabel htmlFor="cp-logo">Logo URL</FieldLabel>
-                <Input id="cp-logo" {...register('logoUrl')} placeholder="https://company.com/logo.png" />
+                <FieldLabel htmlFor="cp-logo">Logo</FieldLabel>
+                <div className="flex items-center gap-3">
+                  <CompanyLogo
+                    name={nameValue}
+                    logoUrl={logoValue}
+                    attempt={logoAttempt}
+                    className="size-10"
+                  />
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="cp-logo"
+                        type="file"
+                        accept={LOGO_ACCEPTED_TYPES.join(',')}
+                        onChange={handleLogoChange}
+                        aria-invalid={!!errors.logoUrl}
+                        className="w-fit"
+                      />
+                      {logoValue ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            clearErrors('logoUrl')
+                            setValue('logoUrl', '', { shouldDirty: true })
+                          }}
+                        >
+                          Remove
+                        </Button>
+                      ) : null}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      PNG, JPG, WebP or SVG up to {LOGO_MAX_BYTES / 1024} KB. Falls back to the
+                      company's first letter.
+                    </p>
+                    <Input
+                      id="cp-logo-url"
+                      type="text"
+                      placeholder="Or paste an image URL (https://...)"
+                      aria-invalid={!!errors.logoUrl}
+                      {...register('logoUrl')}
+                    />
+                  </div>
+                </div>
                 <FieldError errors={[errors.logoUrl]} />
               </Field>
               {update.error ? (
