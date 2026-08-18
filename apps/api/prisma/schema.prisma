@@ -407,6 +407,8 @@ model CompanyProfile {
   email     String?
   website   String?
   taxId     String?
+  /// Either an external http(s) image URL or an embedded base64 data URI (up to ~200KB) for an uploaded logo.
+  /// Application code in company.schema.ts distinguishes and validates the two forms - no separate column per form.
   logoUrl   String?
   updatedAt DateTime @updatedAt
 }
