@@ -15,7 +15,7 @@ export function useLogin() {
       const result = await authClient.signIn.email(input)
 
       if (result.error) {
-        throw new Error(result.error.message ?? 'Unable to sign in.')
+        throw new Error(result.error.message ?? 'Unable to log in.')
       }
 
       return result.data

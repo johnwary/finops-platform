@@ -47,7 +47,7 @@ export function ResetPasswordPage() {
         <Card className="w-full max-w-sm">
           <CardContent className="p-6 text-center flex flex-col gap-4">
             <p className="text-sm text-muted-foreground">Invalid or missing reset token.</p>
-            <Button asChild variant="outline"><Link to="/login">Back to sign in</Link></Button>
+            <Button asChild variant="outline"><Link to="/login">Back to log in</Link></Button>
           </CardContent>
         </Card>
       </main>
@@ -62,8 +62,8 @@ export function ResetPasswordPage() {
             {done ? (
               <div className="flex flex-col gap-4 text-center">
                 <h1 className="text-xl font-bold">Password updated</h1>
-                <p className="text-sm text-muted-foreground">Your password has been reset. You can now sign in.</p>
-                <Button asChild><Link to="/login">Sign in</Link></Button>
+                <p className="text-sm text-muted-foreground">Your password has been reset. You can now log in.</p>
+                <Button asChild><Link to="/login">Log in</Link></Button>
               </div>
             ) : (
               <form onSubmit={handleSubmit(handleReset)}>

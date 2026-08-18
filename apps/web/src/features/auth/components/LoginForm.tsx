@@ -32,60 +32,57 @@ export function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit((values) => login.mutate(values))}>
-        <FieldGroup>
-          <div className="flex flex-col items-center gap-2 text-center">
-            <h1 className="text-2xl font-bold">Welcome back</h1>
-            <p className="text-balance text-muted-foreground">
-              Sign in to your Lending Management System account.
-            </p>
+      <FieldGroup>
+        <div className="flex flex-col items-center gap-2 text-center">
+          <h1 className="text-2xl font-bold">Welcome!</h1>
+        </div>
+        <Field data-invalid={!!errors.email}>
+          <FieldLabel htmlFor="email">Email</FieldLabel>
+          <Input
+            id="email"
+            type="email"
+            placeholder="admin@example.com"
+            autoComplete="email"
+            aria-invalid={!!errors.email}
+            {...register('email')}
+          />
+          <FieldError errors={[errors.email]} />
+        </Field>
+        <Field data-invalid={!!errors.password}>
+          <div className="flex items-center justify-between">
+            <FieldLabel htmlFor="password">Password</FieldLabel>
+            <Link to="/forgot-password" className="text-sm underline underline-offset-4 text-muted-foreground">
+              Forgot password?
+            </Link>
           </div>
-          <Field data-invalid={!!errors.email}>
-            <FieldLabel htmlFor="email">Email</FieldLabel>
-            <Input
-              id="email"
-              type="email"
-              placeholder="admin@example.com"
-              autoComplete="email"
-              aria-invalid={!!errors.email}
-              {...register('email')}
-            />
-            <FieldError errors={[errors.email]} />
-          </Field>
-          <Field data-invalid={!!errors.password}>
-            <div className="flex items-center justify-between">
-              <FieldLabel htmlFor="password">Password</FieldLabel>
-              <Link to="/forgot-password" className="text-sm underline underline-offset-4 text-muted-foreground">
-                Forgot password?
-              </Link>
-            </div>
-            <Input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              aria-invalid={!!errors.password}
-              {...register('password')}
-            />
-            <FieldError errors={[errors.password]} />
-          </Field>
+          <Input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            aria-invalid={!!errors.password}
+            {...register('password')}
+          />
+          <FieldError errors={[errors.password]} />
+        </Field>
 
-          {login.error ? (
-            <Alert variant="destructive">
-              <AlertDescription>{login.error.message}</AlertDescription>
-            </Alert>
-          ) : null}
+        {login.error ? (
+          <Alert variant="destructive">
+            <AlertDescription>{login.error.message}</AlertDescription>
+          </Alert>
+        ) : null}
 
-          <Field>
-            <Button type="submit" size="lg" disabled={login.isPending}>
-              {login.isPending ? (
-                <Spinner data-icon="inline-start" />
-              ) : null}
-              {login.isPending ? 'Signing in...' : 'Sign in'}
-            </Button>
-          </Field>
-          <FieldDescription className="text-center">
-            Access is invitation-only. Ask an admin to invite your account.
-          </FieldDescription>
-        </FieldGroup>
-      </form>
+        <Field>
+          <Button type="submit" size="lg" disabled={login.isPending}>
+            {login.isPending ? (
+              <Spinner data-icon="inline-start" />
+            ) : null}
+            {login.isPending ? 'Logging in...' : 'Log in'}
+          </Button>
+        </Field>
+        <FieldDescription className="text-center">
+          Access is invitation-only. Email johnwary@gmail.com.
+        </FieldDescription>
+      </FieldGroup>
+    </form>
   )
 }

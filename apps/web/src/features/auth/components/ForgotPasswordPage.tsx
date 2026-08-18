@@ -45,7 +45,7 @@ export function ForgotPasswordPage() {
                   If that email is registered, a reset link has been sent. Check your inbox.
                 </p>
                 <Button asChild variant="outline">
-                  <Link to="/login">Back to sign in</Link>
+                  <Link to="/login">Back to log in</Link>
                 </Button>
               </div>
             ) : (
@@ -72,7 +72,7 @@ export function ForgotPasswordPage() {
                     {isSubmitting ? 'Sending…' : 'Send reset link'}
                   </Button>
                   <p className="text-center text-sm text-muted-foreground">
-                    <Link to="/login" className="underline underline-offset-4">Back to sign in</Link>
+                    <Link to="/login" className="underline underline-offset-4">Back to log in</Link>
                   </p>
                 </FieldGroup>
               </form>
