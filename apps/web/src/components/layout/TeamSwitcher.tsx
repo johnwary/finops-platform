@@ -1,11 +1,10 @@
-import { useState } from 'react'
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar'
 import { Skeleton, SkeletonText } from '@/components/ui/skeleton'
+import { CompanyLogo } from '@/features/company/components/CompanyLogo'
 import { useCompanyProfile } from '@/features/company/hooks/useCompanyProfile'
 
 export function TeamSwitcher() {
   const { data: profile, isPending } = useCompanyProfile()
-  const [hasLogoError, setHasLogoError] = useState(false)
 
   return (
     <SidebarMenu>
@@ -14,15 +13,7 @@ export function TeamSwitcher() {
           {isPending ? (
             <Skeleton className="size-8 shrink-0" />
           ) : (
-            profile?.logoUrl &&
-            !hasLogoError && (
-              <img
-                src={profile.logoUrl}
-                alt=""
-                className="size-8 shrink-0 rounded-md object-cover"
-                onError={() => setHasLogoError(true)}
-              />
-            )
+            <CompanyLogo name={profile?.name} logoUrl={profile?.logoUrl} />
           )}
           <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
             <span className="truncate font-semibold">
