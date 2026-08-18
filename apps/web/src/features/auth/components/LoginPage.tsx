@@ -33,8 +33,8 @@ export function LoginPage() {
             </div>
           </div>
           <FieldDescription className="text-center">
-            By continuing, you agree to use Lending Management System according to your
-            organization&apos;s access policies.
+            By continuing, you agree to use the Lending Management System in accordance with
+            your organization&apos;s access policies.
           </FieldDescription>
         </div>
         <div className="relative hidden bg-muted lg:block">
