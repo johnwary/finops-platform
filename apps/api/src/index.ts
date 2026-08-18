@@ -100,7 +100,9 @@ export function createApp(options: CreateAppOptions = {}) {
     }),
   );
   app.all('/api/auth/*splat', options.authHandler ?? toNodeHandler(auth));
-  app.use(express.json());
+  // Default 100kb cap rejects the base64 company-logo payload (~200KB) before
+  // Zod validation runs. 1mb comfortably covers that plus normal request bodies.
+  app.use(express.json({ limit: '1mb' }));
 
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok' });
