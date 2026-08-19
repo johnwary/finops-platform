@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
 import { Navigate } from 'react-router-dom'
+import { appRoutes } from '@/lib/app-routes'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -49,7 +50,7 @@ export function DashboardPage() {
   const role = session.data?.user.role
 
   if (session.isPending) return null
-  if (role === 'user') return <Navigate to="/dashboard/loans" replace />
+  if (role === 'user') return <Navigate to={appRoutes.loans.path} replace />
 
   return <ManagerDashboard />
 }

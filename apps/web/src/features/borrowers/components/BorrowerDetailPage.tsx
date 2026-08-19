@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { appRoutes } from '@/lib/app-routes'
 import { format, parseISO } from 'date-fns'
 import {
   AlertDialog,
@@ -90,7 +91,7 @@ export function BorrowerDetailPage() {
     deleteBorrower.mutate(data.id, {
       onSuccess: () => {
         setIsDeleteOpen(false)
-        navigate('/dashboard/borrowers')
+        navigate(appRoutes.borrowers.path)
       },
     })
   }

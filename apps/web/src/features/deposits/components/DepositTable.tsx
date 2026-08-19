@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { depositDetailPath, depositorDetailPath } from '@/lib/app-routes'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -148,7 +149,7 @@ function DepositTableContent({ deposits }: { deposits: ReturnType<typeof useDepo
         {deposits.data.data.map((d) => (
           <TableRow key={d.id}>
             <TableCell className="font-medium max-w-32 truncate">
-              <Link to={`/dashboard/depositors/${d.depositorId}`} className="hover:underline">
+              <Link to={depositorDetailPath(d.depositorId)} className="hover:underline">
                 {d.depositor.name}
               </Link>
             </TableCell>
@@ -162,7 +163,7 @@ function DepositTableContent({ deposits }: { deposits: ReturnType<typeof useDepo
             <TableCell className="tabular-nums">{formatPeso(d.totalPayoutPaid)}</TableCell>
             <TableCell className="text-right">
               <Button variant="ghost" size="sm" asChild>
-                <Link to={`/dashboard/deposits/${d.id}`}>View</Link>
+                <Link to={depositDetailPath(d.id)}>View</Link>
               </Button>
             </TableCell>
           </TableRow>

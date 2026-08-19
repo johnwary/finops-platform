@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
+import { depositorDetailPath } from '@/lib/app-routes'
 import { format } from 'date-fns'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -186,7 +187,7 @@ function DepositDetailsCard({ deposit }: { deposit: DepositDetail }) {
         <DetailRow
           label="Name"
           value={
-            <Link to={`/dashboard/depositors/${deposit.depositor.id}`} className="hover:underline">
+            <Link to={depositorDetailPath(deposit.depositor.id)} className="hover:underline">
               {deposit.depositor.name}
             </Link>
           }

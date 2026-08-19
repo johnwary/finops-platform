@@ -1,6 +1,7 @@
 import { format } from 'date-fns'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { borrowerDetailPath } from '@/lib/app-routes'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -172,7 +173,7 @@ function BorrowerTableContent({ borrowers, restoreAction, isRestoring, restoring
                   </Button>
                 ) : (
                   <Button variant="ghost" size="sm" asChild>
-                    <Link to={`/dashboard/borrowers/${b.id}`}>View</Link>
+                    <Link to={borrowerDetailPath(b.id)}>View</Link>
                   </Button>
                 )}
               </TableCell>

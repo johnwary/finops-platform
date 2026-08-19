@@ -7,6 +7,7 @@ import { RouteError } from '@/components/layout/RouteError'
 import { Spinner } from '@/components/ui/spinner'
 import { ProtectedRoute } from '@/features/auth/components/ProtectedRoute'
 import { RequireRole } from '@/features/auth/components/RequireRole'
+import { appRoutes, dashboardChildPath } from '@/lib/app-routes'
 import {
   BorrowerDetailPage,
   BorrowersListPage,
@@ -49,26 +50,26 @@ export const router = createBrowserRouter([
         element: <Navigate to="/dashboard" replace />,
       },
       {
-        path: '/login',
+        path: appRoutes.login.path,
         element: page(<LoginPage />),
       },
       {
-        path: '/invite/accept',
+        path: appRoutes.inviteAccept.path,
         element: page(<InviteAcceptPage />),
       },
       {
-        path: '/forgot-password',
+        path: appRoutes.forgotPassword.path,
         element: page(<ForgotPasswordPage />),
       },
       {
-        path: '/reset-password',
+        path: appRoutes.resetPassword.path,
         element: page(<ResetPasswordPage />),
       },
       {
         element: <ProtectedRoute />,
         children: [
           {
-            path: '/dashboard',
+            path: appRoutes.dashboard.path,
             element: (
               <AppShell>
                 <Outlet />
@@ -80,57 +81,57 @@ export const router = createBrowserRouter([
                 element: page(<DashboardPage />),
               },
               {
-                path: 'settings',
+                path: dashboardChildPath(appRoutes.settings.path),
                 element: page(
-                  <RequireRole role="admin">
+                  <RequireRole role={appRoutes.settings.roles!}>
                     <SettingsPage />
                   </RequireRole>,
                 ),
               },
               {
-                path: 'loans',
+                path: dashboardChildPath(appRoutes.loans.path),
                 element: page(<LoansListPage />),
               },
               {
-                path: 'loans/:id',
+                path: dashboardChildPath(appRoutes.loanDetail.path),
                 element: page(<LoanDetailPage />),
               },
               {
-                path: 'borrowers',
+                path: dashboardChildPath(appRoutes.borrowers.path),
                 element: page(<BorrowersListPage />),
               },
               {
-                path: 'borrowers/:id',
+                path: dashboardChildPath(appRoutes.borrowerDetail.path),
                 element: page(<BorrowerDetailPage />),
               },
               {
-                path: 'deposits',
+                path: dashboardChildPath(appRoutes.deposits.path),
                 element: page(<DepositsListPage />),
               },
               {
-                path: 'deposits/:id',
+                path: dashboardChildPath(appRoutes.depositDetail.path),
                 element: page(<DepositDetailPage />),
               },
               {
-                path: 'depositors',
+                path: dashboardChildPath(appRoutes.depositors.path),
                 element: page(<DepositorsListPage />),
               },
               {
-                path: 'depositors/:id',
+                path: dashboardChildPath(appRoutes.depositorDetail.path),
                 element: page(<DepositorDetailPage />),
               },
               {
-                path: 'collections',
+                path: dashboardChildPath(appRoutes.collections.path),
                 element: page(
-                  <RequireRole role={['admin', 'manager']}>
+                  <RequireRole role={appRoutes.collections.roles!}>
                     <CollectionsPage />
                   </RequireRole>,
                 ),
               },
               {
-                path: 'reports',
+                path: dashboardChildPath(appRoutes.reports.path),
                 element: page(
-                  <RequireRole role={['admin', 'manager']}>
+                  <RequireRole role={appRoutes.reports.roles!}>
                     <ReportsPage />
                   </RequireRole>,
                 ),

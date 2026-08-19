@@ -1,8 +1,9 @@
-import { navMain, navProjects } from '@/components/layout/nav-config'
 import { NavMain } from '@/components/layout/NavMain'
 import { NavProjects } from '@/components/layout/NavProjects'
 import { NavUser } from '@/components/layout/NavUser'
 import { TeamSwitcher } from '@/components/layout/TeamSwitcher'
+import { RequireRole } from '@/features/auth/components/RequireRole'
+import { appRoutes, navMain, navProjects } from '@/lib/app-routes'
 import {
   Sidebar,
   SidebarContent,
@@ -19,7 +20,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
       <SidebarContent>
         <NavMain items={navMain} />
-        <NavProjects projects={navProjects} />
+        <RequireRole role={appRoutes.settings.roles!} fallback="hide">
+          <NavProjects projects={navProjects} />
+        </RequireRole>
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border">

@@ -1,5 +1,6 @@
 import { format } from 'date-fns'
 import { Link } from 'react-router-dom'
+import { loanDetailPath } from '@/lib/app-routes'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -64,7 +65,7 @@ export function BorrowerLoansList({ loans }: BorrowerLoansListProps) {
             <TableCell className="tabular-nums">{formatPeso(loan.remainingBalance)}</TableCell>
             <TableCell className="text-right">
               <Button variant="ghost" size="sm" asChild>
-                <Link to={`/dashboard/loans/${loan.id}`}>View</Link>
+                <Link to={loanDetailPath(loan.id)}>View</Link>
               </Button>
             </TableCell>
           </TableRow>

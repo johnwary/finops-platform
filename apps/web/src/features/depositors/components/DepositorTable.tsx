@@ -1,5 +1,6 @@
 import { format } from 'date-fns'
 import { Link } from 'react-router-dom'
+import { depositorDetailPath } from '@/lib/app-routes'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -123,7 +124,7 @@ function DepositorTableContent({ depositors }: DepositorTableContentProps) {
             </TableCell>
             <TableCell className="text-right">
               <Button variant="ghost" size="sm" asChild>
-                <Link to={`/dashboard/depositors/${d.id}`}>View</Link>
+                <Link to={depositorDetailPath(d.id)}>View</Link>
               </Button>
             </TableCell>
           </TableRow>

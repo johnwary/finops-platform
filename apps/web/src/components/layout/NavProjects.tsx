@@ -2,7 +2,6 @@ import type { IconSvgElement } from '@hugeicons/react'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { NavLink } from 'react-router-dom'
 
-import { RequireRole } from '@/features/auth/components/RequireRole'
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -37,17 +36,15 @@ function ProjectMenuItem({ item }: { item: NavProjectItem }) {
 
 export function NavProjects({ projects }: { projects: NavProjectItem[] }) {
   return (
-    <RequireRole role="admin" fallback="hide">
-      <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-        <SidebarGroupLabel>Workspace</SidebarGroupLabel>
-        <SidebarGroupContent>
-          <SidebarMenu>
-            {projects.map((item) => (
-              <ProjectMenuItem key={item.url} item={item} />
-            ))}
-          </SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
-    </RequireRole>
+    <SidebarGroup className="group-data-[collapsible=icon]:hidden">
+      <SidebarGroupLabel>Workspace</SidebarGroupLabel>
+      <SidebarGroupContent>
+        <SidebarMenu>
+          {projects.map((item) => (
+            <ProjectMenuItem key={item.url} item={item} />
+          ))}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
   )
 }

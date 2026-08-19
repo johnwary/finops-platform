@@ -18,47 +18,10 @@ import {
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AppSidebar } from '@/components/layout/AppSidebar';
 import { DemoBanner } from '@/components/layout/DemoBanner';
-import { navMain, navProjects } from '@/components/layout/nav-config';
+import { appRoutes, getBreadcrumbTrail } from '@/lib/app-routes';
 
 export interface AppShellProps {
   children: ReactNode;
-}
-
-const allNavItems = [...navMain, ...navProjects];
-
-interface BreadcrumbTrailItem {
-  title: string;
-  url?: string;
-}
-
-function getBreadcrumbTrail(pathname: string): BreadcrumbTrailItem[] {
-  if (
-    pathname.startsWith('/dashboard/loans/') &&
-    pathname !== '/dashboard/loans'
-  ) {
-    return [
-      { title: 'Loans', url: '/dashboard/loans' },
-      { title: 'Loan Details' },
-    ];
-  }
-
-  if (
-    pathname.startsWith('/dashboard/borrowers/') &&
-    pathname !== '/dashboard/borrowers'
-  ) {
-    return [
-      { title: 'Borrowers', url: '/dashboard/borrowers' },
-      { title: 'Borrower Details' },
-    ];
-  }
-
-  const activeItem = allNavItems.find((item) =>
-    'end' in item && item.end
-      ? item.url === pathname
-      : pathname === item.url || pathname.startsWith(item.url + '/'),
-  );
-
-  return [{ title: activeItem?.title ?? 'Dashboard' }];
 }
 
 export function AppShell({ children }: AppShellProps) {
@@ -82,7 +45,7 @@ export function AppShell({ children }: AppShellProps) {
                 <BreadcrumbList>
                   <BreadcrumbItem className="hidden md:block">
                     <BreadcrumbLink asChild>
-                      <Link to="/dashboard">Lending Management System</Link>
+                      <Link to={appRoutes.dashboard.path}>Lending Management System</Link>
                     </BreadcrumbLink>
                   </BreadcrumbItem>
                   {breadcrumbTrail.map((item, index) => {

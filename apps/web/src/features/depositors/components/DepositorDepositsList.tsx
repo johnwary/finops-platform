@@ -1,5 +1,6 @@
 import { format } from 'date-fns'
 import { Link } from 'react-router-dom'
+import { depositDetailPath } from '@/lib/app-routes'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -59,7 +60,7 @@ export function DepositorDepositsList({ deposits }: DepositorDepositsListProps) 
             </TableCell>
             <TableCell className="text-right">
               <Button variant="ghost" size="sm" asChild>
-                <Link to={`/dashboard/deposits/${deposit.id}`}>View</Link>
+                <Link to={depositDetailPath(deposit.id)}>View</Link>
               </Button>
             </TableCell>
           </TableRow>

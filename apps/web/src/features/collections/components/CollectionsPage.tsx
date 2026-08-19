@@ -3,6 +3,7 @@ import { format } from 'date-fns'
 import { Download04Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { Link } from 'react-router-dom'
+import { loanDetailPath } from '@/lib/app-routes'
 import { toast } from 'sonner'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -181,7 +182,7 @@ function CollectionsTable({ overdue }: { overdue: ReturnType<typeof useOverdueCo
             </TableCell>
             <TableCell className="text-right">
               <Button variant="ghost" size="sm" asChild>
-                <Link to={`/dashboard/loans/${loan.loanId}`}>View</Link>
+                <Link to={loanDetailPath(loan.loanId)}>View</Link>
               </Button>
             </TableCell>
           </TableRow>

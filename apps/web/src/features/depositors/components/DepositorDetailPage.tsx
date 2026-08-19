@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { appRoutes } from '@/lib/app-routes'
 import { format, parseISO } from 'date-fns'
 import {
   AlertDialog,
@@ -68,7 +69,7 @@ export function DepositorDetailPage() {
     deleteDepositor.mutate(data.id, {
       onSuccess: () => {
         setIsDeleteOpen(false)
-        navigate('/dashboard/depositors')
+        navigate(appRoutes.depositors.path)
       },
     })
   }

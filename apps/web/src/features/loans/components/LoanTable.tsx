@@ -1,6 +1,7 @@
 import { format } from 'date-fns'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { loanDetailPath } from '@/lib/app-routes'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -195,7 +196,7 @@ function LoanTableContent({ loans, restoreAction, isRestoring, restoringId }: Lo
                   </Button>
                 ) : (
                   <Button variant="ghost" size="sm" asChild>
-                    <Link to={`/dashboard/loans/${loan.id}`}>View</Link>
+                    <Link to={loanDetailPath(loan.id)}>View</Link>
                   </Button>
                 )}
               </TableCell>
