@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
+import { LOGO_ACCEPTED_TYPES, LOGO_MAX_BYTES, logoFileError, logoSourceError } from '@finops/logo-policy';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -592,9 +593,6 @@ const COMPANY_PROFILE_FIELD_COUNT = 7;
 // LOGO_DATA_URI_MAX_LENGTH accounts for.
 // ponytail: base64-in-DB suits one logo per install; move to S3 if per-record
 // images are ever needed.
-const LOGO_MAX_BYTES = 150 * 1024;
-const LOGO_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'];
-
 function readFileAsDataUri(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
@@ -611,18 +609,10 @@ const companyProfileSchema = z.object({
   email: z.string().trim().email({ message: 'Enter a valid email' }).max(200).optional().or(z.literal('')),
   website: z.string().trim().max(200).optional(),
   taxId: z.string().trim().max(100).optional(),
-  // Either an externally hosted image or an inline data URI from the upload
-  // field; the API applies the same rule (see company.schema.ts) - same
-  // http(s)-only scheme allowlist, replicated here to match exactly.
   logoUrl: z
     .string()
     .trim()
-    .refine(
-      (v) =>
-        v.startsWith('data:image/') ||
-        (z.string().url().max(500).safeParse(v).success && /^https?:\/\//i.test(v)),
-      { message: 'Enter a valid image URL' },
-    )
+    .refine((v) => !logoSourceError(v), { message: 'Enter an image URL (http/https) or upload a PNG, JPG, WebP or SVG image under 150 KB.' })
     .optional()
     .or(z.literal('')),
 })
@@ -673,14 +663,9 @@ function CompanyProfileSection() {
     // A rejection from the previous pick would otherwise sit under the new one.
     clearErrors('logoUrl')
 
-    if (!LOGO_ACCEPTED_TYPES.includes(file.type)) {
-      setError('logoUrl', { message: 'Use a PNG, JPG, WebP or SVG image.' })
-      return
-    }
-    if (file.size > LOGO_MAX_BYTES) {
-      setError('logoUrl', {
-        message: `That image is ${Math.round(file.size / 1024)} KB. Keep it under ${LOGO_MAX_BYTES / 1024} KB.`,
-      })
+    const fileError = logoFileError(file)
+    if (fileError) {
+      setError('logoUrl', { message: fileError })
       return
     }
 

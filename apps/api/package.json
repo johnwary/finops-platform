@@ -26,6 +26,7 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@finops/logo-policy": "workspace:*",
     "@prisma/adapter-pg": "7.7.0",
     "@prisma/client": "7.7.0",
     "better-auth": "1.6.20",

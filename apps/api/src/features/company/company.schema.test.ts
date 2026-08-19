@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { LOGO_DATA_URI_MAX_LENGTH, updateCompanySchema } from './company.schema.js';
+import { LOGO_DATA_URI_MAX_LENGTH } from '@finops/logo-policy';
+import { updateCompanySchema } from './company.schema.js';
 
 // logoUrl accepts two shapes (hosted link, inline data URI) at a trust
 // boundary, so the allowlist is asserted directly rather than through a form.
@@ -25,6 +26,10 @@ describe('company.schema', () => {
     expect(parse('data:text/html;base64,PHNjcmlwdD4=').success).toBe(false);
     expect(parse('javascript:alert(1)').success).toBe(false);
     expect(parse('file:///etc/passwd').success).toBe(false);
+  });
+
+  it('rejects GIF data URIs', () => {
+    expect(parse('data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==').success).toBe(false);
   });
 
   it('rejects a base64 body with invalid padding', () => {
