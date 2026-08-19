@@ -39,3 +39,17 @@ Pull requests should include a summary, tests run, linked issue or task when ava
 ## Security & Configuration Tips
 
 Start from `apps/api/.env.example` for local environment variables. Do not commit secrets, API keys, local database URLs, generated build output, or `node_modules`. For financial records, preserve existing soft-delete and audit-trail patterns; do not hard-delete immutable transaction data.
+
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked in this repository's GitHub Issues. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default canonical triage labels are used. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Multi-context layout: root map with per-app context docs. See `docs/agents/domain.md`.

@@ -57,6 +57,20 @@ refactor(web): extract loan form into feature folder
 
 Scopes: `auth`, `loans`, `borrowers`, `deposits`, `api`, `web`, `types`, `db`
 
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked in this repository's GitHub Issues. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default canonical triage labels are used. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Multi-context layout: root map with per-app context docs. See `docs/agents/domain.md`.
+
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
