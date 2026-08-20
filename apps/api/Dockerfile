@@ -5,8 +5,10 @@ WORKDIR /repo
 
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY apps/api/package.json apps/api/package.json
+COPY packages/logo-policy/package.json packages/logo-policy/package.json
 RUN pnpm install --frozen-lockfile --filter @finops/api...
 
+COPY packages/logo-policy packages/logo-policy
 COPY apps/api apps/api
 RUN cd apps/api && npx prisma generate && pnpm build
 # Self-contained production bundle (prod deps only, includes dist/ + prisma/)

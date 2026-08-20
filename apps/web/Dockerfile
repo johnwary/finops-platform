@@ -9,8 +9,10 @@ ENV VITE_API_URL=$VITE_API_URL
 
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY apps/web/package.json apps/web/package.json
+COPY packages/logo-policy/package.json packages/logo-policy/package.json
 RUN pnpm install --frozen-lockfile --filter @finops/web...
 
+COPY packages/logo-policy packages/logo-policy
 COPY apps/web apps/web
 RUN pnpm --filter @finops/web build
 
