@@ -40,7 +40,13 @@ export const cancelLoanSchema = z.object({
 });
 
 export const recordPaymentSchema = z.object({
-  amount: z.coerce.number().positive().max(MAX_MONEY),
+  amount: z.coerce
+    .number()
+    .positive()
+    .max(MAX_MONEY)
+    .refine((amount) => /^\d+(?:\.\d{1,2})?$/.test(String(amount)), {
+      message: 'Amount must have at most two decimal places.',
+    }),
   paidAt: dateStringSchema.optional(),
   method: z.enum(['CASH', 'BANK_TRANSFER', 'GCASH', 'CHECK']),
   reference: z.string().max(255).trim().optional(),

@@ -178,7 +178,12 @@ export async function recordLoanPayment(id: string, data: RecordPaymentInput, ac
     const oldestUnpaid = await tx.loanInstallment.findFirst({
       where: { loanId: id, status: { not: 'PAID' } },
       orderBy: [{ dueDate: 'asc' }, { sequence: 'asc' }],
-      include: { allocations: { select: { principalApplied: true, interestApplied: true, penaltiesApplied: true } } },
+      include: {
+        allocations: {
+          where: { payment: { reversedAt: null } },
+          select: { principalApplied: true, interestApplied: true, penaltiesApplied: true },
+        },
+      },
     });
 
     if (oldestUnpaid) {
@@ -207,6 +212,7 @@ export async function recordLoanPayment(id: string, data: RecordPaymentInput, ac
       orderBy: [{ dueDate: 'asc' }, { sequence: 'asc' }],
       include: {
         allocations: {
+          where: { payment: { reversedAt: null } },
           select: {
             principalApplied: true,
             interestApplied: true,
@@ -261,6 +267,7 @@ export async function recordLoanPayment(id: string, data: RecordPaymentInput, ac
         where: { id: { in: touchedInstallmentIds } },
         include: {
           allocations: {
+            where: { payment: { reversedAt: null } },
             select: { principalApplied: true, interestApplied: true },
           },
         },
@@ -381,8 +388,6 @@ export async function reverseLoanPayment(
       select: { installmentId: true },
     });
     const affectedIds = allocations.map((a) => a.installmentId);
-
-    await tx.loanPaymentAllocation.deleteMany({ where: { paymentId } });
 
     if (affectedIds.length > 0) {
       await tx.loanInstallment.updateMany({

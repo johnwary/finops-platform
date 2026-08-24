@@ -632,6 +632,14 @@ export async function markLoanCurrent(id: string, data: MarkCurrentInput, actor:
     const loan = await lockedLoan(tx, id);
     assertLoanStatus(loan, ['IN_ARREARS'], `Cannot mark a loan with status ${loan.status} as current.`);
 
+    const overdueInstallment = await tx.loanInstallment.findFirst({
+      where: { loanId: id, status: 'OVERDUE' },
+      select: { id: true },
+    });
+    if (overdueInstallment) {
+      throw new AppError('CONFLICT', 'Cannot mark a loan current while installments are overdue.', 409);
+    }
+
     const updated = await tx.loan.update({
       where: { id },
       data: { status: 'ACTIVE' },
@@ -731,6 +739,7 @@ export async function restructureLoan(id: string, data: RestructureLoanInput, ac
     // would cascade-wipe LoanPaymentAllocation and destroy repayment audit history.
     const allocatedUnpaid = await tx.loanPaymentAllocation.findFirst({
       where: {
+        payment: { reversedAt: null },
         installment: { loanId: id, status: { not: 'PAID' } },
       },
     });

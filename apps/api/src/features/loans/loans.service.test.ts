@@ -82,6 +82,7 @@ import {
   unlockLoan,
   writeOffLoan,
 } from './loans.service.js';
+import { recordPaymentSchema } from './loans.schema.js';
 
 const actor = { id: 'user-1' };
 
@@ -574,6 +575,12 @@ describe('loans.service recordPayment', () => {
   });
 });
 
+describe('recordPaymentSchema money precision', () => {
+  it('rejects fractions of a cent', () => {
+    expect(recordPaymentSchema.safeParse({ amount: 100.001, method: 'CASH' }).success).toBe(false);
+  });
+});
+
 // ── defaultLoan ───────────────────────────────────────────────────────────────
 
 describe('loans.service defaultLoan', () => {
@@ -751,6 +758,7 @@ describe('loans.service markLoanCurrent', () => {
 
   it('transitions IN_ARREARS loan back to ACTIVE', async () => {
     mocks.tx.$queryRaw.mockResolvedValue([arrearsLoan]);
+    mocks.tx.loanInstallment.findFirst.mockResolvedValue(null);
 
     await markLoanCurrent('loan-1', { reason: 'Arrears cleared' }, actor);
 
@@ -762,6 +770,17 @@ describe('loans.service markLoanCurrent', () => {
         data: expect.objectContaining({ action: 'LOAN_MARKED_CURRENT' }),
       }),
     );
+  });
+
+  it('rejects marking current while an installment remains overdue', async () => {
+    mocks.tx.$queryRaw.mockResolvedValue([arrearsLoan]);
+    mocks.tx.loanInstallment.findFirst.mockResolvedValue({ id: 'installment-1' });
+
+    await expect(markLoanCurrent('loan-1', {}, actor)).rejects.toMatchObject({
+      code: 'CONFLICT',
+      status: 409,
+    });
+    expect(mocks.tx.loan.update).not.toHaveBeenCalled();
   });
 });
 
@@ -871,10 +890,10 @@ describe('loans.service reversePayment', () => {
     mocks.tx.activityLog.create.mockResolvedValue({});
   });
 
-  it('unwinds totals, marks payment and capital entry reversed', async () => {
+  it('unwinds totals, marks payment and capital entry reversed, and preserves allocations', async () => {
     await reversePayment('loan-1', 'pay-2', { reason: 'Typo' }, actor);
 
-    expect(mocks.tx.loanPaymentAllocation.deleteMany).toHaveBeenCalledWith({ where: { paymentId: 'pay-2' } });
+    expect(mocks.tx.loanPaymentAllocation.deleteMany).not.toHaveBeenCalled();
     expect(mocks.tx.loan.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -1048,6 +1067,17 @@ describe('loans.service restructureLoan', () => {
     ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 });
 
     expect(mocks.tx.loanInstallment.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('considers only allocations from unreversed payments when blocking restructure', async () => {
+    await restructureLoan('loan-1', { termMonths: 6, reason: 'Hardship' }, actor);
+
+    expect(mocks.tx.loanPaymentAllocation.findFirst).toHaveBeenCalledWith({
+      where: {
+        payment: { reversedAt: null },
+        installment: { loanId: 'loan-1', status: { not: 'PAID' } },
+      },
+    });
   });
 
   it('rebuilds installment schedule and writes LOAN_RESTRUCTURED audit log', async () => {

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => {
   const tx = {
     $queryRaw: vi.fn(),
+    loanInstallment: { findFirst: vi.fn() },
     loan: { update: vi.fn() },
     loanProvisionEvent: { create: vi.fn() },
     activityLog: { create: vi.fn() },
@@ -39,6 +40,7 @@ describe('autoDefault.job', () => {
     mocks.prisma.loanInstallment.findMany.mockResolvedValue([]);
     mocks.prisma.loanInstallment.updateMany.mockResolvedValue({ count: 0 });
     mocks.prisma.loan.findMany.mockResolvedValue([]);
+    mocks.tx.loanInstallment.findFirst.mockResolvedValue(null);
   });
 
   describe('markPastDueInstallmentsOverdue', () => {
@@ -83,6 +85,7 @@ describe('autoDefault.job', () => {
           principal: true,
           interest: true,
           allocations: {
+            where: { payment: { reversedAt: null } },
             select: {
               principalApplied: true,
               interestApplied: true,
@@ -134,6 +137,7 @@ describe('autoDefault.job', () => {
       };
       mocks.prisma.loan.findMany.mockResolvedValue([loan]);
       mocks.tx.$queryRaw.mockResolvedValue([{ ...loan, status: 'ACTIVE', deletedAt: null }]);
+      mocks.tx.loanInstallment.findFirst.mockResolvedValue({ dueDate: new Date('2026-01-01T00:00:00.000Z') });
 
       await runAutoDefaultJob();
 
@@ -141,6 +145,22 @@ describe('autoDefault.job', () => {
         expect.objectContaining({ data: expect.objectContaining({ status: 'DEFAULTED' }) }),
       );
       expect(mocks.tx.loanProvisionEvent.create).toHaveBeenCalled();
+    });
+
+    it('skips a candidate whose overdue installment was paid before the loan lock', async () => {
+      const loan = {
+        id: 'loan-3',
+        remainingBalance: new Decimal(1000),
+        loanInstallments: [{ dueDate: new Date('2026-01-01T00:00:00.000Z') }],
+      };
+      mocks.prisma.loan.findMany.mockResolvedValue([loan]);
+      mocks.tx.$queryRaw.mockResolvedValue([{ ...loan, status: 'ACTIVE', deletedAt: null, remainingBalance: new Decimal(800) }]);
+      mocks.tx.loanInstallment.findFirst.mockResolvedValue(null);
+
+      await runAutoDefaultJob();
+
+      expect(mocks.tx.loan.update).not.toHaveBeenCalled();
+      expect(mocks.tx.loanProvisionEvent.create).not.toHaveBeenCalled();
     });
   });
 });

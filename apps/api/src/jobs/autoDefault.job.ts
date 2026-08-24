@@ -23,6 +23,7 @@ export async function markPastDueInstallmentsOverdue(now = new Date()): Promise<
       principal: true,
       interest: true,
       allocations: {
+        where: { payment: { reversedAt: null } },
         select: {
           principalApplied: true,
           interestApplied: true,
@@ -87,12 +88,8 @@ export async function runAutoDefaultJob(): Promise<void> {
     const dpd = differenceInDays(now, earliestOverdue.dueDate);
     if (dpd < DEFAULT_DPD_THRESHOLD) continue;
 
-    const { bucket, rate } = resolveProvisionBucket(dpd);
-    const basisAmount = new Decimal(loan.remainingBalance);
-    const provisionAmount = basisAmount.times(rate).toDecimalPlaces(2);
-
     try {
-      await prisma.$transaction(async (tx) => {
+      const didDefault = await prisma.$transaction(async (tx) => {
         // Re-read the loan under a row lock: a manual transition (paid, written off,
         // canceled) may have landed between the candidate scan and now.
         const locked = await tx.$queryRaw<Loan[]>`
@@ -100,8 +97,22 @@ export async function runAutoDefaultJob(): Promise<void> {
         `;
         const current = locked[0];
         if (!current || current.deletedAt != null || !AUTO_DEFAULT_STATUSES.includes(current.status)) {
-          return;
+          return false;
         }
+
+        const currentEarliestOverdue = await tx.loanInstallment.findFirst({
+          where: { loanId: current.id, status: 'OVERDUE' },
+          orderBy: { dueDate: 'asc' },
+          select: { dueDate: true },
+        });
+        if (!currentEarliestOverdue) return false;
+
+        const currentDpd = differenceInDays(now, currentEarliestOverdue.dueDate);
+        if (currentDpd < DEFAULT_DPD_THRESHOLD) return false;
+
+        const { bucket, rate } = resolveProvisionBucket(currentDpd);
+        const basisAmount = new Decimal(current.remainingBalance);
+        const provisionAmount = basisAmount.times(rate).toDecimalPlaces(2);
 
         await tx.loan.update({
           where: { id: loan.id },
@@ -113,11 +124,11 @@ export async function runAutoDefaultJob(): Promise<void> {
             loanId: loan.id,
             type: 'PROVISION',
             bucket,
-            daysPastDue: dpd,
+            daysPastDue: currentDpd,
             basisAmount,
             provisionRate: new Decimal(rate),
             amount: provisionAmount,
-            reason: `Auto-defaulted by system — DPD ${dpd}, bucket ${bucket}`,
+            reason: `Auto-defaulted by system - DPD ${currentDpd}, bucket ${bucket}`,
           },
         });
 
@@ -128,18 +139,21 @@ export async function runAutoDefaultJob(): Promise<void> {
             action: 'LOAN_AUTO_DEFAULTED',
             targetId: loan.id,
             metadata: {
-              dpd,
+              dpd: currentDpd,
               bucket,
               provisionRate: rate,
               provisionAmount,
-              remainingBalance: loan.remainingBalance,
+              remainingBalance: current.remainingBalance,
             },
           },
         });
+
+        return { dpd: currentDpd, bucket };
       });
 
+      if (!didDefault) continue;
       defaulted++;
-      logger.info({ loanId: loan.id, dpd, bucket }, 'Loan auto-defaulted');
+      logger.info({ loanId: loan.id, ...didDefault }, 'Loan auto-defaulted');
     } catch (err) {
       logger.error({ err, loanId: loan.id }, 'Auto-default failed for loan');
     }
