@@ -34,7 +34,7 @@ Disbursement creates installments and moves an approved loan to `ACTIVE`. A paid
 
 `LoanPayment` owns the receipt, payment split, method, and reversal metadata. `LoanPaymentAllocation` preserves the installment-level split, including after reversal. Active allocation queries exclude allocations whose payment is reversed.
 
-Each recorded payment creates a `CapitalEntry` `INFLOW/LOAN_PAYMENT` and an activity log. Reversal marks both records reversed with a reason. Reports exclude reversed payments and capital entries. `Loan.remainingBalance`, overdue reporting, portfolio-at-risk, and auto-default all depend on the resulting installment and payment state.
+Each recorded payment creates exactly one `CapitalEntry` `INFLOW/LOAN_PAYMENT` and an activity log. Reversal marks both records reversed with a reason. Reports exclude reversed payments and capital entries. `Loan.remainingBalance`, overdue reporting, portfolio-at-risk, and auto-default all depend on the resulting installment and payment state.
 
 ## Tests to update
 

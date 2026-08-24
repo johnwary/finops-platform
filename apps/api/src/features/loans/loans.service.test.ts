@@ -887,6 +887,7 @@ describe('loans.service reversePayment', () => {
     mocks.tx.loanInstallment.updateMany.mockResolvedValue({ count: 1 });
     mocks.tx.loan.update.mockResolvedValue({});
     mocks.tx.loanPayment.update.mockResolvedValue({ ...payment, reversedAt: new Date() });
+    mocks.tx.capitalEntry.updateMany.mockResolvedValue({ count: 1 });
     mocks.tx.activityLog.create.mockResolvedValue({});
   });
 
@@ -942,6 +943,14 @@ describe('loans.service reversePayment', () => {
     mocks.tx.loanPayment.findFirst
       .mockReset()
       .mockResolvedValueOnce({ ...payment, reversedAt: new Date() });
+
+    await expect(
+      reversePayment('loan-1', 'pay-2', { reason: 'Typo' }, actor),
+    ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 });
+  });
+
+  it('rejects a reversal without exactly one capital entry', async () => {
+    mocks.tx.capitalEntry.updateMany.mockResolvedValue({ count: 0 });
 
     await expect(
       reversePayment('loan-1', 'pay-2', { reason: 'Typo' }, actor),

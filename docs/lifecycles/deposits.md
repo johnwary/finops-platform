@@ -16,13 +16,13 @@ Source: `apps/api/src/features/deposits/`.
 | Withdraw or close | admin, manager | Locks active deposit, transitions state, and returns only principal not already returned through payouts. |
 | Delete | admin | Soft-delete only when no longer active. |
 
-`MATURITY_ONLY` payouts cannot be recorded before the deposit end date. Deposit payouts and capital entries are immutable financial records and use reversal, never deletion.
+All deposit and payout money is whole-cent Philippine peso. Payouts cannot be future-dated; `MATURITY_ONLY` payouts cannot be recorded before the deposit end date. Deposit payouts and capital entries are immutable financial records and use reversal, never deletion.
 
 ## Accounting boundary
 
 `Deposit.principalReturned` tracks principal returned through payouts. Terminal withdrawal or closure creates a capital outflow for the remaining principal and deliberately does not overwrite that payout-only total. `totalPayoutPaid` tracks recorded payouts; terminal principal return is represented by the capital entry.
 
-Every multi-record operation runs in one transaction and locks the deposit row to serialize payouts, reversal, close, and withdrawal. Reports use unreversed capital entries.
+Every multi-record operation runs in one transaction and locks the deposit row to serialize payouts, reversal, close, and withdrawal. Each payout has exactly one capital entry. Reports use unreversed capital entries.
 
 ## Tests to update
 

@@ -2,10 +2,17 @@ import { z } from 'zod';
 
 // Sanity ceilings — guard against fat-finger entries, not policy limits.
 const MAX_MONEY = 100_000_000;
+const moneySchema = z.coerce
+  .number()
+  .positive()
+  .max(MAX_MONEY)
+  .refine((amount) => /^\d+(?:\.\d{1,2})?$/.test(String(amount)), {
+    message: 'Amount must have at most two decimal places.',
+  });
 
 export const createDepositSchema = z.object({
   depositorId: z.uuid(),
-  amount: z.coerce.number().positive().max(MAX_MONEY),
+  amount: moneySchema,
   expectedReturnRate: z.coerce.number().min(0).max(1), // decimal fraction e.g. 0.06 = 6%
   expectedReturnRatePeriod: z
     .enum(['MONTH', 'QUARTERLY', 'SEMI_ANNUAL', 'ANNUAL'])
@@ -33,10 +40,10 @@ export const closeDepositSchema = z.object({
 
 export const recordPayoutSchema = z
   .object({
-    amount: z.coerce.number().positive().max(MAX_MONEY),
-    principalPortion: z.coerce.number().min(0).max(MAX_MONEY).default(0),
-    returnPortion: z.coerce.number().min(0).max(MAX_MONEY).default(0),
-    paidAt: z.coerce.date().optional(),
+    amount: moneySchema,
+    principalPortion: moneySchema.or(z.literal(0)).default(0),
+    returnPortion: moneySchema.or(z.literal(0)).default(0),
+    paidAt: z.coerce.date().refine((date) => date <= new Date(), { message: 'Date cannot be in the future' }).optional(),
     method: z.enum(['CASH', 'BANK_TRANSFER', 'GCASH', 'CHECK']),
     notes: z.string().max(2000).trim().optional(),
   })

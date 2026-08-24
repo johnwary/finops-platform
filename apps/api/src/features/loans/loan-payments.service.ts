@@ -420,10 +420,13 @@ export async function reverseLoanPayment(
 
     // Exclusion model: mark the original capital entry reversed; reports
     // filter reversedAt — no compensating entry (see docs/business-rules.md).
-    await tx.capitalEntry.updateMany({
+    const capitalEntry = await tx.capitalEntry.updateMany({
       where: { source: 'LOAN_PAYMENT', sourceId: paymentId, reversedAt: null },
       data: { reversedAt: now, reversalReason: data.reason },
     });
+    if (capitalEntry.count !== 1) {
+      throw new AppError('CONFLICT', 'Payment capital entry is missing or duplicated.', 409);
+    }
 
     await tx.activityLog.create({
       data: {

@@ -39,6 +39,7 @@ describe('recordPayout locked recheck', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.tx.depositPayout.create.mockResolvedValue({ id: 'payout-1' });
+    mocks.tx.capitalEntry.updateMany.mockResolvedValue({ count: 1 });
   });
 
   it('rejects a payout when the locked deposit is no longer ACTIVE', async () => {
@@ -138,6 +139,7 @@ describe('deposit termination principal outflow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.tx.deposit.update.mockResolvedValue({});
+    mocks.tx.capitalEntry.updateMany.mockResolvedValue({ count: 1 });
   });
 
   it('close only outflows the principal not yet returned via payouts', async () => {
@@ -193,6 +195,7 @@ describe('reversePayout', () => {
       .mockResolvedValueOnce(payout)
       .mockResolvedValueOnce(payout);
     mocks.tx.depositPayout.update.mockResolvedValue({ ...payout, reversedAt: new Date() });
+    mocks.tx.capitalEntry.updateMany.mockResolvedValue({ count: 1 });
   });
 
   it('unwinds deposit totals and marks payout + capital entry reversed', async () => {
@@ -225,6 +228,14 @@ describe('reversePayout', () => {
 
     expect(mocks.tx.deposit.update).not.toHaveBeenCalled();
   });
+
+  it('rejects a reversal without exactly one capital entry', async () => {
+    mocks.tx.capitalEntry.updateMany.mockResolvedValue({ count: 0 });
+
+    await expect(
+      reversePayout('dep-1', 'payout-1', { reason: 'Typo' }, actor),
+    ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 });
+  });
 });
 
 describe('recordPayoutSchema sum check', () => {
@@ -240,5 +251,10 @@ describe('recordPayoutSchema sum check', () => {
 
   it('rejects an amount over the sanity ceiling', () => {
     expect(recordPayoutSchema.safeParse({ ...base, amount: 100_000_001, principalPortion: 100_000_001, returnPortion: 0 }).success).toBe(false);
+  });
+
+  it('rejects fractions of a cent and future payout dates', () => {
+    expect(recordPayoutSchema.safeParse({ ...base, amount: 100.001, principalPortion: 100.001, returnPortion: 0 }).success).toBe(false);
+    expect(recordPayoutSchema.safeParse({ ...base, amount: 100, principalPortion: 100, returnPortion: 0, paidAt: new Date(Date.now() + 60_000) }).success).toBe(false);
   });
 });

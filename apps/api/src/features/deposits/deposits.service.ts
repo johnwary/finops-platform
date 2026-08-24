@@ -381,10 +381,13 @@ export async function reversePayout(
     });
 
     // Exclusion model: mark the original capital entry reversed (see docs/business-rules.md).
-    await tx.capitalEntry.updateMany({
+    const capitalEntry = await tx.capitalEntry.updateMany({
       where: { source: 'DEPOSIT_PAYOUT', sourceId: payoutId, reversedAt: null },
       data: { reversedAt: now, reversalReason: data.reason },
     });
+    if (capitalEntry.count !== 1) {
+      throw new AppError('CONFLICT', 'Payout capital entry is missing or duplicated.', 409);
+    }
 
     await tx.activityLog.create({
       data: {
