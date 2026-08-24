@@ -33,12 +33,12 @@ If reversal makes `remainingBalance > 0` on a PAID loan, status returns to ACTIV
 
 ### Deposit termination returns only unreturned principal
 On withdraw/close, the capital outflow is `amount − principalReturned` and
-`principalReturned` is set to the full amount. Principal returned earlier via payouts is
+`principalReturned` remains the payout-only total. Principal returned earlier via payouts is
 never paid out twice. Cumulative principal payouts may never exceed the deposit amount.
 
-### Loan fee is an upfront fee, collected at disbursement, optional per disbursement
+### Loan fee is an upfront fee, collected at disbursement
 When a loan has a `loanFee`, disbursement records a separate `LOAN_FEE` capital inflow
-(default on, un-tickable per disbursement). The fee is **not** deducted from the disbursed
+(default on and selectable per disbursement). The fee is **not** deducted from the disbursed
 amount in the ledger — disbursement outflow stays the full principal so fee income is
 visible as its own inflow line.
 
