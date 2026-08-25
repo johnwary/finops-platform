@@ -8,6 +8,8 @@ The system is invite-only. Admins create, list, and revoke invitations. Public i
 
 Invitation status progresses from `PENDING` to `ACCEPTED`, `REVOKED`, or `EXPIRED`. Invitation operations are audited where implemented. Authentication state is managed by better-auth, rather than feature services.
 
+`admin` and `manager` may read organization records. `user` has no borrower, loan, depositor, or deposit access until an explicit assignment model exists.
+
 ## Company profile
 
 Source: `apps/api/src/features/company/`.

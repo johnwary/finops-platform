@@ -24,6 +24,8 @@ All deposit and payout money is whole-cent Philippine peso. Payouts cannot be fu
 
 Every multi-record operation runs in one transaction and locks the deposit row to serialize payouts, reversal, close, and withdrawal. Each payout has exactly one capital entry. Reports use unreversed capital entries.
 
+Terminal withdrawal and closure corrections are not supported yet. Do not use a payout reversal to correct a terminal principal-return error.
+
 ## Tests to update
 
 Use `deposits.service.test.ts` for payout splits, principal caps, maturity gate, reversal, and terminal-principal behavior.

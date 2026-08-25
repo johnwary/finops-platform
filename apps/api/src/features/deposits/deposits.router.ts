@@ -31,14 +31,14 @@ depositsRouter.use(requireAuth);
 
 depositsRouter.get(
   '/',
-  requireRole(['admin', 'manager', 'user']),
+  requireRole(['admin', 'manager']),
   validate(listDepositsSchema, 'query'),
   listDepositsController,
 );
 
 depositsRouter.get(
   '/:id',
-  requireRole(['admin', 'manager', 'user']),
+  requireRole(['admin', 'manager']),
   validate(depositParamsSchema, 'params'),
   getDepositController,
 );

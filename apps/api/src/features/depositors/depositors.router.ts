@@ -22,14 +22,14 @@ depositorsRouter.use(requireAuth);
 
 depositorsRouter.get(
   '/',
-  requireRole(['admin', 'manager', 'user']),
+  requireRole(['admin', 'manager']),
   validate(listDepositorsSchema, 'query'),
   listDepositorsController,
 );
 
 depositorsRouter.get(
   '/:id',
-  requireRole(['admin', 'manager', 'user']),
+  requireRole(['admin', 'manager']),
   validate(depositorParamsSchema, 'params'),
   getDepositorController,
 );

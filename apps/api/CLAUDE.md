@@ -187,7 +187,7 @@ Frontend may gate UI by role — backend authoritative. Never trust frontend rol
 |------|--------|
 | admin | Full access — all resources, user management, reports |
 | manager | Loans, borrowers, deposits, payments, reports (no user management) |
-| user | Read-only on assigned records (TBD per feature) |
+| user | No organization-record access until an assignment model exists |
 
 ## Audit Trail
 

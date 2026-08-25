@@ -8,8 +8,8 @@ use Manila time.
 
 | Role | Can do |
 |---|---|
-| **User** | View borrowers, loans, deposits, depositors (read-only) |
-| **Manager** | Everything User can, plus: create/edit records, approve/disburse loans, record payments and payouts, restructure, mark arrears/default, collections, reports |
+| **User** | No organization-record access until an assignment model exists |
+| **Manager** | View and create/edit borrowers, loans, deposits, and depositors; approve/disburse loans; record payments and payouts; restructure; mark arrears/default; use collections and reports |
 | **Admin** | Everything Manager can, plus: delete/restore records, write off loans, reverse payments/payouts, lock/unlock loans, business capital, user management, company profile, audit logs |
 
 Backend enforces every rule — hiding a button is convenience, not security.

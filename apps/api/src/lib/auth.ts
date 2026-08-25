@@ -78,7 +78,26 @@ export const auth = betterAuth({
             });
           }
 
-          const { role } = JSON.parse(marker.value) as { role: string };
+          const { invitationId, role } = JSON.parse(marker.value) as {
+            invitationId: string;
+            role: string;
+          };
+
+          const claimed = await prisma.invitation.updateMany({
+            where: {
+              id: invitationId,
+              email: user.email,
+              status: 'PENDING',
+              deletedAt: null,
+              expiresAt: { gt: new Date() },
+            },
+            data: { status: 'ACCEPTED', acceptedAt: new Date() },
+          });
+          if (claimed.count !== 1) {
+            throw new APIError('FORBIDDEN', {
+              message: 'Signup requires a valid invitation.',
+            });
+          }
 
           await prisma.verification.delete({ where: { id: marker.id } });
 
@@ -88,18 +107,6 @@ export const auth = betterAuth({
               role,
             },
           };
-        },
-        after: async (user) => {
-          await prisma.invitation.updateMany({
-            where: {
-              email: user.email,
-              status: 'PENDING',
-            },
-            data: {
-              status: 'ACCEPTED',
-              acceptedAt: new Date(),
-            },
-          });
         },
       },
     },

@@ -28,7 +28,7 @@ borrowersRouter.use(requireAuth);
 
 borrowersRouter.get(
   '/',
-  requireRole(['admin', 'manager', 'user']),
+  requireRole(['admin', 'manager']),
   validate(listBorrowersSchema, 'query'),
   (req, res, next) => {
     if ((req.validatedQuery as ListBorrowersInput).deleted && req.user!.role !== 'admin') {
@@ -43,7 +43,7 @@ borrowersRouter.get(
 
 borrowersRouter.get(
   '/:id',
-  requireRole(['admin', 'manager', 'user']),
+  requireRole(['admin', 'manager']),
   validate(borrowerParamsSchema, 'params'),
   devDelay(1500),
   getBorrowerController,
@@ -68,7 +68,7 @@ borrowersRouter.patch(
 
 borrowersRouter.get(
   '/:id/activity',
-  requireRole(['admin', 'manager', 'user']),
+  requireRole(['admin', 'manager']),
   validate(borrowerParamsSchema, 'params'),
   validate(listBorrowerActivitySchema, 'query'),
   devDelay(1500),

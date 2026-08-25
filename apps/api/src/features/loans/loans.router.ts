@@ -49,7 +49,7 @@ loansRouter.use(requireAuth);
 
 loansRouter.get(
   '/',
-  requireRole(['admin', 'manager', 'user']),
+  requireRole(['admin', 'manager']),
   validate(listLoansSchema, 'query'),
   (req, res, next) => {
     if ((req.validatedQuery as ListLoansInput).deleted && req.user!.role !== 'admin') {
@@ -63,7 +63,7 @@ loansRouter.get(
 
 loansRouter.get(
   '/:id',
-  requireRole(['admin', 'manager', 'user']),
+  requireRole(['admin', 'manager']),
   validate(loanParamsSchema, 'params'),
   getLoanController,
 );
@@ -187,7 +187,7 @@ loansRouter.post(
 
 loansRouter.get(
   '/:id/activity',
-  requireRole(['admin', 'manager', 'user']),
+  requireRole(['admin', 'manager']),
   validate(loanParamsSchema, 'params'),
   validate(listLoanActivitySchema, 'query'),
   listLoanActivityController,

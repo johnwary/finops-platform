@@ -169,9 +169,11 @@ describe('reports.service getSummary', () => {
       expect(call[0].where).toMatchObject({ deletedAt: null });
     }
 
-    // Collections: reversed payments excluded AND payments on soft-deleted loans excluded.
+    // Collections are historical cash movements: reversed payments are excluded,
+    // but payments survive an operational loan soft delete.
     const paymentWhere = mocks.prisma.loanPayment.aggregate.mock.calls[0][0].where;
-    expect(paymentWhere).toMatchObject({ reversedAt: null, loan: { deletedAt: null } });
+    expect(paymentWhere).toMatchObject({ reversedAt: null });
+    expect(paymentWhere).not.toHaveProperty('loan');
 
     // Capital: every aggregate excludes reversed entries.
     for (const call of mocks.prisma.capitalEntry.aggregate.mock.calls) {
