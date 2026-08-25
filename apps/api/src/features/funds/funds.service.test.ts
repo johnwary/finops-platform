@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => {
 vi.mock('../../lib/prisma', () => ({ prisma: mocks.prisma }));
 
 import { createFund, withdrawFund } from './funds.service.js';
+import { createFundSchema } from './funds.schema.js';
 
 const actor = { id: 'user-1' };
 
@@ -47,6 +48,12 @@ describe('funds.service createFund', () => {
     expect(mocks.tx.activityLog.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ action: 'FUND_ADDED' }) }),
     );
+  });
+});
+
+describe('createFundSchema', () => {
+  it('rejects fractions of a cent', () => {
+    expect(createFundSchema.safeParse({ amount: 100.001, dateAdded: new Date() }).success).toBe(false);
   });
 });
 

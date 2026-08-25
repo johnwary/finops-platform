@@ -4,7 +4,13 @@ import { z } from 'zod';
 const MAX_MONEY = 100_000_000;
 
 export const createFundSchema = z.object({
-  amount: z.coerce.number().positive().max(MAX_MONEY),
+  amount: z.coerce
+    .number()
+    .positive()
+    .max(MAX_MONEY)
+    .refine((amount) => /^\d+(?:\.\d{1,2})?$/.test(String(amount)), {
+      message: 'Amount must have at most two decimal places.',
+    }),
   dateAdded: z.coerce.date(),
   remarks: z.string().max(2000).trim().optional(),
 });
