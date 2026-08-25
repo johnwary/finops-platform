@@ -354,10 +354,10 @@ export async function reversePayout(
       throw new AppError('CONFLICT', 'Payout has already been reversed.', 409);
     }
 
-    // LIFO-only, mirroring loan payment reversal. See docs/business-rules.md.
+    // LIFO uses recording order, not backdatable paidAt. See docs/business-rules.md.
     const latest = await tx.depositPayout.findFirst({
       where: { depositId, reversedAt: null },
-      orderBy: [{ paidAt: 'desc' }, { createdAt: 'desc' }],
+      orderBy: { createdAt: 'desc' },
     });
     if (latest?.id !== payoutId) {
       throw new AppError(

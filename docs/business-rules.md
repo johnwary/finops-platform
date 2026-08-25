@@ -12,7 +12,8 @@ _Last updated: 2026-07-07_
 
 ### Payment reversal is LIFO-only
 Only the **most recent non-reversed payment** on a loan (or payout on a deposit) can be
-reversed. To fix an older entry, reverse newer ones first, then re-enter them.
+reversed, ordered by recording time rather than a caller-supplied payment date. To fix an
+older entry, reverse newer ones first, then re-enter them.
 
 - **Why:** payment allocation (penalties → interest → principal, oldest installment first)
   assumes every earlier payment stands. Reversing out of order leaves installment coverage

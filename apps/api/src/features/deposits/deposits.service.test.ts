@@ -229,6 +229,15 @@ describe('reversePayout', () => {
     expect(mocks.tx.deposit.update).not.toHaveBeenCalled();
   });
 
+  it('uses recording order for LIFO because paidAt can be backdated', async () => {
+    await reversePayout('dep-1', 'payout-1', { reason: 'Typo' }, actor);
+
+    expect(mocks.tx.depositPayout.findFirst).toHaveBeenLastCalledWith({
+      where: { depositId: 'dep-1', reversedAt: null },
+      orderBy: { createdAt: 'desc' },
+    });
+  });
+
   it('rejects a reversal without exactly one capital entry', async () => {
     mocks.tx.capitalEntry.updateMany.mockResolvedValue({ count: 0 });
 

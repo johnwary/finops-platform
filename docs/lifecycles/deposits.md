@@ -12,7 +12,7 @@ Source: `apps/api/src/features/deposits/`.
 | --- | --- | --- |
 | Create deposit | admin, manager | Creates an active deposit, capital `INFLOW/DEPOSIT`, and audit log. |
 | Record payout | admin, manager | Locks deposit; principal plus return must equal amount; cumulative principal cannot exceed deposit amount; creates capital `OUTFLOW/DEPOSIT_PAYOUT`. |
-| Reverse payout | admin | LIFO-only; marks payout and its capital entry reversed, restores cumulative totals, and records reason and actor. |
+| Reverse payout | admin | LIFO-only by recording order; marks payout and its capital entry reversed, restores cumulative totals, and records reason and actor. |
 | Withdraw or close | admin, manager | Locks active deposit, transitions state, and returns only principal not already returned through payouts. |
 | Delete | admin | Soft-delete only when no longer active. |
 
