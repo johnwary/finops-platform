@@ -271,6 +271,31 @@ describe('loans.service disburseLoan', () => {
     expect(installments[2].principal.toFixed(2)).toBe('333.34');
   });
 
+  it('never creates a negative final principal installment from cent rounding', async () => {
+    mocks.tx.$queryRaw.mockResolvedValue([{
+      ...approvedLoan,
+      amount: new Decimal(0.02),
+      remainingBalance: new Decimal(0.02),
+      interestRate: new Decimal(0),
+      termMonths: 4,
+    }]);
+
+    await disburseLoan(
+      'loan-1',
+      { disbursementMethod: 'CASH', disbursedAt: new Date('2024-01-01'), collectFee: true },
+      actor,
+    );
+
+    const installments = mocks.tx.loanInstallment.createMany.mock.calls[0][0].data;
+    const totalPrincipal = installments.reduce(
+      (sum: Decimal, i: { principal: Decimal }) => sum.plus(i.principal),
+      new Decimal(0),
+    );
+
+    expect(totalPrincipal.toFixed(2)).toBe('0.02');
+    expect(installments.every((i: { principal: Decimal }) => i.principal.greaterThanOrEqualTo(0))).toBe(true);
+  });
+
   it('generates interest-only installments with principal lump at end', async () => {
     const interestOnlyLoan = {
       ...approvedLoan,

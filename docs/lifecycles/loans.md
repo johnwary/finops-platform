@@ -23,12 +23,13 @@ Disbursement creates installments and moves an approved loan to `ACTIVE`. A paid
 ## Payment invariants
 
 1. Principal, fees, and payments are Philippine-peso whole-cent amounts. Interest and penalty rates have at most four decimal places.
-2. A payment uses the oldest unpaid installment first and allocates penalties, then interest, then principal.
-3. The minimum payment is outstanding penalties plus interest for the oldest unpaid installment.
-4. The payment cannot exceed the scheduled receivable. `remainingBalance` is principal-only; `totalPaid` includes every collected component.
-5. A payment marks an installment paid only after its principal and interest are fully allocated. The overdue job marks unpaid scheduled past-due installments overdue.
-6. Every lifecycle write locks the loan row in one transaction. This serializes payment, reversal, and loan-transition writes.
-7. Reversal is idempotent by rejection: an already-reversed payment returns a conflict. Only the latest non-reversed payment by recording order may be reversed.
+2. Scheduled principal is allocated in non-negative whole cents and totals exactly to the loan principal.
+3. A payment uses the oldest unpaid installment first and allocates penalties, then interest, then principal.
+4. The minimum payment is outstanding penalties plus interest for the oldest unpaid installment.
+5. The payment cannot exceed the scheduled receivable. `remainingBalance` is principal-only; `totalPaid` includes every collected component.
+6. A payment marks an installment paid only after its principal and interest are fully allocated. The overdue job marks unpaid scheduled past-due installments overdue.
+7. Every lifecycle write locks the loan row in one transaction. This serializes payment, reversal, and loan-transition writes.
+8. Reversal is idempotent by rejection: an already-reversed payment returns a conflict. Only the latest non-reversed payment by recording order may be reversed.
 
 ## Persistence and downstream effects
 

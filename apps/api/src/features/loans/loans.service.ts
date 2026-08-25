@@ -126,6 +126,7 @@ function buildInstallments(
   }
 
   const installments = [];
+  const rawPrincipalAmounts: Decimal[] = [];
 
   if (repaymentStructure === 'INTEREST_ONLY') {
     const interestPerPeriod = principal * periodRate;
@@ -151,26 +152,50 @@ function buildInstallments(
       const interestDue = balance * periodRate;
       const principalDue = Math.min(pmt - interestDue, balance);
       balance -= principalDue;
+      const rawPrincipal = new Decimal(principalDue);
+      rawPrincipalAmounts.push(rawPrincipal);
 
       installments.push({
         loanId,
         sequence: i,
         dueDate: installmentDueDate(startDate, frequency, i),
-        principal: new Decimal(principalDue).toDecimalPlaces(2),
+        principal: rawPrincipal.toDecimalPlaces(2),
         interest: new Decimal(interestDue).toDecimalPlaces(2),
       });
     }
-  }
 
-  const expectedPrincipal = new Decimal(principal).toDecimalPlaces(2);
-  const scheduledPrincipal = installments.reduce(
-    (sum, installment) => sum.plus(installment.principal),
-    new Decimal(0),
-  );
-  const roundingDelta = expectedPrincipal.minus(scheduledPrincipal);
-  if (!roundingDelta.equals(0)) {
-    const last = installments[installments.length - 1];
-    last.principal = last.principal.plus(roundingDelta).toDecimalPlaces(2);
+    const expectedPrincipal = new Decimal(principal).toDecimalPlaces(2);
+    const scheduledPrincipal = installments.reduce(
+      (sum, installment) => sum.plus(installment.principal),
+      new Decimal(0),
+    );
+    const roundingDelta = expectedPrincipal.minus(scheduledPrincipal);
+    const last = installments[installments.length - 1]!;
+    const adjustedLast = last.principal.plus(roundingDelta).toDecimalPlaces(2);
+
+    if (adjustedLast.greaterThanOrEqualTo(0)) {
+      last.principal = adjustedLast;
+    } else {
+      // Cent rounding overshot the principal. Round cumulative principal and
+      // derive each installment from the prior rounded total instead.
+      let rawCumulative = new Decimal(0);
+      let allocatedPrincipal = new Decimal(0);
+
+      for (const [index, installment] of installments.entries()) {
+        if (index === installments.length - 1) {
+          installment.principal = expectedPrincipal.minus(allocatedPrincipal);
+          break;
+        }
+
+        rawCumulative = rawCumulative.plus(rawPrincipalAmounts[index]!);
+        const roundedCumulative = rawCumulative.toDecimalPlaces(2);
+        const cappedCumulative = roundedCumulative.greaterThan(expectedPrincipal)
+          ? expectedPrincipal
+          : roundedCumulative;
+        installment.principal = cappedCumulative.minus(allocatedPrincipal);
+        allocatedPrincipal = cappedCumulative;
+      }
+    }
   }
 
   return installments;
