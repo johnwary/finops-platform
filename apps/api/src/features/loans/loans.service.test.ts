@@ -1078,15 +1078,19 @@ describe('loans.service restructureLoan', () => {
     expect(mocks.tx.loanInstallment.deleteMany).not.toHaveBeenCalled();
   });
 
-  it('considers only allocations from unreversed payments when blocking restructure', async () => {
-    await restructureLoan('loan-1', { termMonths: 6, reason: 'Hardship' }, actor);
+  it('blocks restructure for reversed-payment allocations to preserve audit history', async () => {
+    mocks.tx.loanPaymentAllocation.findFirst.mockResolvedValue({ id: 'alloc-1' });
+
+    await expect(
+      restructureLoan('loan-1', { termMonths: 6, reason: 'Hardship' }, actor),
+    ).rejects.toMatchObject({ code: 'CONFLICT', status: 409 });
 
     expect(mocks.tx.loanPaymentAllocation.findFirst).toHaveBeenCalledWith({
       where: {
-        payment: { reversedAt: null },
         installment: { loanId: 'loan-1', status: { not: 'PAID' } },
       },
     });
+    expect(mocks.tx.loanInstallment.deleteMany).not.toHaveBeenCalled();
   });
 
   it('rebuilds installment schedule and writes LOAN_RESTRUCTURED audit log', async () => {

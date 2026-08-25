@@ -735,16 +735,15 @@ export async function restructureLoan(id: string, data: RestructureLoanInput, ac
       throw new AppError('CONFLICT', 'No terms have changed. Update at least one field to restructure.', 409);
     }
 
-    // Block restructure if any unpaid installment has allocation rows — deleting them
-    // would cascade-wipe LoanPaymentAllocation and destroy repayment audit history.
+    // Block restructure if any unresolved installment has allocation rows: deleting it
+    // would cascade-delete immutable repayment audit history, including reversals.
     const allocatedUnpaid = await tx.loanPaymentAllocation.findFirst({
       where: {
-        payment: { reversedAt: null },
         installment: { loanId: id, status: { not: 'PAID' } },
       },
     });
     if (allocatedUnpaid) {
-      throw new AppError('CONFLICT', 'Cannot restructure: unpaid installments have recorded payment allocations. Fully apply or reverse those payments first.', 409);
+      throw new AppError('CONFLICT', 'Cannot restructure: unresolved installments have recorded payment allocations.', 409);
     }
 
     // Count paid installments so new sequences don't collide with preserved ones
