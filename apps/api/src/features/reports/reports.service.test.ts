@@ -152,7 +152,7 @@ describe('reports.service getSummary', () => {
     expect(r.collections.inPeriod.amount).toBe('0.00');
   });
 
-  it('EXCLUDES reversed payments and soft-deleted records from every rollup', async () => {
+  it('EXCLUDES reversed payments and excludes soft-deleted records only from portfolio rollups', async () => {
     stubSummaryCalls();
     await getSummary({ period: 'month' });
 
@@ -161,13 +161,17 @@ describe('reports.service getSummary', () => {
       expect(call[0].where).toMatchObject({ deletedAt: null });
     }
 
-    // Loan groupBy + aggregates: soft-delete filter everywhere.
+    // Current-state loan groupBy + outstanding portfolio exclude soft-deleted loans.
     for (const call of mocks.prisma.loan.groupBy.mock.calls) {
       expect(call[0].where).toMatchObject({ deletedAt: null });
     }
-    for (const call of mocks.prisma.loan.aggregate.mock.calls) {
-      expect(call[0].where).toMatchObject({ deletedAt: null });
-    }
+    expect(mocks.prisma.loan.aggregate.mock.calls[0][0].where).toMatchObject({ deletedAt: null });
+
+    // Disbursements are historical: status changes and soft deletion do not
+    // erase an amount that was actually lent in the period.
+    expect(mocks.prisma.loan.aggregate.mock.calls[1][0].where).toEqual({
+      disbursedAt: { gte: expect.any(Date) },
+    });
 
     // Collections are historical cash movements: reversed payments are excluded,
     // but payments survive an operational loan soft delete.

@@ -3,6 +3,30 @@ import { z } from 'zod';
 // Sanity ceiling — guard against fat-finger entries, not a policy limit.
 const MAX_MONEY = 100_000_000;
 
+const moneySchema = z.coerce
+  .number()
+  .positive()
+  .max(MAX_MONEY)
+  .refine((amount) => /^\d+(?:\.\d{1,2})?$/.test(String(amount)), {
+    message: 'Amount must have at most two decimal places.',
+  });
+
+const nonNegativeMoneySchema = z.coerce
+  .number()
+  .min(0)
+  .max(MAX_MONEY)
+  .refine((amount) => /^\d+(?:\.\d{1,2})?$/.test(String(amount)), {
+    message: 'Amount must have at most two decimal places.',
+  });
+
+const rateSchema = z.coerce
+  .number()
+  .min(0)
+  .max(1)
+  .refine((rate) => /^\d+(?:\.\d{1,4})?$/.test(String(rate)), {
+    message: 'Rate must have at most four decimal places.',
+  });
+
 const dateStringSchema = z
   .string()
   .refine((v) => !isNaN(Date.parse(v)), { message: 'Invalid date' })
@@ -12,14 +36,14 @@ const dateStringSchema = z
 export const createLoanSchema = z.object({
   borrowerId: z.uuid(),
   type: z.enum(['SALARY', 'BUSINESS', 'PERSONAL', 'PURCHASE_ORDER', 'PENSION', 'INVESTMENT']),
-  amount: z.coerce.number().positive().max(MAX_MONEY),
-  interestRate: z.coerce.number().min(0).max(1), // decimal fraction e.g. 0.03 = 3%
+  amount: moneySchema,
+  interestRate: rateSchema, // decimal fraction e.g. 0.03 = 3%
   termMonths: z.coerce.number().int().min(1).max(360),
   applicationDate: dateStringSchema,
   paymentFrequency: z.enum(['MONTHLY', 'BIWEEKLY', 'WEEKLY', 'DAILY']).default('MONTHLY'),
   repaymentStructure: z.enum(['AMORTIZING', 'INTEREST_ONLY']).default('AMORTIZING'),
-  loanFee: z.coerce.number().min(0).max(MAX_MONEY).optional(),
-  penaltyRate: z.coerce.number().min(0).max(1).optional(),
+  loanFee: nonNegativeMoneySchema.optional(),
+  penaltyRate: rateSchema.optional(),
   purpose: z.string().max(500).trim().optional(),
   notes: z.string().max(2000).trim().optional(),
 });
@@ -40,13 +64,7 @@ export const cancelLoanSchema = z.object({
 });
 
 export const recordPaymentSchema = z.object({
-  amount: z.coerce
-    .number()
-    .positive()
-    .max(MAX_MONEY)
-    .refine((amount) => /^\d+(?:\.\d{1,2})?$/.test(String(amount)), {
-      message: 'Amount must have at most two decimal places.',
-    }),
+  amount: moneySchema,
   paidAt: dateStringSchema.optional(),
   method: z.enum(['CASH', 'BANK_TRANSFER', 'GCASH', 'CHECK']),
   reference: z.string().max(255).trim().optional(),
@@ -100,7 +118,7 @@ export const listLoanActivitySchema = z.object({
 });
 
 export const restructureLoanSchema = z.object({
-  interestRate: z.coerce.number().min(0).max(1).optional(),
+  interestRate: rateSchema.optional(),
   termMonths: z.coerce.number().int().min(1).max(360).optional(),
   paymentFrequency: z.enum(['MONTHLY', 'BIWEEKLY', 'WEEKLY', 'DAILY']).optional(),
   repaymentStructure: z.enum(['AMORTIZING', 'INTEREST_ONLY']).optional(),

@@ -82,7 +82,7 @@ import {
   unlockLoan,
   writeOffLoan,
 } from './loans.service.js';
-import { recordPaymentSchema } from './loans.schema.js';
+import { createLoanSchema, recordPaymentSchema, restructureLoanSchema } from './loans.schema.js';
 
 const actor = { id: 'user-1' };
 
@@ -578,6 +578,29 @@ describe('loans.service recordPayment', () => {
 describe('recordPaymentSchema money precision', () => {
   it('rejects fractions of a cent', () => {
     expect(recordPaymentSchema.safeParse({ amount: 100.001, method: 'CASH' }).success).toBe(false);
+  });
+});
+
+describe('loan input precision', () => {
+  const createInput = {
+    borrowerId: '123e4567-e89b-12d3-a456-426614174000',
+    type: 'PERSONAL' as const,
+    amount: 1_000,
+    interestRate: 0.03,
+    termMonths: 12,
+    applicationDate: '2026-01-01',
+    paymentFrequency: 'MONTHLY',
+  };
+
+  it('rejects fractional-cent principal and fees', () => {
+    expect(createLoanSchema.safeParse({ ...createInput, amount: 1_000.001 }).success).toBe(false);
+    expect(createLoanSchema.safeParse({ ...createInput, loanFee: 1.001 }).success).toBe(false);
+  });
+
+  it('rejects rates beyond database precision', () => {
+    expect(createLoanSchema.safeParse({ ...createInput, interestRate: 0.01234 }).success).toBe(false);
+    expect(createLoanSchema.safeParse({ ...createInput, penaltyRate: 0.01234 }).success).toBe(false);
+    expect(restructureLoanSchema.safeParse({ interestRate: 0.01234, reason: 'Rate correction' }).success).toBe(false);
   });
 });
 

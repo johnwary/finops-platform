@@ -22,7 +22,7 @@ Disbursement creates installments and moves an approved loan to `ACTIVE`. A paid
 
 ## Payment invariants
 
-1. Monetary inputs are positive Philippine-peso whole-cent amounts.
+1. Principal, fees, and payments are Philippine-peso whole-cent amounts. Interest and penalty rates have at most four decimal places.
 2. A payment uses the oldest unpaid installment first and allocates penalties, then interest, then principal.
 3. The minimum payment is outstanding penalties plus interest for the oldest unpaid installment.
 4. The payment cannot exceed the scheduled receivable. `remainingBalance` is principal-only; `totalPaid` includes every collected component.

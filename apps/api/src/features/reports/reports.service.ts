@@ -96,9 +96,10 @@ export async function getSummary(input: PeriodInput) {
       _sum: { amount: true },
     }),
 
-    // Loans disbursed in period
+    // Disbursements are historical: later write-off or soft delete must not
+    // remove an actual loan disbursement from its original reporting period.
     prisma.loan.aggregate({
-      where: { status: { in: [...OUTSTANDING_LOAN_STATUSES, 'PAID'] }, disbursedAt: { gte: since }, deletedAt: null },
+      where: { disbursedAt: { gte: since } },
       _sum: { amount: true },
       _count: true,
     }),
