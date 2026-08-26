@@ -24,12 +24,13 @@ Disbursement creates installments and moves an approved loan to `ACTIVE`. A paid
 
 1. Principal, fees, and payments are Philippine-peso whole-cent amounts. Interest and penalty rates have at most four decimal places.
 2. Scheduled principal is allocated in non-negative whole cents and totals exactly to the loan principal.
-3. A payment uses the oldest unpaid installment first and allocates penalties, then interest, then principal.
-4. The minimum payment is outstanding penalties plus interest for the oldest unpaid installment.
-5. The payment cannot exceed the scheduled receivable. `remainingBalance` is principal-only; `totalPaid` includes every collected component.
-6. A payment marks an installment paid only after its principal and interest are fully allocated. The overdue job marks unpaid scheduled past-due installments overdue.
-7. Every lifecycle write locks the loan row in one transaction. This serializes payment, reversal, and loan-transition writes.
-8. Reversal is idempotent by rejection: an already-reversed payment returns a conflict. Only the latest non-reversed payment by recording order may be reversed.
+3. New loans use the `THIRTY_360` convention: `interestRate` remains a monthly rate, 30 days form a contractual month, and schedules run through the calendar maturity date. Existing loans without a convention retain their historical schedule.
+4. A payment uses the oldest unpaid installment first and allocates penalties, then interest, then principal.
+5. The minimum payment is outstanding penalties plus interest for the oldest unpaid installment.
+6. The payment cannot exceed the scheduled receivable. `remainingBalance` is principal-only; `totalPaid` includes every collected component.
+7. A payment marks an installment paid only after its principal and interest are fully allocated. The overdue job marks unpaid scheduled past-due installments overdue.
+8. Every lifecycle write locks the loan row in one transaction. This serializes payment, reversal, and loan-transition writes.
+9. Reversal is idempotent by rejection: an already-reversed payment returns a conflict. Only the latest non-reversed payment by recording order may be reversed.
 
 ## Persistence and downstream effects
 

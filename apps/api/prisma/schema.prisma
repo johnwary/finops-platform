@@ -145,6 +145,7 @@ model Loan {
   type               LoanType
   amount             Decimal            @db.Decimal(12, 2)
   interestRate       Decimal            @db.Decimal(7, 4) // e.g., 0.0300 = 3% monthly
+  accrualConvention  LoanAccrualConvention?
   termMonths         Int
   status             LoanStatus         @default(PENDING)
   applicationDate    DateTime
@@ -495,6 +496,10 @@ enum PaymentFrequency {
 enum RepaymentStructure {
   AMORTIZING
   INTEREST_ONLY
+}
+
+enum LoanAccrualConvention {
+  THIRTY_360
 }
 
 enum PaymentMethod {

@@ -61,6 +61,9 @@ PENDING → APPROVED → ACTIVE → PAID
 (enter 3 for 3%), term in months, payment frequency (monthly/biweekly/weekly/daily),
 structure:
 
+New loans use a 30/360 convention: the monthly rate accrues over contractual 30-day months,
+while due dates follow the chosen calendar frequency through the maturity date.
+
 - **Amortizing** — equal payment per period (principal + interest).
 - **Interest-only** — flat interest per period, full principal due on the last installment.
 

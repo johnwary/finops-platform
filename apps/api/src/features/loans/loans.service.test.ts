@@ -156,6 +156,9 @@ describe('loans.service createLoan', () => {
     );
 
     expect(mocks.tx.loan.create).toHaveBeenCalledOnce();
+    expect(mocks.tx.loan.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ accrualConvention: 'THIRTY_360' }) }),
+    );
     expect(mocks.tx.activityLog.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ action: 'LOAN_CREATED' }) }),
     );
@@ -269,6 +272,46 @@ describe('loans.service disburseLoan', () => {
 
     expect(totalPrincipal.toFixed(2)).toBe('1000.00');
     expect(installments[2].principal.toFixed(2)).toBe('333.34');
+  });
+
+  it('uses 30/360 rates and calendar maturity for new weekly loans', async () => {
+    mocks.tx.$queryRaw.mockResolvedValue([{
+      ...approvedLoan,
+      accrualConvention: 'THIRTY_360',
+      paymentFrequency: 'WEEKLY',
+      repaymentStructure: 'INTEREST_ONLY',
+      termMonths: 12,
+      interestRate: new Decimal(0.03),
+    }]);
+
+    await disburseLoan(
+      'loan-1',
+      { disbursementMethod: 'CASH', disbursedAt: new Date('2026-01-01'), collectFee: true },
+      actor,
+    );
+
+    const installments = mocks.tx.loanInstallment.createMany.mock.calls[0][0].data;
+    expect(installments).toHaveLength(53);
+    expect(installments[0].interest.toFixed(2)).toBe('7.00');
+    expect(installments.at(-1).dueDate).toEqual(new Date('2027-01-01T04:00:00.000Z'));
+    expect(installments.at(-1).interest.toFixed(2)).toBe('1.00');
+  });
+
+  it('keeps existing loans on the legacy schedule until explicitly migrated', async () => {
+    mocks.tx.$queryRaw.mockResolvedValue([{
+      ...approvedLoan,
+      accrualConvention: null,
+      paymentFrequency: 'WEEKLY',
+      termMonths: 12,
+    }]);
+
+    await disburseLoan(
+      'loan-1',
+      { disbursementMethod: 'CASH', disbursedAt: new Date('2026-01-01'), collectFee: true },
+      actor,
+    );
+
+    expect(mocks.tx.loanInstallment.createMany.mock.calls[0][0].data).toHaveLength(48);
   });
 
   it('never creates a negative final principal installment from cent rounding', async () => {

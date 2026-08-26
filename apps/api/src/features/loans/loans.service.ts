@@ -78,7 +78,7 @@ function installmentDueDate(start: Date, frequency: string, seq: number): Date {
 }
 
 /** Number of installments based on frequency and term in months */
-function installmentCount(termMonths: number, frequency: string): number {
+function legacyInstallmentCount(termMonths: number, frequency: string): number {
   switch (frequency) {
     case 'BIWEEKLY':
       return Math.round((termMonths * 4) / 2); // ~2 per month
@@ -91,6 +91,44 @@ function installmentCount(termMonths: number, frequency: string): number {
   }
 }
 
+function isLastDayOfFebruary(date: Date): boolean {
+  if (date.getUTCMonth() !== 1) return false;
+  return date.getUTCDate() === new Date(Date.UTC(date.getUTCFullYear(), 2, 0)).getUTCDate();
+}
+
+// 30/360 US: the contractual monthly rate accrues over thirty-day months.
+function thirty360Days(start: Date, end: Date): number {
+  let startDay = start.getUTCDate();
+  let endDay = end.getUTCDate();
+
+  if (isLastDayOfFebruary(start) || startDay === 31) startDay = 30;
+  if ((isLastDayOfFebruary(end) && isLastDayOfFebruary(start)) || (endDay === 31 && startDay === 30)) {
+    endDay = 30;
+  }
+
+  return (
+    (end.getUTCFullYear() - start.getUTCFullYear()) * 360 +
+    (end.getUTCMonth() - start.getUTCMonth()) * 30 +
+    endDay - startDay
+  );
+}
+
+function thirty360ScheduleDates(start: Date, termMonths: number, frequency: string) {
+  const maturityDate = addMonths(start, termMonths);
+  const dates: Array<{ dueDate: Date; accrualDays: number }> = [];
+  let previousDueDate = start;
+
+  for (let sequence = 1; ; sequence++) {
+    const scheduledDueDate = installmentDueDate(start, frequency, sequence);
+    const dueDate = scheduledDueDate >= maturityDate ? maturityDate : scheduledDueDate;
+    dates.push({ dueDate, accrualDays: thirty360Days(previousDueDate, dueDate) });
+    if (dueDate.getTime() === maturityDate.getTime()) break;
+    previousDueDate = dueDate;
+  }
+
+  return dates;
+}
+
 /** Amortizing: equal P+I per period. Interest-only: flat interest, principal lump at end. */
 function buildInstallments(
   loanId: string,
@@ -100,6 +138,7 @@ function buildInstallments(
   frequency: string,
   repaymentStructure: string,
   startDate: Date,
+  accrualConvention: Loan['accrualConvention'],
 ): Array<{
   loanId: string;
   sequence: number;
@@ -107,7 +146,10 @@ function buildInstallments(
   principal: Decimal;
   interest: Decimal;
 }> {
-  const count = installmentCount(termMonths, frequency);
+  const thirty360Dates = accrualConvention === 'THIRTY_360'
+    ? thirty360ScheduleDates(startDate, termMonths, frequency)
+    : null;
+  const count = thirty360Dates?.length ?? legacyInstallmentCount(termMonths, frequency);
 
   // Adjust rate for sub-monthly frequencies (simple proportional)
   let periodRate: number;
@@ -125,31 +167,36 @@ function buildInstallments(
       periodRate = monthlyRate;
   }
 
+  const periodRates = thirty360Dates
+    ? thirty360Dates.map(({ accrualDays }) => (monthlyRate * accrualDays) / 30)
+    : Array.from({ length: count }, () => periodRate);
   const installments = [];
   const rawPrincipalAmounts: Decimal[] = [];
 
   if (repaymentStructure === 'INTEREST_ONLY') {
-    const interestPerPeriod = principal * periodRate;
     for (let i = 1; i <= count; i++) {
       const isLast = i === count;
       installments.push({
         loanId,
         sequence: i,
-        dueDate: installmentDueDate(startDate, frequency, i),
+        dueDate: thirty360Dates?.[i - 1]!.dueDate ?? installmentDueDate(startDate, frequency, i),
         principal: new Decimal(isLast ? principal : 0).toDecimalPlaces(2),
-        interest: new Decimal(interestPerPeriod).toDecimalPlaces(2),
+        interest: new Decimal(principal * periodRates[i - 1]!).toDecimalPlaces(2),
       });
     }
   } else {
-    // Amortizing: PMT = P * r / (1 - (1+r)^-n)
+    // Amortizing: solve one payment across the schedule's actual period rates.
     let balance = principal;
-    const pmt =
-      periodRate === 0
-        ? principal / count
-        : (principal * periodRate) / (1 - Math.pow(1 + periodRate, -count));
+    let discount = 1;
+    let annuityFactor = 0;
+    for (const rate of periodRates) {
+      discount *= 1 + rate;
+      annuityFactor += 1 / discount;
+    }
+    const pmt = principal / annuityFactor;
 
     for (let i = 1; i <= count; i++) {
-      const interestDue = balance * periodRate;
+      const interestDue = balance * periodRates[i - 1]!;
       const principalDue = Math.min(pmt - interestDue, balance);
       balance -= principalDue;
       const rawPrincipal = new Decimal(principalDue);
@@ -158,7 +205,7 @@ function buildInstallments(
       installments.push({
         loanId,
         sequence: i,
-        dueDate: installmentDueDate(startDate, frequency, i),
+        dueDate: thirty360Dates?.[i - 1]!.dueDate ?? installmentDueDate(startDate, frequency, i),
         principal: rawPrincipal.toDecimalPlaces(2),
         interest: new Decimal(interestDue).toDecimalPlaces(2),
       });
@@ -217,6 +264,7 @@ export async function createLoan(data: CreateLoanInput, actor: Actor) {
           type: data.type,
           amount: new Decimal(data.amount),
           interestRate: new Decimal(data.interestRate),
+          accrualConvention: 'THIRTY_360',
           termMonths: data.termMonths,
           applicationDate: data.applicationDate,
           paymentFrequency: data.paymentFrequency,
@@ -367,6 +415,7 @@ export async function disburseLoan(id: string, data: DisburseLoanInput, actor: A
       loan.paymentFrequency,
       loan.repaymentStructure,
       disbursedAt,
+      loan.accrualConvention,
     );
     // End date = final installment due date, so it tracks the actual schedule
     // for every payment frequency.
@@ -790,6 +839,7 @@ export async function restructureLoan(id: string, data: RestructureLoanInput, ac
       newFrequency,
       newStructure,
       new Date(),
+      loan.accrualConvention,
     ).map((inst) => ({ ...inst, sequence: inst.sequence + paidCount }));
 
     await tx.loanInstallment.createMany({ data: installments });
