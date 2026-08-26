@@ -145,7 +145,7 @@ model Loan {
   type               LoanType
   amount             Decimal            @db.Decimal(12, 2)
   interestRate       Decimal            @db.Decimal(7, 4) // e.g., 0.0300 = 3% monthly
-  accrualConvention  LoanAccrualConvention?
+  accrualConvention  LoanAccrualConvention  @default(THIRTY_360)
   termMonths         Int
   status             LoanStatus         @default(PENDING)
   applicationDate    DateTime

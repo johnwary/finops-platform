@@ -77,20 +77,6 @@ function installmentDueDate(start: Date, frequency: string, seq: number): Date {
   }
 }
 
-/** Number of installments based on frequency and term in months */
-function legacyInstallmentCount(termMonths: number, frequency: string): number {
-  switch (frequency) {
-    case 'BIWEEKLY':
-      return Math.round((termMonths * 4) / 2); // ~2 per month
-    case 'WEEKLY':
-      return termMonths * 4;
-    case 'DAILY':
-      return termMonths * 30;
-    default: // MONTHLY
-      return termMonths;
-  }
-}
-
 function isLastDayOfFebruary(date: Date): boolean {
   if (date.getUTCMonth() !== 1) return false;
   return date.getUTCDate() === new Date(Date.UTC(date.getUTCFullYear(), 2, 0)).getUTCDate();
@@ -138,7 +124,6 @@ function buildInstallments(
   frequency: string,
   repaymentStructure: string,
   startDate: Date,
-  accrualConvention: Loan['accrualConvention'],
 ): Array<{
   loanId: string;
   sequence: number;
@@ -146,30 +131,9 @@ function buildInstallments(
   principal: Decimal;
   interest: Decimal;
 }> {
-  const thirty360Dates = accrualConvention === 'THIRTY_360'
-    ? thirty360ScheduleDates(startDate, termMonths, frequency)
-    : null;
-  const count = thirty360Dates?.length ?? legacyInstallmentCount(termMonths, frequency);
-
-  // Adjust rate for sub-monthly frequencies (simple proportional)
-  let periodRate: number;
-  switch (frequency) {
-    case 'BIWEEKLY':
-      periodRate = (monthlyRate * 12) / 26;
-      break;
-    case 'WEEKLY':
-      periodRate = (monthlyRate * 12) / 52;
-      break;
-    case 'DAILY':
-      periodRate = (monthlyRate * 12) / 365;
-      break;
-    default:
-      periodRate = monthlyRate;
-  }
-
-  const periodRates = thirty360Dates
-    ? thirty360Dates.map(({ accrualDays }) => (monthlyRate * accrualDays) / 30)
-    : Array.from({ length: count }, () => periodRate);
+  const thirty360Dates = thirty360ScheduleDates(startDate, termMonths, frequency);
+  const count = thirty360Dates.length;
+  const periodRates = thirty360Dates.map(({ accrualDays }) => (monthlyRate * accrualDays) / 30);
   const installments = [];
   const rawPrincipalAmounts: Decimal[] = [];
 
@@ -179,7 +143,7 @@ function buildInstallments(
       installments.push({
         loanId,
         sequence: i,
-        dueDate: thirty360Dates?.[i - 1]!.dueDate ?? installmentDueDate(startDate, frequency, i),
+        dueDate: thirty360Dates[i - 1]!.dueDate,
         principal: new Decimal(isLast ? principal : 0).toDecimalPlaces(2),
         interest: new Decimal(principal * periodRates[i - 1]!).toDecimalPlaces(2),
       });
@@ -205,7 +169,7 @@ function buildInstallments(
       installments.push({
         loanId,
         sequence: i,
-        dueDate: thirty360Dates?.[i - 1]!.dueDate ?? installmentDueDate(startDate, frequency, i),
+        dueDate: thirty360Dates[i - 1]!.dueDate,
         principal: rawPrincipal.toDecimalPlaces(2),
         interest: new Decimal(interestDue).toDecimalPlaces(2),
       });
@@ -415,7 +379,6 @@ export async function disburseLoan(id: string, data: DisburseLoanInput, actor: A
       loan.paymentFrequency,
       loan.repaymentStructure,
       disbursedAt,
-      loan.accrualConvention,
     );
     // End date = final installment due date, so it tracks the actual schedule
     // for every payment frequency.
@@ -839,7 +802,6 @@ export async function restructureLoan(id: string, data: RestructureLoanInput, ac
       newFrequency,
       newStructure,
       new Date(),
-      loan.accrualConvention,
     ).map((inst) => ({ ...inst, sequence: inst.sequence + paidCount }));
 
     await tx.loanInstallment.createMany({ data: installments });

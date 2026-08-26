@@ -24,7 +24,7 @@ Disbursement creates installments and moves an approved loan to `ACTIVE`. A paid
 
 1. Principal, fees, and payments are Philippine-peso whole-cent amounts. Interest and penalty rates have at most four decimal places.
 2. Scheduled principal is allocated in non-negative whole cents and totals exactly to the loan principal.
-3. New loans use the `THIRTY_360` convention: `interestRate` remains a monthly rate, 30 days form a contractual month, and schedules run through the calendar maturity date. Existing loans without a convention retain their historical schedule.
+3. Loans use the `THIRTY_360` convention: `interestRate` remains a monthly rate, 30 days form a contractual month, and schedules run through the calendar maturity date.
 4. A payment uses the oldest unpaid installment first and allocates penalties, then interest, then principal.
 5. The minimum payment is outstanding penalties plus interest for the oldest unpaid installment.
 6. The payment cannot exceed the scheduled receivable. `remainingBalance` is principal-only; `totalPaid` includes every collected component.

@@ -46,7 +46,7 @@ visible as its own inflow line.
 ### New loan schedules use 30/360 monthly-rate accrual
 New loans store `THIRTY_360`: a monthly interest rate accrues over contractual 30-day months.
 Due dates follow the selected calendar frequency through the calendar maturity date, including a
-final stub period when needed. Existing loans retain their historical schedule convention.
+final stub period when needed.
 
 ### Loan lock is an admin collections freeze
 `Loan.locked` blocks `recordPayment` only. It does not change status, stop penalty

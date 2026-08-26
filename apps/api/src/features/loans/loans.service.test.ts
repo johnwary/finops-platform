@@ -297,23 +297,6 @@ describe('loans.service disburseLoan', () => {
     expect(installments.at(-1).interest.toFixed(2)).toBe('1.00');
   });
 
-  it('keeps existing loans on the legacy schedule until explicitly migrated', async () => {
-    mocks.tx.$queryRaw.mockResolvedValue([{
-      ...approvedLoan,
-      accrualConvention: null,
-      paymentFrequency: 'WEEKLY',
-      termMonths: 12,
-    }]);
-
-    await disburseLoan(
-      'loan-1',
-      { disbursementMethod: 'CASH', disbursedAt: new Date('2026-01-01'), collectFee: true },
-      actor,
-    );
-
-    expect(mocks.tx.loanInstallment.createMany.mock.calls[0][0].data).toHaveLength(48);
-  });
-
   it('never creates a negative final principal installment from cent rounding', async () => {
     mocks.tx.$queryRaw.mockResolvedValue([{
       ...approvedLoan,
